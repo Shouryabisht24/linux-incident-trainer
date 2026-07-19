@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-devops_trainer}
+      POSTGRES_USER: ${POSTGRES_USER:-trainer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-trainer}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - internal
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-trainer}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-devops_trainer}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      CHALLENGE_CONTAINER_NETWORK: devops-trainer-challenges
+      MAX_CONCURRENT_SESSIONS: 3
+      PORT: 4000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./challenges:/app/challenges:ro
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - internal
+
+# Note: the "devops-trainer-challenges" network that spawned challenge
+# containers join is intentionally NOT declared here. Compose prunes any
+# top-level network no service is attached to (verified during Phase 0
+# scaffolding), so it can't be pre-created this way. Instead
+# backend/src/services/docker.service.ts creates it at startup via
+# dockerode (Docker's createNetwork API) if it doesn't already exist.
+networks:
+  internal: {}
+
+volumes:
+  pgdata: {}
