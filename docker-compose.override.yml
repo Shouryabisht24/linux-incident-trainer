@@ -7,6 +7,11 @@ services:
     command: npm run dev
     environment:
       NODE_ENV: development
+      # Docker Desktop's gRPC-FUSE bind mounts don't reliably deliver inotify
+      # events, so tsx's default file watcher can silently miss edits (see
+      # decisions/ for the incident this was found in). Force polling instead.
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "300"
     volumes:
       - ./backend/src:/app/src
       - ./backend/package.json:/app/package.json

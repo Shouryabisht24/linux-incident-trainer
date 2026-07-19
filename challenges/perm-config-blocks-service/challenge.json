@@ -1,0 +1,12 @@
+{
+  "slug": "perm-config-blocks-service",
+  "title": "nginx returns 403: permission denied serving files",
+  "category": "permissions-ownership",
+  "difficulty": "beginner",
+  "description_md": "A teammate says the nginx web server on this box was working fine, but after a routine maintenance script ran last night, visitors now get an error page. SSH in as `trainee` (you have full passwordless `sudo`), figure out what's wrong, and get it serving traffic on port 80 again.\n\nYou'll know you're done when `curl localhost` returns nginx's default page with a 200 status.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 15,
+  "content_version": 2
+}

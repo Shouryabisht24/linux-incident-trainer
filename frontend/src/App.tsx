@@ -1,20 +1,19 @@
-import { useEffect, useState } from "react";
-
-type BackendStatus = "checking" | "ok" | "error";
+import { useState } from "react";
+import { AuthForm } from "./components/AuthForm";
+import { ChallengeDetail } from "./components/ChallengeDetail";
+import { ChallengeList } from "./components/ChallengeList";
+import { useAuth } from "./context/AuthContext";
 
 export default function App() {
-  const [status, setStatus] = useState<BackendStatus>("checking");
+  const { user, loading } = useAuth();
+  const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/health")
-      .then((res) => (res.ok ? setStatus("ok") : setStatus("error")))
-      .catch(() => setStatus("error"));
-  }, []);
+  if (loading) return null;
+  if (!user) return <AuthForm />;
 
-  return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: "2rem" }}>
-      <h1>DevOps Troubleshooting Trainer</h1>
-      <p>Backend status: {status}</p>
-    </main>
+  return selectedSlug ? (
+    <ChallengeDetail slug={selectedSlug} onBack={() => setSelectedSlug(null)} />
+  ) : (
+    <ChallengeList onSelect={setSelectedSlug} />
   );
 }

@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Challenge",
+  "type": "object",
+  "required": ["slug", "title", "category", "difficulty", "description_md", "content_version"],
+  "properties": {
+    "slug": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "title": { "type": "string" },
+    "category": { "type": "string", "description": "Must match a category slug." },
+    "difficulty": { "type": "string", "enum": ["beginner", "intermediate", "hard"] },
+    "description_md": { "type": "string" },
+    "requires_network": { "type": "boolean", "default": false },
+    "requires_systemd": { "type": "boolean", "default": false },
+    "resource_limits": {
+      "type": "object",
+      "properties": {
+        "memoryMb": { "type": "integer", "minimum": 32 },
+        "cpus": { "type": "number", "minimum": 0.1 },
+        "pidsLimit": { "type": "integer", "minimum": 10 }
+      }
+    },
+    "time_limit_minutes": { "type": "integer", "minimum": 1 },
+    "content_version": { "type": "integer", "minimum": 1 }
+  }
+}

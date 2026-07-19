@@ -5,6 +5,8 @@ FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
+COPY migrations ./migrations
+COPY scripts ./scripts
 
 # ---- build ----
 FROM deps AS build
@@ -19,6 +21,7 @@ ENV NODE_ENV=production
 COPY package*.json ./
 RUN npm install --omit=dev && npm cache clean --force
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/migrations ./migrations
 
 EXPOSE 4000
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \

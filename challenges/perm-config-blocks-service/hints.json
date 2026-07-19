@@ -1,0 +1,14 @@
+[
+  {
+    "order_index": 1,
+    "text": "Start nginx (`sudo service nginx start`) — it'll report success. Now actually request the page: `curl -v localhost`. What status code do you get, and what does that status code generally mean?"
+  },
+  {
+    "order_index": 2,
+    "text": "A 403 from nginx almost always means the worker process — which runs as the unprivileged `www-data` user, not root — can't read the files it's trying to serve. Check permissions with `ls -la /var/www/html`."
+  },
+  {
+    "order_index": 3,
+    "text": "Fix it so `www-data` can traverse the directory and read the file: `sudo chmod 755 /var/www/html && sudo chmod 644 /var/www/html/index.nginx-debian.html`. Then retry `curl localhost`."
+  }
+]
