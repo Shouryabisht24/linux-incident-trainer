@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { ErrorBanner } from "./ui";
 
 export function AuthForm() {
   const { login, signup } = useAuth();
@@ -28,20 +29,15 @@ export function AuthForm() {
   }
 
   return (
-    <div style={{ maxWidth: 360, margin: "4rem auto", fontFamily: "system-ui, sans-serif" }}>
+    <div className="page page-narrow">
       <h1>Linux Incident Trainer</h1>
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        <label>
+      <p className="muted">Practice real production incidents in a live broken container.</p>
+      <form onSubmit={handleSubmit} className="stack card">
+        <label className="field">
           Email
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{ display: "block", width: "100%" }}
-          />
+          <input type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} />
         </label>
-        <label>
+        <label className="field">
           Password
           <input
             type="password"
@@ -49,30 +45,20 @@ export function AuthForm() {
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            style={{ display: "block", width: "100%" }}
           />
         </label>
         {mode === "signup" && (
-          <label>
+          <label className="field">
             Display name (optional)
-            <input
-              type="text"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              style={{ display: "block", width: "100%" }}
-            />
+            <input type="text" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
           </label>
         )}
-        {error && <p style={{ color: "crimson" }}>{error}</p>}
-        <button type="submit" disabled={submitting}>
-          {mode === "login" ? "Log in" : "Sign up"}
+        {error && <ErrorBanner message={error} />}
+        <button type="submit" className="btn btn-primary" disabled={submitting}>
+          {submitting ? "Please wait…" : mode === "login" ? "Log in" : "Sign up"}
         </button>
       </form>
-      <button
-        type="button"
-        onClick={() => setMode(mode === "login" ? "signup" : "login")}
-        style={{ marginTop: "1rem", background: "none", border: "none", textDecoration: "underline", cursor: "pointer" }}
-      >
+      <button type="button" className="btn btn-ghost" style={{ marginTop: "1rem" }} onClick={() => setMode(mode === "login" ? "signup" : "login")}>
         {mode === "login" ? "Need an account? Sign up" : "Already have an account? Log in"}
       </button>
     </div>

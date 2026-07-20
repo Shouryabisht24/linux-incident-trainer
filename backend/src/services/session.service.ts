@@ -193,6 +193,30 @@ export async function getSessionForUser(sessionId: string, userId: string): Prom
   return getOwnedSession(sessionId, userId);
 }
 
+export interface ActiveSession extends Session {
+  challenge_slug: string;
+  challenge_title: string;
+}
+
+/**
+ * Returns the current user's single active (starting/running/checking) session, if any,
+ * joined with its challenge slug/title so the frontend can resume straight into the right
+ * challenge page after a refresh without a second round trip. Added for Phase 3's
+ * resume-on-refresh requirement — decisions/0008-*.md.
+ */
+export async function getActiveSessionForUser(userId: string): Promise<ActiveSession | null> {
+  const result = await pool.query<ActiveSession>(
+    `SELECT s.*, c.slug AS challenge_slug, c.title AS challenge_title
+     FROM sessions s
+     JOIN challenges c ON c.id = s.challenge_id
+     WHERE s.user_id = $1 AND s.status = ANY($2)
+     ORDER BY s.started_at DESC
+     LIMIT 1`,
+    [userId, ACTIVE_STATUSES],
+  );
+  return result.rows[0] ?? null;
+}
+
 export function issueWsTicket(sessionId: string, userId: string): string {
   return jwt.sign({ sessionId, sub: userId, type: "ws-ticket" }, JWT_SECRET, { expiresIn: "60s" });
 }

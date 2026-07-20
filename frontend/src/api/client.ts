@@ -24,6 +24,35 @@ export interface ChallengeDetail {
   hintCount: number;
 }
 
+export interface Category {
+  slug: string;
+  name: string;
+  description: string | null;
+}
+
+export type SessionStatus = "starting" | "running" | "checking" | "solved" | "abandoned" | "error" | "expired";
+
+export interface ActiveSession {
+  id: string;
+  status: SessionStatus;
+  hints_used: number;
+  challenge_slug: string;
+  challenge_title: string;
+}
+
+export interface ProgressCategory {
+  slug: string;
+  name: string;
+  total: number;
+  solved: number;
+}
+
+export interface Progress {
+  total: number;
+  solved: number;
+  categories: ProgressCategory[];
+}
+
 export function getToken(): string | null {
   return localStorage.getItem("token");
 }
@@ -62,12 +91,14 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
   me: () => request<{ user: AuthUser }>("/api/auth/me"),
+  listCategories: () => request<{ categories: Category[] }>("/api/categories"),
   listChallenges: () => request<{ challenges: ChallengeSummary[] }>("/api/challenges"),
   getChallenge: (slug: string) => request<ChallengeDetail>(`/api/challenges/${slug}`),
   startSession: (slug: string) =>
     request<{ sessionId: string; wsTicket: string; expiresInSeconds: number }>(`/api/challenges/${slug}/sessions`, {
       method: "POST",
     }),
+  getActiveSession: () => request<{ session: ActiveSession | null }>("/api/sessions/active"),
   stopSession: (id: string) => request<{ ok: true }>(`/api/sessions/${id}/stop`, { method: "POST" }),
   refreshWsTicket: (id: string) =>
     request<{ wsTicket: string; expiresInSeconds: number }>(`/api/sessions/${id}/ws-ticket`, { method: "POST" }),
@@ -80,4 +111,5 @@ export const api = {
       method: "POST",
     }),
   getSolution: (id: string) => request<{ solutionMd: string }>(`/api/sessions/${id}/solution`),
+  getProgress: () => request<Progress>("/api/progress"),
 };

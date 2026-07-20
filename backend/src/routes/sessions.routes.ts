@@ -3,6 +3,7 @@ import { asyncRoute } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import {
   checkSession,
+  getActiveSessionForUser,
   getHintsState,
   getSessionForUser,
   getSolution,
@@ -15,6 +16,15 @@ import {
 export const sessionsRouter = Router();
 
 sessionsRouter.use(requireAuth);
+
+// Registered before "/:id" so the literal path wins over the param route.
+sessionsRouter.get(
+  "/active",
+  asyncRoute(async (req, res) => {
+    const session = await getActiveSessionForUser(req.userId!);
+    res.json({ session });
+  }),
+);
 
 sessionsRouter.get(
   "/:id",
