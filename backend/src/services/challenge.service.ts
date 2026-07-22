@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { pool } from "../db/pool.js";
+import { logger } from "../lib/logger.js";
 
 const FIXED_CATEGORIES = [
   { slug: "permissions-ownership", name: "Permissions & Ownership" },
@@ -24,6 +25,7 @@ interface ChallengeJson {
   requires_network?: boolean;
   requires_systemd?: boolean;
   resource_limits?: { memoryMb?: number; cpus?: number; pidsLimit?: number };
+  tmpfs?: Record<string, string>;
   time_limit_minutes?: number;
   content_version: number;
 }
@@ -44,6 +46,7 @@ export interface Challenge {
   requires_network: boolean;
   requires_systemd: boolean;
   resource_limits: { memoryMb?: number; cpus?: number; pidsLimit?: number } | null;
+  tmpfs: Record<string, string> | null;
   time_limit_minutes: number | null;
   content_version: number;
   solution_md: string;
@@ -85,17 +88,17 @@ export async function syncChallengesFromDisk(challengesDir: string): Promise<voi
     ]);
     const categoryId = categoryResult.rows[0]?.id;
     if (!categoryId) {
-      console.warn(`skipping challenge "${challenge.slug}": unknown category "${challenge.category}"`);
+      logger.warn("skipping challenge: unknown category", { slug: challenge.slug, category: challenge.category });
       continue;
     }
 
     const upserted = await pool.query<{ id: string }>(
       `INSERT INTO challenges (
          slug, title, category_id, difficulty, description_md,
-         requires_network, requires_systemd, resource_limits,
+         requires_network, requires_systemd, resource_limits, tmpfs,
          time_limit_minutes, content_version, solution_md
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        ON CONFLICT (slug) DO UPDATE SET
          title = EXCLUDED.title,
          category_id = EXCLUDED.category_id,
@@ -104,6 +107,7 @@ export async function syncChallengesFromDisk(challengesDir: string): Promise<voi
          requires_network = EXCLUDED.requires_network,
          requires_systemd = EXCLUDED.requires_systemd,
          resource_limits = EXCLUDED.resource_limits,
+         tmpfs = EXCLUDED.tmpfs,
          time_limit_minutes = EXCLUDED.time_limit_minutes,
          content_version = EXCLUDED.content_version,
          solution_md = EXCLUDED.solution_md,
@@ -118,6 +122,7 @@ export async function syncChallengesFromDisk(challengesDir: string): Promise<voi
         challenge.requires_network ?? false,
         challenge.requires_systemd ?? false,
         challenge.resource_limits ? JSON.stringify(challenge.resource_limits) : null,
+        challenge.tmpfs ? JSON.stringify(challenge.tmpfs) : null,
         challenge.time_limit_minutes ?? null,
         challenge.content_version,
         solutionMd,
@@ -134,7 +139,7 @@ export async function syncChallengesFromDisk(challengesDir: string): Promise<voi
       ]);
     }
 
-    console.log(`synced challenge: ${challenge.slug} (${hints.length} hints)`);
+    logger.info("synced challenge", { slug: challenge.slug, hints: hints.length });
   }
 }
 
@@ -144,7 +149,7 @@ export async function listChallenges(userId: string): Promise<
   const result = await pool.query(
     `SELECT c.id, c.slug, c.title, cat.slug AS category_slug, cat.name AS category_name,
             c.difficulty, c.description_md, c.requires_network, c.requires_systemd,
-            c.resource_limits, c.time_limit_minutes, c.content_version, c.solution_md, c.is_active,
+            c.resource_limits, c.tmpfs, c.time_limit_minutes, c.content_version, c.solution_md, c.is_active,
             COALESCE(p.best_status = 'solved', false) AS solved
      FROM challenges c
      JOIN categories cat ON cat.id = c.category_id
@@ -160,7 +165,7 @@ export async function getChallengeBySlug(slug: string): Promise<Challenge | null
   const result = await pool.query(
     `SELECT c.id, c.slug, c.title, cat.slug AS category_slug, cat.name AS category_name,
             c.difficulty, c.description_md, c.requires_network, c.requires_systemd,
-            c.resource_limits, c.time_limit_minutes, c.content_version, c.solution_md, c.is_active
+            c.resource_limits, c.tmpfs, c.time_limit_minutes, c.content_version, c.solution_md, c.is_active
      FROM challenges c
      JOIN categories cat ON cat.id = c.category_id
      WHERE c.slug = $1`,

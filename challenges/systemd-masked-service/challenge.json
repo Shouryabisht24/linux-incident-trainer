@@ -1,0 +1,12 @@
+{
+  "slug": "systemd-masked-service",
+  "title": "nginx won't start and systemctl start does nothing useful",
+  "category": "systemd-services",
+  "difficulty": "intermediate",
+  "description_md": "nginx should be running, but it isn't — and when you try `systemctl start nginx` it refuses in a way that confuses everyone. A previous admin 'made sure it could never start on its own' during an incident and never undid it. SSH in as `trainee` (passwordless `sudo`), figure out what state the unit is in, undo it, and get nginx running.\n\nYou're done when `systemctl is-active nginx` reports `active`.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

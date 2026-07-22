@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "`curl -i http://localhost:8080/` returns `502 Bad Gateway`. That's nginx failing to reach its upstream. Check the error log for the exact reason: `sudo tail /var/log/nginx/error.log` — look for `connect() ... failed`." },
+  { "order_index": 2, "text": "The log shows nginx trying to connect to `127.0.0.1:3000`, but the backend is actually on 3001. Confirm with `sudo ss -tlnp | grep -E '3000|3001'` — only 3001 is listening." },
+  { "order_index": 3, "text": "Fix `proxy_pass` in `/etc/nginx/conf.d/proxy.conf` to `http://127.0.0.1:3001;`, then `sudo nginx -t && sudo nginx -s reload`. Re-test `curl http://localhost:8080/`." }
+]

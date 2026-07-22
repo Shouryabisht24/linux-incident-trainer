@@ -1,0 +1,12 @@
+{
+  "slug": "systemd-bad-execstart-path",
+  "title": "Service fails with status=203/EXEC after a package move",
+  "category": "systemd-services",
+  "difficulty": "intermediate",
+  "description_md": "The `apiserver` service fails immediately on start. `systemctl status` shows `status=203/EXEC`. The binary was relocated by a package update, but its unit file wasn't updated to match. SSH in as `trainee` (passwordless `sudo`), correct the unit so it points at the real binary, reload systemd, and get it running.\n\nYou're done when `systemctl is-active apiserver` reports `active`.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

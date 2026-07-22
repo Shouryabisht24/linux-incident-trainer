@@ -1,0 +1,12 @@
+{
+  "slug": "user-not-in-group",
+  "title": "Deploy user can't write to the shared app directory",
+  "category": "users-groups-sudo",
+  "difficulty": "beginner",
+  "description_md": "Deployments run as the `deploy` user and write into `/srv/app`, which is group-owned by `appteam` and group-writable. A new hire set up the `deploy` account but it still can't write there, failing every release with `Permission denied`. SSH in as `trainee` (passwordless `sudo`), work out what group membership is missing, and fix it.\n\nYou're done when the `deploy` user can create files in `/srv/app`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

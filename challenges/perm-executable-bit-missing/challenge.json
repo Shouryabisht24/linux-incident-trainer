@@ -1,0 +1,12 @@
+{
+  "slug": "perm-executable-bit-missing",
+  "title": "Health check fails: script is not executable",
+  "category": "permissions-ownership",
+  "difficulty": "beginner",
+  "description_md": "The monitoring agent runs as the unprivileged `monitor` user and executes `/usr/local/bin/healthcheck` every minute. Since a config-management run 'normalised' file modes last night, the agent logs `Permission denied` and the health check never runs. SSH in as `trainee` (passwordless `sudo`), find out why the script won't execute, and fix it.\n\nYou're done when the `monitor` user can execute `/usr/local/bin/healthcheck`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 8,
+  "content_version": 1
+}

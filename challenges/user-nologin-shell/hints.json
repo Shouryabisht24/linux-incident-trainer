@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "Reproduce: `su - ci -c 'echo ok'` prints 'This account is currently not available'. That message comes from `/usr/sbin/nologin` being set as the account's shell." },
+  { "order_index": 2, "text": "Confirm the shell: `getent passwd ci` — the last field is `/usr/sbin/nologin`. A service account that needs to run login-shell jobs needs a real shell." },
+  { "order_index": 3, "text": "Give it a valid shell: `sudo usermod -s /bin/bash ci` (or `/bin/sh`). Verify with `su - ci -c 'echo ok'`." }
+]

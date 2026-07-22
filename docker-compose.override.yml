@@ -4,7 +4,14 @@ services:
   backend:
     build:
       target: deps
+    # NOTE: dev uses tsx's file watcher for hot reload, which runs the app in a
+    # child process it hard-kills on SIGTERM — so the app's graceful-shutdown
+    # drain does NOT run under `docker compose down` in dev mode. That's fine:
+    # boot-time orphan reconciliation (index.ts) removes any leftover challenge
+    # containers on the next `docker compose up`. The graceful drain matters for
+    # the production image (node as PID 1, no watcher) and is verified there.
     command: npm run dev
+    stop_grace_period: 20s
     environment:
       NODE_ENV: development
       # Docker Desktop's gRPC-FUSE bind mounts don't reliably deliver inotify

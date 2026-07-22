@@ -19,6 +19,11 @@
         "pidsLimit": { "type": "integer", "minimum": 10 }
       }
     },
+    "tmpfs": {
+      "type": "object",
+      "description": "Map of mount path -> tmpfs options (e.g. \"size=16m\"). Mounted rw in the challenge container; used for size-bounded, fillable filesystems (disk-full scenarios) since host bind-mounts are disallowed.",
+      "additionalProperties": { "type": "string" }
+    },
     "time_limit_minutes": { "type": "integer", "minimum": 1 },
     "content_version": { "type": "integer", "minimum": 1 }
   }

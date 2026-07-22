@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "`curl http://localhost:8080/` gives connection refused — nothing is listening there. List what IS listening: `sudo ss -tlnp` (or `ss -tln`)." },
+  { "order_index": 2, "text": "`ss -tlnp` shows nginx listening on `:9090`, not `:8080`. Its config has the wrong port. Find it: `grep -rn listen /etc/nginx/`." },
+  { "order_index": 3, "text": "Edit the `listen 9090;` in `/etc/nginx/conf.d/app.conf` to `listen 8080;`, then apply it without downtime: `sudo nginx -t && sudo nginx -s reload`. Re-test `curl http://localhost:8080/`." }
+]

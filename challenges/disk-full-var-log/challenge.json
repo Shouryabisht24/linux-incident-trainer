@@ -1,0 +1,13 @@
+{
+  "slug": "disk-full-var-log",
+  "title": "No space left on device: /var/log/app is full",
+  "category": "disk-filesystem",
+  "difficulty": "beginner",
+  "description_md": "Alerts are firing: the `app` service on this box can no longer write to `/var/log/app` — every write fails with `No space left on device`. Someone left verbose debug logging on and it ran away overnight. SSH in as `trainee` (passwordless `sudo`), find what's eating the space on that filesystem, and free it up.\n\nYou're done when `/var/log/app` has a healthy amount of free space again (several MB).",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "tmpfs": { "/var/log/app": "size=20m,mode=1777" },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

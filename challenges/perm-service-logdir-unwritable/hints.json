@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "The service runs as the `orderd` user, not root. Simulate what it does: `sudo -u orderd sh -c 'echo hi >> /var/log/orderd/orderd.log'`. Does it fail the same way?" },
+  { "order_index": 2, "text": "Look at who owns the directory and what its mode is: `ls -ld /var/log/orderd`. It's `root:root` and `755` — group/other only get read+execute, no write." },
+  { "order_index": 3, "text": "Give the `orderd` user write access. The cleanest fix is to make it the owner: `sudo chown orderd:orderd /var/log/orderd`. (Alternatively `sudo chmod 775` plus group membership, but ownership is simplest here.)" }
+]

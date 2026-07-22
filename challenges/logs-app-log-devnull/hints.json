@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "Write a test line and see if it sticks: `paymentd-log hello; cat /var/log/paymentd/paymentd.log`. Empty. Now look closely at the file: `ls -l /var/log/paymentd/paymentd.log`." },
+  { "order_index": 2, "text": "The `ls -l` shows it's a symlink: `paymentd.log -> /dev/null`. Every write is discarded by design. Someone did this to silence a disk-space alert." },
+  { "order_index": 3, "text": "Replace the symlink with a real file: `sudo rm /var/log/paymentd/paymentd.log && sudo touch /var/log/paymentd/paymentd.log`. (Set sane ownership/mode if the app runs as a specific user.) Then `paymentd-log test && cat /var/log/paymentd/paymentd.log`." }
+]

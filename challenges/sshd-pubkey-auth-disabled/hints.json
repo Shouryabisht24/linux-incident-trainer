@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "It affects every user, so it's server-wide config, not per-user permissions. Dump sshd's effective config: `sudo sshd -T | grep -i pubkey`. What is `pubkeyauthentication` set to?" },
+  { "order_index": 2, "text": "It's `no`. Find where that's set — main file or a drop-in: `sudo grep -rin pubkeyauthentication /etc/ssh/sshd_config /etc/ssh/sshd_config.d/`. It's in `/etc/ssh/sshd_config.d/hardening.conf`." },
+  { "order_index": 3, "text": "Set `PubkeyAuthentication yes` there, validate with `sudo sshd -t`, then reload: `sudo service ssh reload` (or `sudo kill -HUP $(cat /run/sshd.pid)`). Retry `ssh -i ~/deploy_key deploy@localhost`." }
+]

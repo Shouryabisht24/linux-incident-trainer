@@ -1,0 +1,12 @@
+{
+  "slug": "sudo-missing-privilege",
+  "title": "On-call user can't restart the service: no sudo rights",
+  "category": "users-groups-sudo",
+  "difficulty": "intermediate",
+  "description_md": "The `oncall` user is supposed to be able to run administrative commands via `sudo`, but every attempt fails with `oncall is not in the sudoers file`. Their access was never actually granted. SSH in as `trainee` (you have full passwordless `sudo`), grant `oncall` passwordless sudo the proper way (a drop-in file, validated with visudo semantics), without hand-editing the main sudoers file.\n\nYou're done when `oncall` can run a command via `sudo -n`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

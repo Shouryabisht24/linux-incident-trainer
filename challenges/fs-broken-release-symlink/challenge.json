@@ -1,0 +1,12 @@
+{
+  "slug": "fs-broken-release-symlink",
+  "title": "Deploy broke: the 'current' release symlink points to nothing",
+  "category": "disk-filesystem",
+  "difficulty": "beginner",
+  "description_md": "This app is deployed the classic way: releases live in `/srv/app/releases/<timestamp>/` and `/srv/app/current` is a symlink to the active one. Last night's deploy half-finished — `/srv/app/current` now points at a release directory that isn't there, so the web server serves nothing. SSH in as `trainee` (passwordless `sudo`), work out which release is actually good, and repoint `current` at it.\n\nYou're done when `/srv/app/current/index.html` is readable and contains the healthy marker.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

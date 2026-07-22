@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "Confirm which filesystem is full: `df -h /var/log/app`. It should be at (or near) 100% used." },
+  { "order_index": 2, "text": "Find the biggest thing on it: `sudo du -sh /var/log/app/* | sort -h` (or `du -ah /var/log/app | sort -h | tail`). One file dominates." },
+  { "order_index": 3, "text": "Reclaim the space. If the log is still wanted, truncate it in place so any process holding it open keeps working: `sudo truncate -s 0 /var/log/app/debug.log`. Otherwise `sudo rm /var/log/app/debug.log`. Then re-check `df -h /var/log/app`." }
+]

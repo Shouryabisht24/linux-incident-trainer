@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "cron runs `/etc/cron.daily/` via `run-parts`. Ask run-parts what it WOULD run: `run-parts --test /etc/cron.daily`. Notice `backup` is missing from the list even though the file is there." },
+  { "order_index": 2, "text": "`run-parts` skips files that aren't executable (and files with a '.' in the name). Check the mode: `ls -l /etc/cron.daily/backup` — it's `-rw-r--r--` (644), no execute bit." },
+  { "order_index": 3, "text": "Make it executable: `sudo chmod +x /etc/cron.daily/backup`. Confirm it now shows up in `run-parts --test /etc/cron.daily`, then run for real: `sudo run-parts /etc/cron.daily && ls -l /var/backups/`." }
+]

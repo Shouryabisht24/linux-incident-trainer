@@ -1,5 +1,6 @@
 import path from "node:path";
 import Docker from "dockerode";
+import { logger } from "../lib/logger.js";
 import type { Challenge } from "./challenge.service.js";
 
 const docker = new Docker({ socketPath: "/var/run/docker.sock" });
@@ -22,7 +23,7 @@ export async function ensureChallengeNetwork(): Promise<void> {
     Internal: true,
     Labels: { app: "devops-trainer" },
   });
-  console.log(`created challenge network: ${CHALLENGE_NETWORK}`);
+  logger.info("created challenge network", { network: CHALLENGE_NETWORK });
 }
 
 export async function buildImageIfMissing(challenge: Challenge): Promise<string> {
@@ -31,7 +32,7 @@ export async function buildImageIfMissing(challenge: Challenge): Promise<string>
   if (existing.length > 0) return tag;
 
   const challengeDir = path.join(CHALLENGES_DIR, challenge.slug);
-  console.log(`building challenge image: ${tag}`);
+  logger.info("building challenge image", { tag });
 
   const stream = await docker.buildImage(
     { context: challengeDir, src: ["Dockerfile", "seed.sh", "check.sh"] },
@@ -51,7 +52,7 @@ export async function buildImageIfMissing(challenge: Challenge): Promise<string>
     );
   });
 
-  console.log(`built challenge image: ${tag}`);
+  logger.info("built challenge image", { tag });
   return tag;
 }
 
@@ -76,19 +77,39 @@ export async function createSessionContainer(
   // prints a "unable to resolve host" warning on every invocation).
   const hostname = "trainer";
 
+  // Per-challenge size-bounded tmpfs mounts (e.g. disk-full scenarios) — we
+  // never bind-mount host paths (decisions/0002), so a size-limited tmpfs is how
+  // a challenge gets a real, fillable filesystem. Shape: { "/path": "size=16m" }.
+  const tmpfs: Record<string, string> = { ...(challenge.tmpfs ?? {}) };
+
+  const hostConfig: Docker.ContainerCreateOptions["HostConfig"] = {
+    Memory: memoryMb * 1024 * 1024,
+    NanoCpus: Math.round(cpus * 1e9),
+    PidsLimit: pidsLimit,
+    NetworkMode: challenge.requires_network ? CHALLENGE_NETWORK : "none",
+    ExtraHosts: [`${hostname}:127.0.0.1`],
+    AutoRemove: false,
+  };
+
+  // systemd-in-Docker (decisions/0005): PID 1 is /sbin/init (set in the
+  // challenge's Dockerfile CMD), which needs SYS_ADMIN, a writable cgroup fs,
+  // and tmpfs-backed /run + /run/lock. The cgroup mount is the one sanctioned
+  // exception to "no bind mounts" (it's the cgroup pseudo-fs, not host data).
+  if (challenge.requires_systemd) {
+    hostConfig.CapAdd = ["SYS_ADMIN"];
+    hostConfig.Binds = ["/sys/fs/cgroup:/sys/fs/cgroup:rw"];
+    tmpfs["/run"] = "";
+    tmpfs["/run/lock"] = "";
+  }
+
+  if (Object.keys(tmpfs).length > 0) hostConfig.Tmpfs = tmpfs;
+
   const container = await docker.createContainer({
     name,
     Image: imageTagName,
     Hostname: hostname,
     Labels: { app: "devops-trainer", sessionId, challengeSlug: challenge.slug },
-    HostConfig: {
-      Memory: memoryMb * 1024 * 1024,
-      NanoCpus: Math.round(cpus * 1e9),
-      PidsLimit: pidsLimit,
-      NetworkMode: challenge.requires_network ? CHALLENGE_NETWORK : "none",
-      ExtraHosts: [`${hostname}:127.0.0.1`],
-      AutoRemove: false,
-    },
+    HostConfig: hostConfig,
   });
 
   await container.start();
@@ -173,11 +194,11 @@ export async function reconcileOrphans(dbKnownContainerIds: Set<string>): Promis
   const containers = await docker.listContainers({ all: true, filters: { label: [APP_LABEL] } });
   for (const info of containers) {
     if (dbKnownContainerIds.has(info.Id)) continue;
-    console.log(`removing orphaned challenge container: ${info.Names.join(", ")}`);
+    logger.warn("removing orphaned challenge container", { names: info.Names.join(", ") });
     try {
       await destroyContainer(info.Id);
     } catch (err) {
-      console.warn(`failed to remove orphan ${info.Id}:`, err);
+      logger.warn("failed to remove orphan container", { id: info.Id, err });
     }
   }
 }

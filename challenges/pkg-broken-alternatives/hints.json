@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "Trace the link chain: `ls -l $(command -v mytool)` shows `/usr/local/bin/mytool -> /etc/alternatives/mytool`. Follow it: `ls -l /etc/alternatives/mytool` — it points at `/usr/local/bin/mytool-2.0`, which doesn't exist (`ls -l /usr/local/bin/mytool-2.0` = No such file)." },
+  { "order_index": 2, "text": "See what the alternatives system knows about: `update-alternatives --display mytool`. Only the `1.0` binary is actually registered/present; the link was hand-pointed at a missing `2.0`." },
+  { "order_index": 3, "text": "Repair it the proper way (don't just hand-fix the symlink): `sudo update-alternatives --set mytool /usr/local/bin/mytool-1.0`. Then run `mytool`." }
+]

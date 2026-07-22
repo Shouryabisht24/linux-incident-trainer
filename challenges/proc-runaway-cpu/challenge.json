@@ -1,0 +1,12 @@
+{
+  "slug": "proc-runaway-cpu",
+  "title": "CPU pinned at 100% by a runaway process",
+  "category": "process-performance",
+  "difficulty": "beginner",
+  "description_md": "This box is sluggish and its single CPU core is pinned at 100%. Something is stuck in a busy loop. SSH in as `trainee` (passwordless `sudo`), identify the runaway process, and stop it so the CPU frees up.\n\nThe container is deliberately capped at 0.5 vCPU (that's the whole machine here), so a single spinning process starves everything else — exactly the situation you're diagnosing. You're done when the runaway process is no longer running.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

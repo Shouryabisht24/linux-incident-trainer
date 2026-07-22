@@ -1,0 +1,12 @@
+{
+  "slug": "logs-app-log-devnull",
+  "title": "App log stays empty no matter what",
+  "category": "logs-journald",
+  "difficulty": "intermediate",
+  "description_md": "The `paymentd` app is definitely handling requests, but its log file `/var/log/paymentd/paymentd.log` is always empty — so nobody can debug the failures customers are reporting. Someone once 'fixed a disk-space alert' by pointing the log somewhere. SSH in as `trainee` (passwordless `sudo`), find out why writes to the log go nowhere, and restore real logging.\n\nYou're done when a line written through the app's logger actually shows up in `/var/log/paymentd/paymentd.log`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

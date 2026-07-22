@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "Find what's eating the CPU: `top` (press Shift+P to sort by %CPU) or `ps -eo pid,pcpu,comm --sort=-pcpu | head`. One process is at ~100%." },
+  { "order_index": 2, "text": "It's `report-generator`. Get its PID: `pgrep -af report-generator`. Confirm it's the offender in `top`." },
+  { "order_index": 3, "text": "Stop it: `sudo pkill -f report-generator` (or `sudo kill <pid>`; use `kill -9` only if it ignores a normal TERM). Re-check with `top` that the CPU has settled." }
+]

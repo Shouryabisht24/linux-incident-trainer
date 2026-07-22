@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "Reproduce as the agent's user: `sudo -u monitor /usr/local/bin/healthcheck` → `Permission denied`. Now look at the mode: `ls -l /usr/local/bin/healthcheck`." },
+  { "order_index": 2, "text": "It's `-rw-r--r--` (644) — no execute bit for anyone. A script with no `x` bit can't be run directly, not even by root. (Running `sh healthcheck` would work, but the agent execs it directly.)" },
+  { "order_index": 3, "text": "Add the execute bit: `sudo chmod +x /usr/local/bin/healthcheck` (makes it 755). Re-test with `sudo -u monitor /usr/local/bin/healthcheck`." }
+]

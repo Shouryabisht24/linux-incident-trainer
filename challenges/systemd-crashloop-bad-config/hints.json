@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "See the failure the way systemd sees it: `systemctl status webapp` (note the state — activating/auto-restart means a crash loop) and then the actual error: `journalctl -u webapp -n 20 --no-pager`." },
+  { "order_index": 2, "text": "The log line `FATAL: LISTEN_PORT must be a number, got: 'eighty'` points straight at the config. Look at `/etc/webapp/webapp.conf`." },
+  { "order_index": 3, "text": "Set a valid numeric port: `sudo sed -i 's/^LISTEN_PORT=.*/LISTEN_PORT=8080/' /etc/webapp/webapp.conf`, then `sudo systemctl restart webapp` and confirm with `systemctl status webapp`." }
+]

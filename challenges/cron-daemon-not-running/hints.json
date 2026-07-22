@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "The crontabs are fine, so check whether the thing that runs them is alive: `pgrep -x cron` or `ps -ef | grep cron`. Nothing there." },
+  { "order_index": 2, "text": "cron is a daemon that must be running for any schedule to fire. It didn't come back after the maintenance window." },
+  { "order_index": 3, "text": "Start it: `sudo service cron start` (or run `sudo cron`). Confirm with `pgrep -x cron`. On a systemd host you'd also `sudo systemctl enable --now cron` so it starts on boot." }
+]

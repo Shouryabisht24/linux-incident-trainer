@@ -1,0 +1,12 @@
+{
+  "slug": "systemd-crashloop-bad-config",
+  "title": "webapp.service is crash-looping after a config change",
+  "category": "systemd-services",
+  "difficulty": "intermediate",
+  "description_md": "The `webapp` service won't stay up — systemd keeps restarting it every couple of seconds. It broke right after someone edited its config. SSH in as `trainee` (passwordless `sudo`), use systemd's own tooling to see *why* it's failing, fix the root cause, and get it running and staying up.\n\nYou're done when `systemctl is-active webapp` reports `active`.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

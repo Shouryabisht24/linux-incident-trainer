@@ -1,0 +1,12 @@
+{
+  "slug": "net-service-wrong-port",
+  "title": "Service is up but nobody can reach it on port 8080",
+  "category": "networking-dns",
+  "difficulty": "beginner",
+  "description_md": "Monitoring says the web service on this box should answer on port 8080, but health checks to `http://localhost:8080/` all fail with connection refused. The nginx process is definitely running. SSH in as `trainee` (passwordless `sudo`), find out what port it's *actually* listening on, and make it serve on 8080 as intended.\n\nYou're done when `curl http://localhost:8080/` succeeds.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

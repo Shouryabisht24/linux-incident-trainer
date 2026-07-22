@@ -1,0 +1,12 @@
+{
+  "slug": "perm-service-logdir-unwritable",
+  "title": "Service can't write its log: permission denied on /var/log",
+  "category": "permissions-ownership",
+  "difficulty": "beginner",
+  "description_md": "The `orderd` background service runs as the unprivileged system user `orderd` (never as root). Since last night's deploy it dies on startup with `permission denied` trying to open its log file at `/var/log/orderd/orderd.log`. SSH in as `trainee` (passwordless `sudo`), find out why the `orderd` user can't write there, and fix the permissions so it can.\n\nYou're done when the `orderd` user can create/append to files in `/var/log/orderd`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

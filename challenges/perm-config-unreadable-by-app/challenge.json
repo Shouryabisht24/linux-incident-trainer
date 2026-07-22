@@ -1,0 +1,12 @@
+{
+  "slug": "perm-config-unreadable-by-app",
+  "title": "App won't start: can't read its own config file",
+  "category": "permissions-ownership",
+  "difficulty": "beginner",
+  "description_md": "The `billing` web app runs as the unprivileged `billing` user. On boot it reads `/etc/billing/billing.conf` — but it's now failing with `permission denied` reading that file. Someone 'locked down' the config last night. SSH in as `trainee` (passwordless `sudo`) and make the config readable by the account the app runs under, without exposing the secret to every user on the box more than necessary.\n\nYou're done when the `billing` user can read `/etc/billing/billing.conf`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

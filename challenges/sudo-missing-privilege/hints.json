@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "Confirm the problem: `sudo -u oncall sudo -n id` → 'oncall is not in the sudoers file'. You need to grant oncall sudo rights." },
+  { "order_index": 2, "text": "The right way is a drop-in under `/etc/sudoers.d/` (not editing `/etc/sudoers` by hand). Create `/etc/sudoers.d/oncall` containing: `oncall ALL=(ALL) NOPASSWD:ALL`. Files there must have mode 0440 and no syntax errors." },
+  { "order_index": 3, "text": "Create it safely with visudo so a typo can't lock everyone out: `sudo visudo -f /etc/sudoers.d/oncall`, add the line, save. (Or `echo 'oncall ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/oncall && sudo chmod 440 /etc/sudoers.d/oncall && sudo visudo -c`.) Verify `sudo -u oncall sudo -n id`." }
+]

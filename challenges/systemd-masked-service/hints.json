@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "Try to start it and read the exact message: `sudo systemctl start nginx`. Then `systemctl status nginx` — note the loaded state in parentheses." },
+  { "order_index": 2, "text": "It says `masked`. A masked unit is symlinked to /dev/null so it can never be started (stronger than `disabled`). Confirm: `systemctl list-unit-files | grep nginx` and `ls -l /etc/systemd/system/nginx.service`." },
+  { "order_index": 3, "text": "Unmask then start: `sudo systemctl unmask nginx && sudo systemctl start nginx`. Verify with `systemctl is-active nginx`." }
+]

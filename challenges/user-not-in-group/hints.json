@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "Reproduce as the deploy user: `sudo -u deploy touch /srv/app/x` → Permission denied. Look at the directory: `ls -ld /srv/app` — it's `drwxrws--- root appteam` (group-writable by `appteam`)." },
+  { "order_index": 2, "text": "Check whether deploy is in that group: `id deploy` or `groups deploy`. It isn't a member of `appteam`, so the group-write bit doesn't help it." },
+  { "order_index": 3, "text": "Add deploy to the group (use `-aG` so you APPEND, not replace, its groups): `sudo usermod -aG appteam deploy`. Group membership applies to new logins/sessions — verify with `sudo -u deploy touch /srv/app/x` (a fresh session)." }
+]

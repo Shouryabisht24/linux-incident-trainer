@@ -1,0 +1,12 @@
+{
+  "slug": "net-nginx-502-upstream",
+  "title": "nginx returns 502 Bad Gateway to the backend",
+  "category": "networking-dns",
+  "difficulty": "intermediate",
+  "description_md": "A reverse proxy (nginx on port 8080) sits in front of a backend app. Users now get `502 Bad Gateway`. The backend process itself is healthy. Someone changed a port during a refactor and only updated one side. SSH in as `trainee` (passwordless `sudo`), find the mismatch between where nginx forwards and where the backend actually listens, and fix the proxy so requests get through.\n\nYou're done when `curl http://localhost:8080/` returns the backend's page.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

@@ -1,0 +1,12 @@
+{
+  "slug": "cron-daemon-not-running",
+  "title": "Scheduled jobs stopped running: cron isn't up",
+  "category": "cron-scheduling",
+  "difficulty": "beginner",
+  "description_md": "None of this box's scheduled jobs have run since a maintenance window — backups, log shipping, all silent. The crontabs look fine. SSH in as `trainee` (passwordless `sudo`), figure out why nothing scheduled is executing, and get scheduling working again.\n\nYou're done when the cron daemon is running.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 8,
+  "content_version": 1
+}

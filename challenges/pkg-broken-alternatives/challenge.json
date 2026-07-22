@@ -1,0 +1,12 @@
+{
+  "slug": "pkg-broken-alternatives",
+  "title": "Command fails with 'No such file': broken update-alternatives link",
+  "category": "package-management",
+  "difficulty": "intermediate",
+  "description_md": "Running `mytool` now fails with `No such file or directory`, even though the package is installed. It's managed by the `update-alternatives` system, and a partial upgrade left the alternative pointing at a version that isn't on disk. SSH in as `trainee` (passwordless `sudo`), repair the alternatives link so `mytool` runs again.\n\nYou're done when `mytool` executes successfully.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

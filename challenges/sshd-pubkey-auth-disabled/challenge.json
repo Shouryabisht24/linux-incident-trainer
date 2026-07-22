@@ -1,0 +1,12 @@
+{
+  "slug": "sshd-pubkey-auth-disabled",
+  "title": "All SSH key logins fail after an sshd config change",
+  "category": "ssh-remote-access",
+  "difficulty": "intermediate",
+  "description_md": "Nobody can log in with their SSH key anymore — every key login falls through to a password prompt, for every user. A 'security hardening' change to the sshd config went wrong. SSH in as `trainee` (passwordless `sudo`), find the setting that disabled key auth, re-enable it, and reload sshd.\n\nA test key is at `~/deploy_key` (`ssh -i ~/deploy_key deploy@localhost`). You're done when that key login succeeds.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 60 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

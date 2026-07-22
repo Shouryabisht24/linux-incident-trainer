@@ -2,10 +2,22 @@ import type { IncomingMessage } from "node:http";
 import type { Duplex } from "node:stream";
 import { URL } from "node:url";
 import { WebSocketServer, type RawData, type WebSocket } from "ws";
+import { logger } from "../lib/logger.js";
 import { execShell, isContainerAlive } from "../services/docker.service.js";
 import { getSessionForUser, heartbeat, verifyWsTicket } from "../services/session.service.js";
 
 const wss = new WebSocketServer({ noServer: true });
+
+/** Cleanly close all live terminal sockets (used during graceful shutdown). */
+export function closeAllTerminals(): void {
+  for (const client of wss.clients) {
+    try {
+      client.close(1001, "server shutting down");
+    } catch {
+      /* ignore */
+    }
+  }
+}
 
 export function handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): void {
   const url = new URL(req.url ?? "", "http://internal");
@@ -32,7 +44,7 @@ export function handleUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer
 
   wss.handleUpgrade(req, socket, head, (ws) => {
     bridge(ws, claims.sessionId, claims.userId).catch((err) => {
-      console.error("terminal bridge error:", err);
+      logger.error("terminal bridge error", { err });
       ws.close();
     });
   });

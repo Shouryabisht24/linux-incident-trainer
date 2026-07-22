@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "Don't test with `sudo cat` — root can read anything and will mislead you. Test as the app's user: `sudo -u billing cat /etc/billing/billing.conf`." },
+  { "order_index": 2, "text": "`ls -l /etc/billing/billing.conf` shows `-rw------- root root` (mode 600). Only root can read it. The `billing` user gets nothing." },
+  { "order_index": 3, "text": "Grant read access to the app's user without making a secret world-readable. Cleanest: give the file to that user — `sudo chown billing /etc/billing/billing.conf` (it stays 600, now readable by `billing`). Or `sudo chgrp billing` + `sudo chmod 640`." }
+]

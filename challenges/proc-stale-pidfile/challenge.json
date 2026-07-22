@@ -1,0 +1,12 @@
+{
+  "slug": "proc-stale-pidfile",
+  "title": "Service refuses to start: 'already running' but it isn't",
+  "category": "process-performance",
+  "difficulty": "intermediate",
+  "description_md": "The `queue-worker` daemon is down, but every attempt to start it with `queue-workerctl start` refuses, insisting it's 'already running' — yet nothing is actually running. The box was hard-powered-off last week. SSH in as `trainee` (passwordless `sudo`), work out why the control script thinks it's already up, clear that, and get the worker running.\n\nYou're done when the `queue-worker` process is actually running.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

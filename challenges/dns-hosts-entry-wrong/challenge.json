@@ -1,0 +1,12 @@
+{
+  "slug": "dns-hosts-entry-wrong",
+  "title": "App can't reach api.internal: name resolves to the wrong address",
+  "category": "networking-dns",
+  "difficulty": "beginner",
+  "description_md": "An internal service is reachable on this host as `api.internal` (port 8080). The app that calls it is now failing to connect, even though the API service itself is healthy. Someone edited the static hosts file during a migration. SSH in as `trainee` (passwordless `sudo`), find why the name resolves wrong, and fix it.\n\nYou're done when `curl http://api.internal:8080/` succeeds.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

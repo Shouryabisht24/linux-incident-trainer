@@ -1,0 +1,12 @@
+{
+  "slug": "logs-journald-not-persistent",
+  "title": "journald logs vanish on every reboot",
+  "category": "logs-journald",
+  "difficulty": "intermediate",
+  "description_md": "Post-incident reviews on this box are painful: every reboot wipes the journal, so `journalctl -b -1` (previous boot) has nothing. The team wants logs to survive reboots. SSH in as `trainee` (passwordless `sudo`), make systemd-journald store logs persistently on disk, and confirm it's now writing there.\n\nYou're done when journald is persisting logs under `/var/log/journal`.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

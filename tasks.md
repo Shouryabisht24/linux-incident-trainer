@@ -50,16 +50,36 @@ Tracks work across the phased build order in the implementation plan. Check item
       in an actual browser.
 
 ## Phase 3 — Frontend polish
-- [ ] `ChallengeListPage` with category/difficulty/solved filters
-- [ ] `ProgressDashboardPage`
-- [ ] Markdown rendering for descriptions/solutions (currently rendered as plain `<pre>`/`white-space: pre-wrap`)
-- [ ] react-query integration for server state
-- [ ] Loading/error states throughout
-- [ ] Resume an existing running session on mount/refresh (backend supports this via `POST /api/sessions/:id/ws-ticket`;
-      frontend doesn't yet check for an existing active session when a challenge is opened, so refreshing the page
-      mid-challenge currently loses the UI's session state even though the container itself is untouched)
-- [ ] Proper page routing (currently plain component state in `App.tsx`, fine for one challenge, won't scale to
-      Phase 3's full list/detail/dashboard navigation)
+- [x] `ChallengeListPage` with category/difficulty/solved filters (`frontend/src/pages/ChallengeListPage.tsx`)
+- [x] `ProgressDashboardPage` (`frontend/src/pages/ProgressDashboardPage.tsx`) — backed by an extended
+      `GET /api/progress` (now returns a per-category `categories[]` breakdown alongside the existing
+      total/solved counts; additive, see `decisions/0008-*.md`)
+- [x] Markdown rendering for descriptions/solutions (`react-markdown` + `remark-gfm` via `components/Markdown.tsx`,
+      used on both the challenge description and the revealed solution)
+- [x] react-query integration for server state (`@tanstack/react-query`; all server reads/writes go through
+      `frontend/src/api/queries.ts` — challenges, challenge detail, categories, progress, active session, hints,
+      and mutations for start/stop/check/reveal-hint/solution/ws-ticket-refresh, with cache invalidation wired so
+      a passed check updates the list/dashboard's solved state without a manual refetch)
+- [x] Loading/error states throughout (every async action has a visible pending state — spinner + disabled button —
+      and a visible failure state via toast; `PageLoading`/`ErrorBanner` for query-level loading/error)
+- [x] Resume an existing running session on mount/refresh — added `GET /api/sessions/active` (new, additive; see
+      `decisions/0008-*.md`) so `ChallengeDetailPage` can detect a running session on mount, fetch a fresh
+      `ws-ticket` via the existing `POST /api/sessions/:id/ws-ticket`, and reconnect the terminal automatically.
+      Verified against the real backend: started a session via curl, waited past the 60s ticket expiry, called
+      `/api/sessions/active` then `/ws-ticket`, and drove the reissued ticket through a raw WS client (`ws` pkg) —
+      connected, resized, sent a command, got the echoed output back.
+- [x] Proper page routing (`react-router-dom`; `/login`, `/challenges`, `/challenges/:slug`, `/progress`, all
+      client routes verified to survive a hard refresh both via the Vite dev server and the built app served by
+      nginx — `try_files $uri /index.html` already handled the SPA fallback, no nginx config change needed).
+      `ChallengeDetailPage`/`ChallengeListPage`/`ProgressDashboardPage` are route-level code-split with
+      `React.lazy` since `ChallengeDetailPage` pulls in `xterm.js`, which pushed the single-bundle build past
+      Vite's 500kB warning threshold.
+
+Also done as part of this pass, not separately itemized above: a small custom toast system
+(`context/ToastContext.tsx`) for check-pass/check-fail/hint/error feedback, a dark, consistent design system
+(`frontend/src/styles.css` — spacing/color/typography variables, difficulty/status badges, responsive challenge
+grid), and `TerminalPane` now reports connection status (connecting/connected/disconnected) with a manual
+"Reconnect" affordance if the WS drops unexpectedly instead of just going silent.
 
 ## Phase 4 — Bulk content authoring (~47 remaining challenges)
 - [ ] Permissions & ownership (6 total, 5 remaining)

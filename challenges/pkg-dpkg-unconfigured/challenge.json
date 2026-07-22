@@ -1,0 +1,12 @@
+{
+  "slug": "pkg-dpkg-unconfigured",
+  "title": "apt/dpkg refuses: 'dpkg was interrupted, run dpkg --configure -a'",
+  "category": "package-management",
+  "difficulty": "intermediate",
+  "description_md": "A package operation was killed mid-way during a maintenance window. Now every `apt`/`dpkg` action refuses with `dpkg was interrupted, you must manually run 'dpkg --configure -a'`, leaving a package unpacked but not configured. SSH in as `trainee` (passwordless `sudo`), bring dpkg's database back to a consistent, fully-configured state.\n\nYou're done when no packages are left half-configured (`dpkg --audit` is clean).",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

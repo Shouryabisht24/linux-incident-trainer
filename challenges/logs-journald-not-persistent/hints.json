@@ -1,0 +1,14 @@
+[
+  {
+    "order_index": 1,
+    "text": "Check current storage: `journalctl --header 2>/dev/null | head` (paths under /run mean volatile) and look at the config: `cat /etc/systemd/journald.conf.d/*.conf`. It's pinned to `Storage=volatile`."
+  },
+  {
+    "order_index": 2,
+    "text": "Persistent journald needs both the config to allow it and the directory to exist. Set `Storage=persistent` (edit `/etc/systemd/journald.conf.d/volatile.conf`) and create `sudo mkdir -p /var/log/journal`."
+  },
+  {
+    "order_index": 3,
+    "text": "Apply it: `sudo systemctl restart systemd-journald`, then force the in-memory logs to be written to disk with `sudo journalctl --flush`. Confirm files appear: `ls -R /var/log/journal` (you should see `<machine-id>/system.journal`)."
+  }
+]

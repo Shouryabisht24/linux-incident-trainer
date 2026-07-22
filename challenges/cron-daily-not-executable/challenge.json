@@ -1,0 +1,12 @@
+{
+  "slug": "cron-daily-not-executable",
+  "title": "Daily backup cron job silently never runs",
+  "category": "cron-scheduling",
+  "difficulty": "intermediate",
+  "description_md": "There's a nightly backup script in `/etc/cron.daily/backup`, but backups haven't been produced for days — with no errors anywhere obvious. The script works when you run it by hand. SSH in as `trainee` (passwordless `sudo`), work out why `cron.daily` skips it, and fix it so the daily runner will actually execute it.\n\nYou're done when running the daily jobs (`run-parts /etc/cron.daily`) produces the backup at `/var/backups/app-backup.tar`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

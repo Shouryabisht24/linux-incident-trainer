@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "Split the problem: is the service up, or is the name wrong? `curl http://127.0.0.1:8080/` works, but `curl http://api.internal:8080/` doesn't — so name resolution is the issue, not the service." },
+  { "order_index": 2, "text": "See what the name resolves to: `getent hosts api.internal` (or `cat /etc/hosts`). It maps to `10.99.99.99`, which isn't this host. The service is actually on 127.0.0.1." },
+  { "order_index": 3, "text": "Edit `/etc/hosts` so `api.internal` points at `127.0.0.1`. Note `/etc/hosts` is a bind-mounted file, so `sed -i` fails with 'Device or resource busy' — edit it in place with `sudo nano /etc/hosts` (or rewrite it: `grep -v api.internal /etc/hosts > /tmp/h; echo '127.0.0.1 api.internal' >> /tmp/h; sudo cp /tmp/h /etc/hosts`). Re-test `curl http://api.internal:8080/`." }
+]

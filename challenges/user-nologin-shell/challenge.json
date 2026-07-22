@@ -1,0 +1,12 @@
+{
+  "slug": "user-nologin-shell",
+  "title": "Cron/deploy jobs for the ci user fail: account has no login shell",
+  "category": "users-groups-sudo",
+  "difficulty": "beginner",
+  "description_md": "Automation that runs commands as the `ci` service account (`su - ci -c '...'`) started failing with `This account is currently not available`. The account was 'hardened' recently. SSH in as `trainee` (passwordless `sudo`), find why `ci` can't run a login shell, and restore its ability to run jobs.\n\nYou're done when `su - ci -c 'echo ok'` runs successfully.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

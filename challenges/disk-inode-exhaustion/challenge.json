@@ -1,0 +1,13 @@
+{
+  "slug": "disk-inode-exhaustion",
+  "title": "'No space left on device' but df shows space free",
+  "category": "disk-filesystem",
+  "difficulty": "intermediate",
+  "description_md": "The `ingest` worker writes small message files into `/var/spool/ingest`. It's suddenly failing with `No space left on device` — but `df -h` on that filesystem shows plenty of free space, so the on-call before you is baffled. SSH in as `trainee` (passwordless `sudo`), figure out the *real* resource that's exhausted, and clear it so new files can be created again.\n\nYou're done when a new file can be created in `/var/spool/ingest`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "tmpfs": { "/var/spool/ingest": "size=64m,nr_inodes=200,mode=1777" },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "Look at what `current` actually points to: `ls -l /srv/app/current`. Then check whether that target exists: `ls -ld /srv/app/current/` will say 'No such file or directory'." },
+  { "order_index": 2, "text": "List the real releases that exist on disk: `ls -l /srv/app/releases/`. Only one of them is actually present. That's your good release." },
+  { "order_index": 3, "text": "Repoint the symlink atomically with `-fn` (force, and don't dereference an existing dir symlink): `sudo ln -sfn /srv/app/releases/20240120-1200 /srv/app/current`. Verify with `cat /srv/app/current/index.html`." }
+]

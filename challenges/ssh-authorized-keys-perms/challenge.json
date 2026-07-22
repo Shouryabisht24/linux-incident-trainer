@@ -1,0 +1,12 @@
+{
+  "slug": "ssh-authorized-keys-perms",
+  "title": "SSH key login rejected: authorized_keys permissions too open",
+  "category": "ssh-remote-access",
+  "difficulty": "intermediate",
+  "description_md": "Key-based SSH login for the `deploy` user suddenly stopped working — it falls through to asking for a password (which deploy doesn't have). The key and `authorized_keys` are definitely in place. A backup-restore reset a bunch of file modes last night. SSH in as `trainee` (passwordless `sudo`), find why sshd is refusing the key, and fix it.\n\nA private key for testing is at `~/deploy_key` — try `ssh -i ~/deploy_key deploy@localhost`. You're done when that key login succeeds.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 60 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

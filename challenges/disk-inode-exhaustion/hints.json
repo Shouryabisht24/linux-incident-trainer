@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "`df -h /var/spool/ingest` shows free space — so it's not bytes. Check the *other* thing a filesystem can run out of: inodes. `df -i /var/spool/ingest`. What's IUse%?" },
+  { "order_index": 2, "text": "IUse is 100%: every inode is consumed by huge numbers of tiny files. Count them: `ls -1 /var/spool/ingest | wc -l`. They're leftover `.tmp` files the worker never cleaned up." },
+  { "order_index": 3, "text": "Delete the stale files to free inodes. There may be too many for `rm /var/spool/ingest/*.tmp` (argument list too long) — use find: `sudo find /var/spool/ingest -name '*.tmp' -delete`. Then re-check `df -i`." }
+]

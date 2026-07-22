@@ -1,0 +1,5 @@
+[
+  { "order_index": 1, "text": "`systemctl status apiserver` shows `status=203/EXEC` — systemd could not execute the ExecStart program (missing or not executable). Find where the unit expects it: `systemctl cat apiserver` and look at the `ExecStart=` line." },
+  { "order_index": 2, "text": "The unit runs `/usr/local/sbin/apiserver`, but `ls -l /usr/local/sbin/apiserver` shows it's not there. Where is it really? `command -v apiserver` or `ls -l /usr/local/bin/apiserver`." },
+  { "order_index": 3, "text": "Point the unit at the real path (`/usr/local/bin/apiserver`). Edit `/etc/systemd/system/apiserver.service` (or `sudo systemctl edit --full apiserver`), then — because you changed the unit file — `sudo systemctl daemon-reload && sudo systemctl restart apiserver`." }
+]

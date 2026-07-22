@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { logger } from "../lib/logger.js";
 import { pool } from "../db/pool.js";
 import { getChallengeBySlug } from "./challenge.service.js";
 import {
@@ -238,7 +239,7 @@ export async function reapIdleSessions(): Promise<void> {
     [ACTIVE_STATUSES, idleTimeoutMinutes],
   );
   for (const session of idle.rows) {
-    console.log(`reaping idle session ${session.id}`);
+    logger.info("reaping idle session", { sessionId: session.id });
     if (session.container_id) await destroyContainer(session.container_id).catch(() => {});
     await pool.query(`UPDATE sessions SET status = 'expired', ended_at = now() WHERE id = $1`, [session.id]);
   }
@@ -249,10 +250,28 @@ export async function reapIdleSessions(): Promise<void> {
     [solvedGraceMinutes],
   );
   for (const session of solved.rows) {
-    console.log(`reaping solved session container ${session.id}`);
+    logger.info("reaping solved-session container", { sessionId: session.id });
     await destroyContainer(session.container_id!).catch(() => {});
     await pool.query(`UPDATE sessions SET container_id = NULL, ended_at = now() WHERE id = $1`, [session.id]);
   }
+}
+
+/**
+ * Graceful-shutdown drain: destroy the challenge container for every active
+ * session and mark the session abandoned, so a normal `docker compose down`
+ * (SIGTERM) doesn't leave orphaned challenge containers behind. Best-effort —
+ * container-removal errors are swallowed so one failure can't block the rest.
+ */
+export async function drainAllActiveSessions(): Promise<number> {
+  const active = await pool.query<Session>(
+    `SELECT * FROM sessions WHERE status = ANY($1) AND container_id IS NOT NULL`,
+    [ACTIVE_STATUSES],
+  );
+  for (const session of active.rows) {
+    await destroyContainer(session.container_id!).catch(() => {});
+    await pool.query(`UPDATE sessions SET status = 'abandoned', ended_at = now() WHERE id = $1`, [session.id]);
+  }
+  return active.rows.length;
 }
 
 export async function listActiveContainerIds(): Promise<Set<string>> {
