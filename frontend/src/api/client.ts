@@ -53,6 +53,11 @@ export interface Progress {
   categories: ProgressCategory[];
 }
 
+export interface PublicStats {
+  challengeCount: number;
+  categoryCount: number;
+}
+
 export function getToken(): string | null {
   return localStorage.getItem("token");
 }
@@ -112,4 +117,5 @@ export const api = {
     }),
   getSolution: (id: string) => request<{ solutionMd: string }>(`/api/sessions/${id}/solution`),
   getProgress: () => request<Progress>("/api/progress"),
+  getPublicStats: () => request<PublicStats>("/api/public-stats"),
 };

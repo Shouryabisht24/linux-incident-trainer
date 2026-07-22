@@ -5,7 +5,37 @@ import { logger } from "../lib/logger.js";
 
 const MIGRATIONS_DIR = path.join(process.cwd(), "migrations");
 
+/**
+ * Compose's `depends_on: condition: service_healthy` only guarantees postgres
+ * itself is ready before this container *starts* — it does not guarantee this
+ * container's own network/DNS stack is ready the instant its process runs.
+ * On a freshly created network (e.g. the first `docker compose up` ever, or
+ * any run under a new project name) that race is real and reproducible: the
+ * first connection attempt can fail with `getaddrinfo EAI_AGAIN postgres`
+ * even though postgres is healthy and "postgres" resolves fine a moment
+ * later. Retry with backoff before giving up, rather than crashing the whole
+ * backend on a transient startup race.
+ */
+async function waitForDatabase(maxAttempts = 10, delayMs = 1000): Promise<void> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      await pool.query("SELECT 1");
+      return;
+    } catch (err) {
+      if (attempt === maxAttempts) throw err;
+      logger.warn("database not ready yet, retrying", {
+        attempt,
+        maxAttempts,
+        err: err instanceof Error ? err.message : err,
+      });
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
 export async function runMigrations(): Promise<void> {
+  await waitForDatabase();
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       name TEXT PRIMARY KEY,

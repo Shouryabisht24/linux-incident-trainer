@@ -11,6 +11,7 @@ import { authRouter } from "./routes/auth.routes.js";
 import { categoriesRouter } from "./routes/categories.routes.js";
 import { challengesRouter } from "./routes/challenges.routes.js";
 import { progressRouter } from "./routes/progress.routes.js";
+import { publicStatsRouter } from "./routes/publicStats.routes.js";
 import { sessionsRouter } from "./routes/sessions.routes.js";
 import { seedCategories, syncChallengesFromDisk } from "./services/challenge.service.js";
 import { listLabeledContainerIds, reconcileOrphans } from "./services/docker.service.js";
@@ -33,6 +34,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/public-stats", publicStatsRouter);
 app.use("/api/categories", categoriesRouter);
 app.use("/api/challenges", challengesRouter);
 app.use("/api/sessions", sessionsRouter);

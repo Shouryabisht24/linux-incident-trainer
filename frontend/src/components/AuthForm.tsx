@@ -1,10 +1,14 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { ErrorBanner } from "./ui";
 
 export function AuthForm() {
   const { login, signup } = useAuth();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  // The landing page's "Get started" CTA links to /login?mode=signup so a new visitor lands
+  // straight on the signup form instead of having to notice and click the toggle themselves.
+  const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState<"login" | "signup">(searchParams.get("mode") === "signup" ? "signup" : "login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");

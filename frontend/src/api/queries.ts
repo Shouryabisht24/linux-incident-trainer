@@ -8,6 +8,7 @@ export const queryKeys = {
   activeSession: ["activeSession"] as const,
   hints: (sessionId: string) => ["hints", sessionId] as const,
   progress: ["progress"] as const,
+  publicStats: ["publicStats"] as const,
 };
 
 export function useChallenges() {
@@ -36,6 +37,16 @@ export function useProgress() {
   return useQuery({
     queryKey: queryKeys.progress,
     queryFn: () => api.getProgress(),
+  });
+}
+
+/** Unauthenticated challenge/category counts for the public landing page's stats section. */
+export function usePublicStats() {
+  return useQuery({
+    queryKey: queryKeys.publicStats,
+    queryFn: () => api.getPublicStats(),
+    staleTime: 5 * 60_000,
+    retry: 1,
   });
 }
 

@@ -41,8 +41,10 @@ Tracks work across the phased build order in the implementation plan. Check item
       (not in the original plan) to reissue a terminal ticket for an already-running session — needed once it
       became clear tickets expire in 60s and there was no way to reconnect (e.g. after a page refresh) without it.
 - [x] WS terminal bridge (`ws/terminalSocket.ts`) + `TerminalPane` component (`@xterm/xterm` + `@xterm/addon-fit`)
-- [ ] Early systemd-in-Docker smoke test — not yet done; deferred until a systemd-category challenge is authored
-      in Phase 4, since the reference challenge didn't need `requires_systemd`
+- [x] Early systemd-in-Docker smoke test — done in Phase 4: real systemd-in-Docker confirmed working on the
+      target (Docker 29.x / Docker Desktop): `systemctl is-system-running` = running, services start, journalctl
+      works. Real systemd chosen over the supervisor fallback; `createSessionContainer` gained a `requires_systemd`
+      branch (SYS_ADMIN + cgroup mount + tmpfs /run). See `decisions/0010-*.md`.
 - [x] Manual verification: start → shell (confirmed running as non-root `trainee` with working passwordless sudo)
       → see break (403, confirmed via `ls`/`curl` inside the container) → fix live via the actual WS terminal bridge
       → check passes → progress/solved state updates → container torn down on stop. Driven via curl + a small
@@ -81,25 +83,93 @@ Also done as part of this pass, not separately itemized above: a small custom to
 grid), and `TerminalPane` now reports connection status (connecting/connected/disconnected) with a manual
 "Reconnect" affordance if the WS drops unexpectedly instead of just going silent.
 
-## Phase 4 — Bulk content authoring (~47 remaining challenges)
-- [ ] Permissions & ownership (6 total, 5 remaining)
-- [ ] Disk & filesystem (6 total, 5 remaining)
-- [ ] Process & performance (5 total)
-- [ ] Networking & DNS (5 total)
-- [ ] systemd & services (6 total, 5 remaining)
-- [ ] Logs & journald (4 total)
-- [ ] Package management (4 total)
-- [ ] Users/groups/sudo (5 total)
-- [ ] Cron & scheduling (4 total)
-- [ ] SSH & remote access (5 total)
-- [ ] Each challenge smoke-tested (build, break-visible, check fails before fix / passes after) before being added to the seed script
+## Phase 4 — Bulk content authoring
+Delivered 26 new challenges (27 total incl. the Phase 2 reference), all individually verified via the full
+build → break-real-at-trainee-privilege → check-fails → fix-as-trainee → check-passes loop, AND end-to-end
+through the real API + container lifecycle (start → exec fix → check → solved → teardown), including the
+systemd (SYS_ADMIN+cgroup) and tmpfs container paths. Breadth prioritized over depth (≥2 per category, all 10
+categories covered) per the phase guidance; this is short of the original ~47 target — remaining count noted
+per category below.
+- [x] Permissions & ownership — 3 new (perm-service-logdir-unwritable, perm-config-unreadable-by-app,
+      perm-executable-bit-missing) + reference = **4/6**; 2 more to reach target
+- [x] Disk & filesystem — 3 (disk-full-var-log, disk-inode-exhaustion, fs-broken-release-symlink) = **3/6**; 3 more
+- [x] Process & performance — 2 (proc-runaway-cpu, proc-stale-pidfile) = **2/5**; 3 more
+- [x] Networking & DNS — 3 (dns-hosts-entry-wrong, net-service-wrong-port, net-nginx-502-upstream) = **3/5**; 2 more
+- [x] systemd & services — 3 (systemd-crashloop-bad-config, systemd-masked-service, systemd-bad-execstart-path) = **3/6**; 3 more
+- [x] Logs & journald — 2 (logs-journald-not-persistent, logs-app-log-devnull) = **2/4**; 2 more
+- [x] Package management — 2 (pkg-broken-alternatives, pkg-dpkg-unconfigured) = **2/4**; 2 more
+- [x] Users/groups/sudo — 3 (user-not-in-group, user-nologin-shell, sudo-missing-privilege) = **3/5**; 2 more
+- [x] Cron & scheduling — 2 (cron-daemon-not-running, cron-daily-not-executable) = **2/4**; 2 more
+- [x] SSH & remote access — 3 (ssh-authorized-keys-perms, sshd-pubkey-auth-disabled, sshd-allowusers-blocks-user) = **3/5**; 2 more
+- [x] Each challenge smoke-tested (build, break-visible, check fails before fix / passes after) before being added to the seed script
+- Support added while authoring: per-challenge `tmpfs` (migration `0002`, schema + `docker.service.ts`) for
+  authentic disk-full/inode scenarios (`decisions/0009`); `requires_systemd` container branch (`decisions/0010`);
+  `challenges/AUTHORING.md` guide distilled from authoring these.
 
 ## Phase 5 — Hardening
-- [ ] Per-category resource-limit tuning
-- [ ] Idle reaper + orphan reconciliation testing (simulate backend crash mid-session)
-- [ ] Concurrency cap / one-session-per-user enforcement testing
-- [ ] Structured logging
-- [ ] Auth rate limiting
-- [ ] Graceful shutdown on SIGTERM (drain sessions, close WS)
-- [ ] Final security-notes documentation pass
-- [ ] Challenge-authoring guide for future additions
+- [x] Per-category resource-limit tuning — each challenge sets `resource_limits` in `challenge.json`; process &
+      performance uses a deliberately tight 0.5 vCPU (whole "machine") so one busy loop starves it as premise;
+      systemd challenges get 256MB; disk challenges bound their tmpfs size (20m/64m). Defaults elsewhere.
+- [x] Idle reaper + orphan reconciliation testing — verified by SIGKILLing the backend mid-session (plus a rogue
+      labeled orphan): next boot's `reconcileOrphans` removed the orphan, `markOrphanedSessionsError` marked the
+      dead-container session `error`, no leftovers. Idle reaper verified with a 0-min timeout: container reaped,
+      session → `expired`.
+- [x] Concurrency cap / one-session-per-user — verified: starting a second session tears down the user's first
+      (active session + container); with `MAX_CONCURRENT_SESSIONS=3`, 3 starts succeed and the 4th returns 429.
+- [x] Structured logging — dependency-free leveled logger (`lib/logger.ts`, `LOG_LEVEL`); all `console.*` in
+      services/jobs/ws/migrations/error-handler replaced. See `decisions/0011`.
+- [x] Auth rate limiting — in-memory limiter (`middleware/rateLimit.ts`) on login (per IP+email) and signup
+      (per IP); verified 429 after the limit and that a different account still logs in. `decisions/0011`.
+- [x] Graceful shutdown on SIGTERM — drains active sessions (destroys containers, marks abandoned), closes WS,
+      closes DB pool, 20s hard deadline. Verified against the production image (node PID 1). Dev hot-reload
+      watcher can't drain (documented tradeoff); boot reconciliation is the safety net. `decisions/0011`.
+- [x] Final security-notes documentation pass — README security section extended (isolation + Phase 5 hardening),
+      not replaced.
+- [x] Challenge-authoring guide — `challenges/AUTHORING.md`.
+- [x] Cold-boot DB connection retry — found while independently re-verifying Phase 4/5 and the landing page's nginx
+      fix in a fully isolated stack on a brand-new Docker network: the backend crashed 3/3 times on
+      `getaddrinfo EAI_AGAIN postgres` at boot, a startup race the mid-session crash-recovery test above didn't
+      cover (that test reused an already-established network). Fixed with a retry-with-backoff `waitForDatabase()`
+      before the first migration query. See `decisions/0014-*.md`.
+- Not done (explicit shortfall): full ~47-challenge catalogue — 27 delivered, all verified; the rest are the
+      remaining per-category counts listed in Phase 4. WS terminal drive for the *new* challenges wasn't re-run
+      per-challenge (the bridge itself was verified in Phase 2/3 and once here); lifecycle was validated via the
+      API + docker exec instead.
+
+## Phase 6 — Public marketing/landing page
+Not itemized in the original plan; added as a real route in the existing app (not a mockup), since the product
+had no pre-login page explaining what it is before this.
+- [x] `frontend/src/pages/LandingPage.tsx` — hero, animated stat counters, features grid, a numbered
+      "what solving one incident looks like" walkthrough (replaces the generic testimonials slot — there are no
+      real users to quote), a self-hosting/`docker compose` section (replaces pricing — this is free, there's no
+      billing system to fake tiers for), FAQ (accordion via native `<details>`), footer. Scroll-triggered
+      reveals, a condensing/glassmorphism sticky nav, and count-up stat tiles, all gated through
+      `useReducedMotion`/`useScrollReveal`/`useCountUp` (`frontend/src/hooks/`) so `prefers-reduced-motion` fully
+      disables the motion rather than just softening it. No fake trust badges, testimonials, pricing tiers, or
+      GitHub link (this working directory isn't actually a git repo and no repo URL exists anywhere to link
+      honestly — the hero's secondary CTA is an in-page "See how it works" scroll instead).
+- [x] `GET /api/public-stats` (`backend/src/routes/publicStats.routes.ts`) — new, deliberately unauthenticated,
+      returns only `{ challengeCount, categoryCount }` (real counts from `challenges`/`categories`, no user data)
+      so the stats section stays accurate as content grows instead of a hardcoded number going stale. See
+      `decisions/0012`.
+- [x] Routing: `/` now renders `LandingPage` for logged-out visitors and redirects straight to `/challenges` for
+      an already-authenticated user (`frontend/src/routes/RootRoute.tsx`), so a returning logged-in user never
+      sees marketing copy on a routine visit/refresh. `LandingPage` is lazy-loaded *inside* `RootRoute` (not in
+      `App.tsx`) specifically so an authenticated user's session never even fetches its chunk, and the
+      authenticated app's own initial bundle doesn't carry it either — confirmed via `npm run build`:
+      `LandingPage-*.js` is its own ~15KB chunk, not present in `index-*.js`. `AuthForm` also gained a small
+      `?mode=signup` query-param read so the hero/footer "Get started" CTAs land a new visitor straight on the
+      signup form.
+- [x] Verified: `npx tsc --noEmit` clean on both packages, `npm run build` clean with the expected extra chunk;
+      rebuilt and booted the real stack (`docker compose up --build -d`), curled `/api/public-stats` with no
+      auth header (`{"challengeCount":27,"categoryCount":10}`), confirmed `/`, `/challenges` (hard refresh), and
+      the landing page's own asset chunk all serve correctly through both the dev Vite proxy (:5173) and — after
+      fixing an unrelated pre-existing nginx bug found in the process, see below — the real production nginx
+      image (:3000). Left the dev-override stack running as the steady state afterward; all test users and the
+      one challenge container spawned while verifying the WS path through nginx were cleaned up.
+- [x] **Unplanned fix, found during the above verification**: `frontend/nginx.conf`'s `/api/` and `/ws/`
+      `proxy_pass` directives were silently dropping every path segment past the location prefix in real
+      production mode (confirmed on a pre-existing, untouched endpoint — not something this page's change
+      introduced), which meant the WS terminal bridge itself was broken end-to-end in production and had only
+      ever been exercised through the dev Vite proxy. Fixed and verified via a raw WS client through nginx port
+      3000. See `decisions/0013`.
