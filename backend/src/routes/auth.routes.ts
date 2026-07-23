@@ -6,6 +6,11 @@ import { getUserById, login, signup } from "../services/auth.service.js";
 
 export const authRouter = Router();
 
+// Defense in depth: the frontend already blocks spaces from ever being typed/pasted into the
+// email/password fields, but that's client-side and trivially bypassed by anyone hitting the API
+// directly — so reject the same condition here regardless of how the request was made.
+const HAS_WHITESPACE = /\s/;
+
 // Brute-force / credential-stuffing protection on the auth endpoints. Login is
 // keyed by IP+email so one account being hammered can't lock out others sharing
 // an IP; signup is keyed by IP. Tunable via env; defaults suit a personal tool.
@@ -31,6 +36,10 @@ authRouter.post(
       res.status(400).json({ error: "email and password (min 8 chars) are required" });
       return;
     }
+    if (HAS_WHITESPACE.test(email) || HAS_WHITESPACE.test(password)) {
+      res.status(400).json({ error: "email and password must not contain whitespace" });
+      return;
+    }
     const { user, token } = await signup(email, password, displayName);
     res.status(201).json({ user, token });
   }),
@@ -43,6 +52,10 @@ authRouter.post(
     const { email, password } = req.body ?? {};
     if (typeof email !== "string" || typeof password !== "string") {
       res.status(400).json({ error: "email and password are required" });
+      return;
+    }
+    if (HAS_WHITESPACE.test(email) || HAS_WHITESPACE.test(password)) {
+      res.status(400).json({ error: "email and password must not contain whitespace" });
       return;
     }
     const { user, token } = await login(email, password);

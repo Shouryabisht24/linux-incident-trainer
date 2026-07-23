@@ -76,6 +76,79 @@ Tracks work across the phased build order in the implementation plan. Check item
       `ChallengeDetailPage`/`ChallengeListPage`/`ProgressDashboardPage` are route-level code-split with
       `React.lazy` since `ChallengeDetailPage` pulls in `xterm.js`, which pushed the single-bundle build past
       Vite's 500kB warning threshold.
+- [x] **Follow-up pass (post-Phase 6)**: upgraded the login/signup form (`components/AuthForm.tsx`) to match the
+      landing page's visual quality instead of the bare `.page-narrow` + `.card` treatment it had — new `.auth-*`
+      styles in `styles.css` extend the same tokens as the landing page (hero-style radial gradient background,
+      glass/backdrop-blur card, `.eyebrow` pill), a segmented login/signup toggle with a sliding indicator instead
+      of a plain ghost-button switch, a CSS grid-rows collapse animation for the signup-only display-name field,
+      a gated mount animation (only applied when `useReducedMotion()` is false — the existing global
+      `prefers-reduced-motion` CSS block still neutralizes it either way), and inline real-time email-format/
+      password-length validation on blur (not just native `required`/`minLength` tooltips), with
+      `aria-invalid`/`aria-describedby` wired to the error text. `?mode=signup`, the optional display name field,
+      error display, and the submitting/disabled button state are all unchanged.
+      Also added, same pass: **spaces are rejected outright in the email and password fields** — a `useNoSpaceField`
+      hook blocks the spacebar on `keydown`, strips whitespace from pasted text on `paste` (rather than blocking
+      the whole paste) while preserving caret position, and re-strips on `change` as a backstop for other input
+      paths (autofill, drag-drop). Same rule added server-side in `backend/src/routes/auth.routes.ts` (additive,
+      next to the existing type/length checks, rate limiting untouched): both `/signup` and `/login` now 400 with
+      `"email and password must not contain whitespace"` if either field matches `/\s/` (space, tab, or newline).
+      Verified: `npx tsc --noEmit` and `npm run build` clean on the frontend, `npx tsc --noEmit` clean on the
+      backend; rebuilt and booted the real stack (`docker compose up --build -d`) and curled the live backend
+      directly — normal signup/login with clean credentials succeed (201/200), and signup/login with a space or a
+      tab in either the email or the password field are rejected with 400. Confirmed via the Vite dev server
+      (`:5173`, the steady-state dev-override stack) that the served `AuthForm` bundle wires `onKeyDown`/`onPaste`/
+      `onChange` exactly as written. No headless-browser tool was available in this environment to literally
+      keystroke a space in a live page, so the keydown/paste-strip logic itself was additionally isolated and
+      unit-sanity-checked outside the app (space key blocked, mixed whitespace stripped from pasted text, email
+      regex behaves) rather than only reviewed by eye.
+- [x] **Follow-up pass (post-Phase 6, after the login-page pass above)**: upgraded `ChallengeListPage.tsx` from a
+      plain native-`<select>` filter bar + bare grid to match the landing/login pages' visual quality. Replaced
+      the difficulty and solved-status `<select>`s with a real ARIA `radiogroup` segmented "chip" control
+      (`ChipGroup`, roving tabindex — Tab lands on the checked option, Left/Right/Up/Down/Home/End move selection
+      *and* focus together, same pattern native radio groups use) since those only have 3–4 fixed options; kept
+      the category filter as a native `<select>` (10 options) but restyled it (`appearance: none` + custom
+      chevron icon) rather than replacing it with a custom listbox — deliberate call, since a from-scratch
+      combobox risked a keyboard/screen-reader regression I had no headless browser available to verify
+      interactively (same constraint noted in the AuthForm pass above), whereas a styled native `<select>` keeps
+      100% of its native keyboard/typeahead/SR behavior for free. Added a title-text search input (`<input
+      type="search">`, plain client-side substring filter, no new endpoint). Restyled cards with a hover
+      lift+glow, a solved state that's a green-tinted background + border + an absolute-positioned "Solved" pill
+      (SVG check icon, no emoji — consistent with the landing page's "no emoji" icon convention) instead of the
+      old prepended checkmark emoji. Added a real empty state (`EmptyState`, dashed-border card + icon + a
+      "Clear filters" button wired to the same `clearFilters` used by the toolbar's own clear button) replacing
+      the bare `<div>No challenges match these filters.</div>`. Added a skeleton-card loading grid
+      (`SkeletonGrid`, shape-matched to the real grid, shimmer animation) in place of the generic `PageLoading`
+      spinner used elsewhere — a deliberate divergence from the `ChallengeDetailPage`/`ProgressDashboardPage`
+      pattern specifically because this page's content *is* a grid of cards, so a shape-matched placeholder avoids
+      layout jump; `PageLoading` itself is untouched and still used as-is on the other two pages. Grid entrance
+      uses a single shared `useScrollReveal` trigger (one `IntersectionObserver` for the whole grid, not one per
+      card) with each card's reveal staggered by a capped `transitionDelay`, reusing the exact `.reveal`/
+      `.reveal.is-visible` classes and reduced-motion contract from the landing page. Header restyled with the
+      `.eyebrow` pill plus a small solved/total progress bar reusing the existing `.progress-bar-track`/`-fill`
+      classes from `ProgressDashboardPage`. Category/difficulty/solved filtering logic, the solved/total count,
+      per-card `/challenges/:slug` links, and the clear-filters affordance are all unchanged in behavior — only
+      new class names/markup and the added search predicate.
+      Verified: `npx tsc --noEmit` and `npm run build` clean; rebuilt and booted the real stack
+      (`docker compose up --build -d`) and drove the actual backend API directly — confirmed all 27 real
+      challenges across all 10 categories via `GET /api/challenges`/`GET /api/categories` (cross-checked category
+      breakdown, difficulty counts, and a multi-word title-substring match against what the new search/filter
+      logic would produce for several filter combinations). Confirmed solved state reflects real progress data
+      end-to-end, not just static markup: signed up a fresh test user (0/27 solved), started a real session on
+      `perm-executable-bit-missing`, `docker exec`'d the actual fix (`chmod +x` on the health-check script) into
+      the live challenge container, called `POST /api/sessions/:id/check` (passed), stopped the session, and
+      re-fetched `/api/challenges` — `solved` flipped to `true` for exactly that one challenge (1/27), which is
+      what the restyled card/header/chip-filter logic consumes unchanged. Confirmed the container was torn down
+      (no orphaned `app=devops-trainer` containers left after stop). Confirmed via the dev Vite server (`:5173`,
+      the steady-state stack) that the served source matches what was written (fetched the raw
+      `ChallengeListPage.tsx` module and grepped for the new markup/class markers). `:3000` (the production nginx
+      path) returned connection-reset as expected under the dev-override stack — nothing listens on container
+      port 80 while the override runs `npm run dev` on 5173 instead of nginx, consistent with how prior phases
+      describe this same stack; not treated as a bug. No headless-browser tool was available to literally
+      Tab/arrow-key through the new chip controls in a live page, so the roving-tabindex keyboard behavior was
+      verified by reasoning through the concrete DOM/ARIA structure instead (each option is a real `<button
+      role="radio">`, only the checked one has `tabIndex 0`, arrow keys update both `value` and call `.focus()` on
+      the newly-active option's existing ref — which works regardless of React's render timing since `.focus()`
+      is valid on any element, including `tabIndex="-1"` ones, at the moment it's called).
 
 Also done as part of this pass, not separately itemized above: a small custom toast system
 (`context/ToastContext.tsx`) for check-pass/check-fail/hint/error feedback, a dark, consistent design system
