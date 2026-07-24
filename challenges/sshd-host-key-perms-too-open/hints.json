@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Try starting it in the foreground to see the real error: `sudo /usr/sbin/sshd -D -e` (Ctrl-C after a moment). It won't just say 'failed' -- read the actual output." },
+  { "order_index": 2, "text": "It complains about each host key individually before giving up entirely: `Permissions 0644 for '/etc/ssh/ssh_host_rsa_key' are too open... This private key will be ignored.` Check all three: `ls -l /etc/ssh/ssh_host_*_key`." },
+  { "order_index": 3, "text": "sshd refuses to use any private key file that's readable by group/other -- and once every host key is rejected, it has literally nothing left to identify itself with, so it exits outright rather than starting without one." },
+  { "order_index": 4, "text": "Fix the permissions on all of them: `sudo chmod 600 /etc/ssh/ssh_host_*_key`, then start the service: `sudo service ssh start`." }
+]

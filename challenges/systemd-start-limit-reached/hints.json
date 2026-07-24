@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "`systemctl status worker2` shows something like `Failed to start... : Unit worker2.service not found` is NOT it -- look closer, it should mention `start-limit-hit` or `start request repeated too quickly`. That's systemd itself refusing to try again, separate from whatever originally crashed the service." },
+  { "order_index": 2, "text": "Find out why it was crash-looping in the first place: `journalctl -u worker2 -n 30 --no-pager`. The service's own output is in there, from before the limit was hit." },
+  { "order_index": 3, "text": "The service can't find its config file. Create `/etc/worker2/worker2.conf` with a `QUEUE_NAME=...` line (check `/usr/local/bin/worker2` to see exactly what it expects)." },
+  { "order_index": 4, "text": "Fixing the root cause is not enough by itself -- the unit is still in a 'start-limit-hit' failed state and systemd won't attempt a start until that's cleared: `sudo systemctl reset-failed worker2`, then `sudo systemctl start worker2`." }
+]

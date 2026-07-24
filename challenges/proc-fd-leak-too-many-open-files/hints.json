@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Look at the log it's actually writing: `tail /var/log/connd/connd.log`. It repeats 'cannot open connection N/25: Too many open files' -- that error name (EMFILE) means a file-descriptor limit, not a real networking or disk problem." },
+  { "order_index": 2, "text": "Find its PID (`pgrep -f connd`) and check the limit the kernel is actually enforcing on it: `cat /proc/<pid>/limits | grep 'open files'`. Compare that against how many fds it's holding: `ls /proc/<pid>/fd | wc -l`." },
+  { "order_index": 3, "text": "The limit is set from `/etc/connd/connd.conf` (`NOFILE_LIMIT`) when the service starts, via `ulimit -n`. A hardening pass lowered it far below what this service actually needs at steady state (25 connections plus its own stdio)." },
+  { "order_index": 4, "text": "Raise it in the config, then restart the service so the new limit actually takes effect (an already-running process's ulimit doesn't change on its own): edit `NOFILE_LIMIT` in `/etc/connd/connd.conf` up to something like `256`, then `sudo svc-ctl restart`." }
+]

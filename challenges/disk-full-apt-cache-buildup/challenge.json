@@ -1,0 +1,13 @@
+{
+  "slug": "disk-full-apt-cache-buildup",
+  "title": "'No space left on device' installing a package -- but there's no huge log anywhere",
+  "category": "disk-filesystem",
+  "difficulty": "beginner",
+  "description_md": "Installing or upgrading any package on this box now fails with `No space left on device`. There's no runaway log file and no obvious culprit in `/var/log`. This box hasn't had its package cache cleaned in months. SSH in as `trainee` (passwordless `sudo`), find what's actually eating the space, and free it up the right way.\n\nYou're done when the filesystem backing `/var/cache/apt/archives` has a healthy amount of free space again (several MB).",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "tmpfs": { "/var/cache/apt/archives": "size=20m,mode=755" },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

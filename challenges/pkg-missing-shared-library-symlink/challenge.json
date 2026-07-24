@@ -1,0 +1,12 @@
+{
+  "slug": "pkg-missing-shared-library-symlink",
+  "title": "calc-app fails: 'error while loading shared libraries'",
+  "category": "package-management",
+  "difficulty": "intermediate",
+  "description_md": "Running `calc-app` fails immediately with `error while loading shared libraries: libcalc.so.1: cannot open shared object file: No such file or directory`. Someone was recently \"cleaning up old library versions\" on this box. SSH in as `trainee` (passwordless `sudo`), figure out what actually happened to the library, restore it properly, and get `calc-app` running again.\n\nYou're done when `calc-app` runs successfully.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

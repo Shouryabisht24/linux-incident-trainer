@@ -1,0 +1,12 @@
+{
+  "slug": "pkg-stale-dpkg-lock-file",
+  "title": "apt/dpkg refuses: 'Could not get lock /var/lib/dpkg/lock-frontend'",
+  "category": "package-management",
+  "difficulty": "beginner",
+  "description_md": "Every `apt`/`dpkg` command on this box refuses with `Could not get lock /var/lib/dpkg/lock-frontend. It is held by process <pid>`. A maintenance script from earlier apparently never finished cleanly. SSH in as `trainee` (passwordless `sudo`), confirm whether that process is actually still doing real work or just hung, and clear the lock safely.\n\nYou're done when dpkg's frontend lock is actually free again.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

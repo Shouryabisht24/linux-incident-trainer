@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Check what's actually listening on 8080 right now: `sudo ss -tlnp | grep 8080` (or `sudo lsof -i :8080`)." },
+  { "order_index": 2, "text": "The process holding it isn't nginx -- it's a leftover, long-forgotten process (`legacy-agent`) that starts on boot and never got decommissioned. That's who's winning the race for the port, not a config problem in nginx itself." },
+  { "order_index": 3, "text": "Stop it: `sudo pkill -x legacy-agent`, then confirm the port is free: `sudo ss -tlnp | grep 8080` should show nothing. (Use `-x`, an exact name match, rather than `-f` here -- the container's own startup command line happens to mention that same path as text, so a substring match on the full command line would catch more than you want.)" },
+  { "order_index": 4, "text": "Now start the real service: `sudo service nginx start` (or `sudo nginx -s reload` if it's already partially running), then `curl http://localhost:8080/`." }
+]

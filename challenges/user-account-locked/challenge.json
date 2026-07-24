@@ -1,0 +1,12 @@
+{
+  "slug": "user-account-locked",
+  "title": "Nightly ETL job fails: 'Your account has expired'",
+  "category": "users-groups-sudo",
+  "difficulty": "beginner",
+  "description_md": "The nightly ETL sync runs as the `etl` service account via `su - etl`. It's been failing every night with `Your account has expired; please contact your system administrator.` Nobody changed its password. SSH in as `trainee` (passwordless `sudo`), find what's actually blocking the account, and fix it so `etl` can be used again.\n\nYou're done when `su - etl -c 'echo ok'` succeeds.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

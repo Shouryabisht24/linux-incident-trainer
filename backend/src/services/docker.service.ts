@@ -118,11 +118,13 @@ export async function createSessionContainer(
 
 export async function destroyContainer(containerId: string): Promise<void> {
   const container = docker.getContainer(containerId);
-  try {
-    await container.stop({ t: 5 });
-  } catch (err) {
-    if (!isNotModifiedOrMissing(err)) throw err;
-  }
+  // No graceful container.stop() here on purpose (see decisions/0015): these are
+  // disposable, single-use training containers with nothing worth flushing at
+  // teardown, and most challenge PID 1s (`sleep infinity`, or `/sbin/init` for
+  // systemd challenges) ignore SIGTERM outright, so stop({t:5}) reliably burned
+  // the whole 5s timeout before force-killing anyway. remove({ force: true })
+  // alone already SIGKILLs a still-running container as part of removal, so it
+  // gets us the same end state near-instantly.
   try {
     await container.remove({ force: true });
   } catch (err) {

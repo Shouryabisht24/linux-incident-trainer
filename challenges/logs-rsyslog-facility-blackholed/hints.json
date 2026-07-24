@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Reproduce it directly: `logger -p local0.info 'test message'`, then check `/var/log/app/app.log`. Nothing shows up, and rsyslog itself logs no error anywhere -- it's doing exactly what it's configured to do." },
+  { "order_index": 2, "text": "Look at the rsyslog rules for this facility: `cat /etc/rsyslog.d/10-app.conf`. Rules are processed top-to-bottom, in order, for every message." },
+  { "order_index": 3, "text": "The first rule sends `local0.*` to `/dev/null`, followed by `& stop` -- that halts all further rule processing for any message that matched. The real rule underneath it, which files to `/var/log/app/app.log`, never runs for these messages at all." },
+  { "order_index": 4, "text": "Remove the `/dev/null` + `& stop` rule (leave only the real rule that files to app.log), then restart rsyslog so it picks up the change (there's no systemd or init script here, so restart it directly): `sudo pkill rsyslogd; sudo rsyslogd`. Verify with a fresh `logger -p local0.info '...'`." }
+]

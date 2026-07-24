@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Watch memory usage per process: `ps aux --sort=-%mem | head` (or run it twice a few seconds apart) -- one process's RSS should be visibly climbing while everything else stays flat." },
+  { "order_index": 2, "text": "That process is `cache-warmer`. Confirm it's the one growing: `ps -o pid,rss,cmd -C cache-warmer`, then check again a few seconds later -- the RSS number goes up each time." },
+  { "order_index": 3, "text": "It's allocating memory and never freeing it, so there's no 'wait it out' fix -- stop it: `sudo pkill -f cache-warmer`." },
+  { "order_index": 4, "text": "Confirm it's gone and memory usage has stopped climbing: `pgrep -f cache-warmer` should return nothing, and `free -m` should hold steady afterward." }
+]

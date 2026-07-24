@@ -1,0 +1,12 @@
+{
+  "slug": "systemd-start-limit-reached",
+  "title": "worker2 won't start even after you'd swear you fixed it",
+  "category": "systemd-services",
+  "difficulty": "hard",
+  "description_md": "The `worker2` background service is down. `systemctl start worker2` reports `start request repeated too quickly` and refuses outright -- it doesn't even try. SSH in as `trainee` (passwordless `sudo`), find out what's actually wrong with the service itself, fix that, and then get systemd to actually let it start again.\n\nYou're done when `systemctl is-active worker2` reports `active`.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

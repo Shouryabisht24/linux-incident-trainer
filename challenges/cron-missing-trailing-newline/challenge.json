@@ -1,0 +1,12 @@
+{
+  "slug": "cron-missing-trailing-newline",
+  "title": "Cron job in /etc/cron.d never runs -- no errors anywhere",
+  "category": "cron-scheduling",
+  "difficulty": "beginner",
+  "description_md": "`/etc/cron.d/nightly-sync` defines a single job that should run every 5 minutes, but it never has -- `/var/log/nightly-sync.done` doesn't exist, and there's nothing wrong-looking about the line itself. SSH in as `trainee` (passwordless `sudo`), figure out why cron won't accept this file's job, and fix it.\n\nYou're done when the crontab file is actually valid the way cron requires.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 8,
+  "content_version": 1
+}

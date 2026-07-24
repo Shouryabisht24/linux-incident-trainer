@@ -1,0 +1,12 @@
+{
+  "slug": "net-tls-cert-expired-nginx",
+  "title": "TLS handshake succeeds but the certificate is expired",
+  "category": "networking-dns",
+  "difficulty": "intermediate",
+  "description_md": "`app.internal` is served over TLS by nginx on port 8443. Connections still complete, but monitoring flags the certificate as expired -- nobody rotated it before it ran out. SSH in as `trainee` (passwordless `sudo`), confirm the certificate's actual validity dates, generate a fresh one, and get nginx serving it.\n\nYou're done when the certificate nginx is actively serving on port 8443 is currently valid (not expired).",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

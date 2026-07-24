@@ -1,0 +1,13 @@
+{
+  "slug": "disk-space-held-by-deleted-fd",
+  "title": "df shows almost no free space, but there's nothing big in any directory",
+  "category": "disk-filesystem",
+  "difficulty": "hard",
+  "description_md": "The filesystem backing `/var/log/streamer` reports almost no free space, but `ls`/`du` show nothing there to account for it -- the directory looks basically empty. A log rotation \"cleaned up\" last night without telling the still-running `streamer` process. SSH in as `trainee` (passwordless `sudo`), find where the space is actually going, and get it back.\n\nYou're done when `/var/log/streamer` has a healthy amount of free space again (several MB).",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "tmpfs": { "/var/log/streamer": "size=24m,mode=1777" },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

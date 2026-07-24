@@ -1,0 +1,12 @@
+{
+  "slug": "systemd-timer-bad-oncalendar",
+  "title": "Nightly cleanup timer never actually schedules anything",
+  "category": "systemd-services",
+  "difficulty": "beginner",
+  "description_md": "`cleanup.timer` is supposed to trigger `cleanup.service` every night, but it's never actually run -- `/var/lib/app/last-cleanup` doesn't exist. Whoever wrote the timer unit didn't use systemd's actual calendar syntax. SSH in as `trainee` (passwordless `sudo`), find why the timer won't activate, and get it scheduling correctly.\n\nYou're done when `cleanup.timer` is active with a valid, real next scheduled run time.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

@@ -179,6 +179,42 @@ per category below.
   authentic disk-full/inode scenarios (`decisions/0009`); `requires_systemd` container branch (`decisions/0010`);
   `challenges/AUTHORING.md` guide distilled from authoring these.
 
+### Phase 4 follow-up pass — reached the original ~50 target
+Delivered the remaining 23 challenges to close out every category to its target, reaching **50/50** total
+(27 prior + 23 here). Same non-negotiable verification loop as above for every one of the 23 (standalone
+`docker build` → run with the exact platform flags → `check.sh` fails before the fix → fix applied as the
+unprivileged `trainee` (never root) → `check.sh` passes after), using the repo's `verify.sh` harness. Also
+re-verified two of them (one plain container, one `requires_systemd`) end-to-end through the **real** stack:
+signed up a fresh test user, started a real session via `POST /api/challenges/:slug/sessions`, `docker exec`'d
+the fix into the actual live session container as `trainee` exactly as the terminal bridge would, called the
+real `POST /api/sessions/:id/check` (passed both), confirmed `solved: true` via `GET /api/challenges`, stopped
+both sessions, and confirmed clean container teardown with no orphans left behind. Rebuilt/restarted the
+backend and confirmed all 23 in its boot log (`synced challenge` lines) and via `GET /api/challenges`
+(50 total, exact per-category counts below). Test user and its DB rows deleted afterward; no leftover
+containers or `verify/*` test images left on the host.
+- [x] Permissions & ownership — 2 more (perm-setuid-helper-bit-stripped, perm-sticky-bit-missing-shared-dir) = **6/6 — target reached**
+- [x] Disk & filesystem — 3 more (disk-space-held-by-deleted-fd, fs-noexec-mount-blocks-script, disk-full-apt-cache-buildup) = **6/6 — target reached**
+- [x] Process & performance — 3 more (proc-memory-leak-runaway, proc-fd-leak-too-many-open-files, proc-zombie-process-leak) = **5/5 — target reached**
+- [x] Networking & DNS — 2 more (net-port-conflict-stale-process, net-tls-cert-expired-nginx) = **5/5 — target reached**
+- [x] systemd & services — 3 more (systemd-service-wrong-user, systemd-start-limit-reached, systemd-timer-bad-oncalendar) = **6/6 — target reached**
+- [x] Logs & journald — 2 more (logs-logrotate-misconfigured, logs-rsyslog-facility-blackholed) = **4/4 — target reached**
+- [x] Package management — 2 more (pkg-missing-shared-library-symlink, pkg-stale-dpkg-lock-file) = **4/4 — target reached**
+- [x] Users/groups/sudo — 2 more (user-account-locked, user-home-dir-uid-mismatch) = **5/5 — target reached**
+- [x] Cron & scheduling — 2 more (cron-job-fails-minimal-path, cron-missing-trailing-newline) = **4/4 — target reached**
+- [x] SSH & remote access — 2 more (sshd-host-key-perms-too-open, sshd-match-forces-restricted-shell) = **5/5 — target reached**
+- Two design pivots made mid-pass after live testing contradicted the original plan (see `decisions/0016`):
+  a journald per-service rate-limit challenge never actually suppressed messages in this container/cgroup
+  setup, and a persistent-journal-directory-permissions challenge got silently "healed" back to correct
+  perms/ACLs by systemd's own tmpfiles logic before the trainee ever saw it broken — both replaced with
+  `logs-rsyslog-facility-blackholed` (a `& stop` rule blackholing a syslog facility), which does not depend
+  on journald's own internal enforcement and verified cleanly.
+- New pattern used for several of these (not used in the first 27): compiling a small, purpose-built C
+  helper at build time with `gcc` (setuid helper, leaking daemon, tiny shared library + consumer, a port
+  hog) where a shell script couldn't express the needed mechanism (setuid is not honored on scripts at
+  all; precise fd/memory behavior is awkward in `sh`). See `decisions/0016`.
+- Not done: nothing outstanding from this pass — all 10 categories are at their planned target and the
+  original ~50-challenge catalogue goal is met.
+
 ## Phase 5 — Hardening
 - [x] Per-category resource-limit tuning — each challenge sets `resource_limits` in `challenge.json`; process &
       performance uses a deliberately tight 0.5 vCPU (whole "machine") so one busy loop starves it as premise;
@@ -204,10 +240,11 @@ per category below.
       `getaddrinfo EAI_AGAIN postgres` at boot, a startup race the mid-session crash-recovery test above didn't
       cover (that test reused an already-established network). Fixed with a retry-with-backoff `waitForDatabase()`
       before the first migration query. See `decisions/0014-*.md`.
-- Not done (explicit shortfall): full ~47-challenge catalogue — 27 delivered, all verified; the rest are the
-      remaining per-category counts listed in Phase 4. WS terminal drive for the *new* challenges wasn't re-run
-      per-challenge (the bridge itself was verified in Phase 2/3 and once here); lifecycle was validated via the
-      API + docker exec instead.
+- Was an explicit shortfall at the time this line was first written (27/~47 delivered); closed out in the
+  Phase 4 follow-up pass above — the catalogue is now 50/50 across all 10 categories. WS terminal drive for
+  new challenges still isn't re-run per-challenge (the bridge itself was verified in Phase 2/3 and spot-checked
+  again in the Phase 4 follow-up); lifecycle for individual new challenges is validated via the API + docker
+  exec instead, consistent with how the original 27 were verified.
 
 ## Phase 6 — Public marketing/landing page
 Not itemized in the original plan; added as a real route in the existing app (not a mockup), since the product
@@ -246,3 +283,49 @@ had no pre-login page explaining what it is before this.
       introduced), which meant the WS terminal bridge itself was broken end-to-end in production and had only
       ever been exercised through the dev Vite proxy. Fixed and verified via a raw WS client through nginx port
       3000. See `decisions/0013`.
+
+## Phase 5 follow-up — session-stop bug fixes (post-Phase 6)
+Two related bugs in the stop flow, reported against `docker.service.ts`'s `destroyContainer()` and
+`ChallengeDetailPage`/`TerminalPane`'s stop handling; a third, closely-related bug in the same flow was found
+while verifying the fix and fixed alongside it.
+- [x] **Stop latency (~5s, should be near-instant)**: `destroyContainer()` called `container.stop({ t: 5 })`
+      before `container.remove({ force: true })`. Challenge containers run as PID 1 directly (`sleep infinity`,
+      or `/sbin/init` for systemd challenges) with no SIGTERM handler installed — on Linux, PID 1 gets kernel
+      default-disposition-is-ignored semantics for unhandled signals, so `stop()` reliably burned its whole
+      timeout before force-killing. Since these are disposable, single-use containers with nothing to flush
+      gracefully, and `remove({ force: true })` alone already SIGKILLs a still-running container as part of
+      removal, the `stop()` call was simply redundant. Removed it. See `decisions/0015`.
+      Measured directly against the real stack (`docker compose up --build -d`, `time curl .../stop`): **5.114s
+      before → 0.067s after** for a `sleep`-style challenge (`perm-config-blocks-service`), **0.082s after** for a
+      real systemd-in-Docker challenge (`systemd-masked-service`, confirmed PID 1 is `systemd` via
+      `docker exec ... ps -p1`) — force-remove alone tears down both cleanly with no orphan left behind
+      (`docker ps -a --filter label=app=devops-trainer` empty after each stop in both cases).
+- [x] **Spurious "Terminal connection lost" toast + "Disconnected"/"Reconnect" UI flash on every intentional
+      stop**: `TerminalPane` stays mounted with its WS still open until the stop mutation's `onSuccess` unmounts
+      it; in between, the backend killing the container closes the WS bridge server-side, which `TerminalPane`
+      has no way to distinguish from a genuine unexpected disconnect (its own `intentionalClose` flag is only
+      set on unmount/reconnect, not by the parent already knowing a stop is in flight) — so it fired `onExit`
+      and the disconnected/"Reconnect" UI right before the panel disappeared anyway. Fixed with a `stoppingRef`
+      in `ChallengeDetailPage`, set `true` at the start of `handleStop` (before the mutation call) and checked by
+      both the exit-toast handler and a new `onStatusChange` wrapper, so the parent — which knows the stop was
+      user-initiated — suppresses both, without touching `TerminalPane` itself. Cleared on stop error (a failed
+      stop leaves the session genuinely live) and on challenge/slug change.
+- [x] **Found during verification, fixed alongside the above**: a related but distinct spurious error toast
+      ("session is not running") could fire on stop, from a *different* code path — the resume-on-mount effect
+      (added in Phase 3, `decisions/0008`) reacting to `activeSessionQuery`'s stale cached data. Stopping
+      invalidates that query (triggering a background refetch) but React Query doesn't clear `data` synchronously,
+      so the render where local `session` flips to `null` can still see the just-stopped session as "active" and
+      try to resume it, hitting the backend's 409. Fixed with a `stoppedSessionIdsRef` (a `Set`, not a blanket
+      flag) recording session IDs this component itself stopped, checked by the resume effect — scoped by ID
+      so it only ever suppresses resuming that specific stale session, never a genuinely new one that later
+      appears for the same slug.
+- [x] Verified end-to-end: `npx tsc --noEmit` clean on both packages, `npm run build` clean on frontend; rebuilt
+      and booted the real stack. Backend flow driven via curl (signup → start session → timed stop → confirmed
+      container gone). Frontend flow driven with Playwright + real Chromium (installed ad hoc into the scratch
+      dir for this verification only, not added to the project) against the live dev server at `:5173` since no
+      headless browser was available in-session before: confirmed an intentional stop shows only "Session
+      started"/"Session stopped" toasts (screenshot-verified, no error toast, no disconnected/reconnect flash),
+      and — separately — that force-killing a challenge container *out-of-band* (`docker rm -f`, not via the
+      Stop button) still correctly shows "Terminal connection lost" plus the "Disconnected"/"Reconnect" UI
+      (screenshot-verified), confirming the suppression is scoped to self-initiated stops only. All test users,
+      sessions, and containers created during verification were cleaned up afterward; dev stack left running.

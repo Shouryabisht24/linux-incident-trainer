@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Check the logrotate config for this app: `cat /etc/logrotate.d/billing`. Compare the path it names against what's actually there: `ls /var/log/billing/`." },
+  { "order_index": 2, "text": "The config points at a filename that doesn't exist anymore -- the app's log file was renamed at some point, and the logrotate config was never updated. `missingok` in the config is exactly why this fails completely silently (no error, no warning, just nothing happening)." },
+  { "order_index": 3, "text": "Fix the path in `/etc/logrotate.d/billing` to match the real, current log file." },
+  { "order_index": 4, "text": "Verify by forcing a run rather than waiting for the schedule: `sudo logrotate --force /etc/logrotate.d/billing`, then check that a rotated file (`billing.log.1`) actually appeared and the live log was truncated." }
+]

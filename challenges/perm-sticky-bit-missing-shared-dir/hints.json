@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Check the directory's mode: `ls -ld /srv/shared/dropbox`. It's world-writable (`777`) -- that's needed so any job can drop files, but by itself it also lets any job delete anyone else's files there." },
+  { "order_index": 2, "text": "Compare against `/tmp` on a normal Linux box: `ls -ld /tmp`. Notice the last character of its permission string is a `t`, not the usual `x`. That's the sticky bit -- world-writable dirs need it so only a file's owner (or root) can remove/rename it." },
+  { "order_index": 3, "text": "Add it: `sudo chmod +t /srv/shared/dropbox`. Confirm with `ls -ld` -- mode should now read `drwxrwxrwt`." },
+  { "order_index": 4, "text": "Prove it actually protects the two real accounts: as `batchjob`, create a file in the dropbox; as `otherjob`, try to `rm` it -- it should now fail with `Operation not permitted`." }
+]

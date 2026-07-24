@@ -44,6 +44,24 @@ export function ChallengeDetailPage() {
   const [checkResult, setCheckResult] = useState<{ passed: boolean; output: string } | null>(null);
   const [solutionMd, setSolutionMd] = useState<string | null>(null);
 
+  // Set true right before the stop mutation fires, cleared on error (a failed
+  // stop leaves the session/terminal alive, so a later real disconnect should
+  // still be reported) and implicitly moot on success (the whole terminal panel
+  // unmounts). Lets the WS-close handlers below tell "the container went away
+  // because *we* just stopped it" apart from a genuinely unexpected disconnect,
+  // without having TerminalPane itself guess at parent-level intent.
+  const stoppingRef = useRef(false);
+
+  // Session IDs we ourselves have stopped. `activeSessionQuery`'s cache is
+  // invalidated on stop (see useStopSession), but invalidation only *triggers*
+  // a refetch — it doesn't clear the stale `data` synchronously, so the render
+  // that flips local `session` to null can still momentarily see the
+  // just-stopped session as "active" and try to resume it below, which 404/409s
+  // and throws a spurious error toast. Keyed by ID (not a blanket flag) so it
+  // only ever suppresses resuming *that* specific stale session, never a
+  // genuinely new one that shows up later for the same slug.
+  const stoppedSessionIdsRef = useRef<Set<string>>(new Set());
+
   const hintsQuery = useHints(session?.id);
 
   // A session belongs to a single challenge — reset local UI state whenever the
@@ -52,6 +70,8 @@ export function ChallengeDetailPage() {
     setSession(null);
     setCheckResult(null);
     setSolutionMd(null);
+    stoppingRef.current = false;
+    stoppedSessionIdsRef.current.clear();
   }, [slug]);
 
   // Resume-on-refresh: if the backend reports an active session for *this*
@@ -62,6 +82,7 @@ export function ChallengeDetailPage() {
     const active = activeSessionQuery.data?.session;
     if (!active || !slug || active.challenge_slug !== slug) return;
     if (session || refreshTicketMutation.isPending) return;
+    if (stoppedSessionIdsRef.current.has(active.id)) return;
 
     setResuming(true);
     refreshTicketMutation.mutate(active.id, {
@@ -91,6 +112,7 @@ export function ChallengeDetailPage() {
 
   const handleStart = useCallback(() => {
     if (!slug) return;
+    stoppingRef.current = false;
     startMutation.mutate(slug, {
       onSuccess: (res) => {
         setSession({ id: res.sessionId, wsTicket: res.wsTicket });
@@ -106,6 +128,11 @@ export function ChallengeDetailPage() {
 
   const handleStop = useCallback(() => {
     if (!session) return;
+    // Mark this stop as user-initiated *before* the request goes out: the
+    // backend killing the container can race the HTTP response, and the WS
+    // bridge closing as a result must not be reported as a surprise disconnect.
+    stoppingRef.current = true;
+    stoppedSessionIdsRef.current.add(session.id);
     stopMutation.mutate(session.id, {
       onSuccess: () => {
         setSession(null);
@@ -113,6 +140,9 @@ export function ChallengeDetailPage() {
         toast.info("Session stopped.");
       },
       onError: (err) => {
+        // The stop didn't actually happen — the session/terminal are still
+        // live, so a subsequent close should go back to being treated as real.
+        stoppingRef.current = false;
         toast.error(err instanceof Error ? err.message : "failed to stop session");
       },
     });
@@ -166,8 +196,18 @@ export function ChallengeDetailPage() {
   }, [session, refreshTicketMutation, toast]);
 
   const handleUnexpectedExit = useCallback(() => {
+    // A stop we ourselves initiated closing the socket is expected, not a
+    // surprise — don't alarm the user over something they just clicked.
+    if (stoppingRef.current) return;
     toast.error("Terminal connection lost.");
   }, [toast]);
+
+  const handleTerminalStatusChange = useCallback((status: TerminalStatus) => {
+    // Same suppression as handleUnexpectedExit, applied to the disconnected/
+    // "Reconnect" UI: don't flash it for a disconnect caused by our own stop.
+    if (stoppingRef.current && status === "disconnected") return;
+    setTerminalStatus(status);
+  }, []);
 
   if (challengeQuery.isLoading) {
     return (
@@ -253,7 +293,7 @@ export function ChallengeDetailPage() {
               key={session.id}
               wsTicket={session.wsTicket}
               onExit={handleUnexpectedExit}
-              onStatusChange={setTerminalStatus}
+              onStatusChange={handleTerminalStatusChange}
             />
           </div>
 

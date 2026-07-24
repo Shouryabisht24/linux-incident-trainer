@@ -1,0 +1,12 @@
+{
+  "slug": "user-home-dir-uid-mismatch",
+  "title": "reports user gets 'Permission denied' on its own files",
+  "category": "users-groups-sudo",
+  "difficulty": "intermediate",
+  "description_md": "The `reports` account can no longer read or write its own data in `/home/reports/data` -- straight `Permission denied`, even though nothing about the files looks obviously wrong at first glance. The account was recently recreated by a provisioning tool. SSH in as `trainee` (passwordless `sudo`), work out what actually changed, and get `reports` able to use its own files again.\n\nYou're done when the `reports` user can read and write `/home/reports/data/report.csv`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

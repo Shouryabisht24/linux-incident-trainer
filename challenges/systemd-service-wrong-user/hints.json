@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "`systemctl status reportd` shows `status=217/USER`. That specific exit code means systemd couldn't resolve the `User=` account configured for this unit -- it never even reached executing the program." },
+  { "order_index": 2, "text": "Check the unit: `cat /etc/systemd/system/reportd.service` and look at its `User=` line. Then check which service accounts actually exist: `getent passwd | grep report`." },
+  { "order_index": 3, "text": "The account the unit references doesn't exist; a similarly-named one does. Update `User=` in `/etc/systemd/system/reportd.service` to the account that's actually there." },
+  { "order_index": 4, "text": "Unit file changes need a reload before they take effect: `sudo systemctl daemon-reload && sudo systemctl start reportd`, then check `systemctl is-active reportd`." }
+]

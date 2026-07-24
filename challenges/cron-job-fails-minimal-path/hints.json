@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Look at what the script actually calls: `cat /opt/scripts/sync-data.sh`. It runs `datasync` by bare name, relying on it being found on `PATH`." },
+  { "order_index": 2, "text": "Check where `datasync` actually lives: `which datasync` / `type datasync`. Then check *why* your interactive shell can find it: `echo $PATH`, and look at `/etc/profile.d/`." },
+  { "order_index": 3, "text": "Cron does not source your shell's profile scripts -- it runs jobs with its own minimal, fixed `PATH` (typically just `/usr/bin:/bin`), which doesn't include wherever `datasync` was installed. That's the entire difference between 'works when I run it' and 'fails under cron'." },
+  { "order_index": 4, "text": "Fix it in the cron.d file itself rather than relying on any shell's profile: add a `PATH=` line at the top of `/etc/cron.d/sync-job` that includes `datasync`'s directory, e.g. `PATH=/usr/bin:/bin:/opt/tools/bin`." }
+]

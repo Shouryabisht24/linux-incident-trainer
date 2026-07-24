@@ -1,0 +1,12 @@
+{
+  "slug": "proc-memory-leak-runaway",
+  "title": "Memory usage keeps climbing until things start dying",
+  "category": "process-performance",
+  "difficulty": "beginner",
+  "description_md": "This box's memory usage keeps climbing and never comes back down -- if it's left alone, the container's tight memory limit means something is eventually going to get killed for using too much. Something is leaking. SSH in as `trainee` (passwordless `sudo`), identify the process whose memory usage keeps growing, and stop it before it runs the box out of memory.\n\nThe container is deliberately capped on memory (that's the whole machine here), so this leak is a real, escalating problem, not just an oddity. You're done when the leaking process is no longer running.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 160, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

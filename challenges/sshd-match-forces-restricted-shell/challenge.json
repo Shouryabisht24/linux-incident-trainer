@@ -1,0 +1,12 @@
+{
+  "slug": "sshd-match-forces-restricted-shell",
+  "title": "deploy can log in over SSH, but nothing it runs actually executes",
+  "category": "ssh-remote-access",
+  "difficulty": "hard",
+  "description_md": "The `deploy` account authenticates over SSH just fine -- its key works, no errors, no rejection. But every command it runs remotely (`ssh deploy@host '<command>'`) produces no output at all, as if the command were never actually run. SSH in as `trainee` (passwordless `sudo`), find what's silently overriding every command `deploy` tries to run, and fix it.\n\nA test key is at `~/deploy_key`. You're done when `ssh -i ~/deploy_key deploy@localhost 'echo SSH_OK'` actually prints `SSH_OK`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 60 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

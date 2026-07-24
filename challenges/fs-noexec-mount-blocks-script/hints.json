@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "`run-migration` is a wrapper: `cat /usr/local/bin/run-migration` shows it just execs `/opt/deploy/run-migration.sh`. Check that file's own permissions with `ls -l` -- the execute bit is there." },
+  { "order_index": 2, "text": "If the execute bit is fine but execution is still refused, the block might not be a permission bit at all. Check how the filesystem itself is mounted: `mount | grep /opt/deploy`." },
+  { "order_index": 3, "text": "`noexec` in the mount options means the kernel refuses to execute ANY binary or script located on that filesystem, regardless of its permission bits. You don't have the capability to remount it in this environment, so chmod/chown won't help." },
+  { "order_index": 4, "text": "The real fix is to stop staging runnable scripts on a noexec mount: copy the script to a normal, exec-enabled location (e.g. `/opt/tools/run-migration.sh`), `chmod +x` it there, and update the wrapper at `/usr/local/bin/run-migration` to call the new path instead." }
+]

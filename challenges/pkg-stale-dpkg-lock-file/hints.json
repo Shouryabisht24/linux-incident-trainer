@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "The error message itself tells you a PID. Confirm what's actually holding the lock: `sudo fuser -v /var/lib/dpkg/lock-frontend` (or `sudo lsof /var/lib/dpkg/lock-frontend`) lists exactly which process(es) have it open." },
+  { "order_index": 2, "text": "Look at what that process actually is (`ps -p <pid> -o pid,etime,cmd`) before killing anything -- if it were a real, currently-running package operation, killing it could leave dpkg's database in a genuinely broken state. Confirm it's stale/hung, not active work." },
+  { "order_index": 3, "text": "Once you're sure it's safe, clear it. `fuser -k` is built exactly for this -- it signals every process holding a given file: `sudo fuser -k /var/lib/dpkg/lock-frontend`." },
+  { "order_index": 4, "text": "Removing the lock *file* itself doesn't help on its own -- the lock is a live, in-kernel advisory lock (`flock`) tied to the process holding it, not the file's mere existence. Confirm the lock is actually free by checking that a new process can acquire it (or simply try `sudo dpkg --configure -a`)." }
+]

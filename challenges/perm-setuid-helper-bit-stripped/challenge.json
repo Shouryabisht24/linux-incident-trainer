@@ -1,0 +1,12 @@
+{
+  "slug": "perm-setuid-helper-bit-stripped",
+  "title": "Compliance helper stopped working: 'permission denied' reading the audit log",
+  "category": "permissions-ownership",
+  "difficulty": "intermediate",
+  "description_md": "The `auditor` account (no sudo, deliberately narrow access) reviews `/var/log/secure/access.log` for compliance using a small helper, `/usr/local/bin/read-audit-log`, that's meant to let it read that one root-owned file without granting broader access. Since a 'permissions hardening' pass ran across `/usr/local/bin`, the helper fails for `auditor` with a permission error, even though `ls -l` shows it's still owned by root and still executable. SSH in as `trainee` (passwordless `sudo`), work out what the hardening pass actually stripped, and restore the helper to working order.\n\nYou're done when the `auditor` user can run `read-audit-log` and it actually prints the log contents.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Rule out /var/log first: `du -sh /var/log/*` -- nothing unusual there. Widen the search: `du -sh /var/cache/* 2>/dev/null | sort -h`." },
+  { "order_index": 2, "text": "`/var/cache/apt/archives` is where apt keeps a copy of every `.deb` it has ever downloaded, for reuse/reinstall. It's rarely cleaned automatically, and on a box that's been upgraded for months, it accumulates a lot of packages that are never going to be reinstalled." },
+  { "order_index": 3, "text": "`ls /var/cache/apt/archives` -- lots of old `.deb` files. This cache is safe to clear; apt will just re-download a package if it's ever needed again." },
+  { "order_index": 4, "text": "Clear it the standard way: `sudo apt-get clean` (removes cached `.deb`s from `/var/cache/apt/archives`). Confirm with `df -h /var/cache/apt/archives`." }
+]

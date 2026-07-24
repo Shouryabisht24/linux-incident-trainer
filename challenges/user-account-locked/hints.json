@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Reproduce it: `su - etl -c 'echo ok'`. The message is specific -- 'account has expired', not 'wrong password' or 'no shell'. That points at account expiry, not the password itself." },
+  { "order_index": 2, "text": "Check the account's aging/expiry settings: `sudo chage -l etl`. Look at the 'Account expires' line." },
+  { "order_index": 3, "text": "It's set to a date in the past. This is a separate setting from the password itself (and separate from a plain password lock, `passwd -l`, which wouldn't even produce this message) -- account expiry is enforced by `su`/login regardless of who's invoking it, including root." },
+  { "order_index": 4, "text": "Clear it: `sudo chage -E -1 etl` (`-1` means 'never expires'). Confirm with `sudo chage -l etl`, then retry `su - etl -c 'echo ok'`." }
+]

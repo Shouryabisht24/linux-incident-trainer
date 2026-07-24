@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "`cat /etc/cron.d/nightly-sync` -- the line itself looks completely correct: valid schedule, valid user, valid command. Look past the visible content." },
+  { "order_index": 2, "text": "Check whether the file actually ends with a newline character: `tail -c 1 /etc/cron.d/nightly-sync | od -c` (or simply notice your shell prompt appears right after `cat`'s output with no line break before it)." },
+  { "order_index": 3, "text": "cron requires every crontab line, including the last one, to be newline-terminated -- if the file doesn't end in `\\n`, cron treats that final line as incomplete and silently drops it. No error is logged anywhere; it's simply never scheduled." },
+  { "order_index": 4, "text": "Fix it by appending a newline: `echo >> /etc/cron.d/nightly-sync` (an empty `echo` just appends `\\n`). Re-check with `od -c` that the file now ends in `\\n`." }
+]

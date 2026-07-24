@@ -1,0 +1,12 @@
+{
+  "slug": "logs-rsyslog-facility-blackholed",
+  "title": "billing-app's log messages vanish -- app.log stays empty",
+  "category": "logs-journald",
+  "difficulty": "intermediate",
+  "description_md": "`billing-app` logs through syslog on facility `local0`, which should land in `/var/log/app/app.log`. Nothing ever shows up there, even though the app is definitely emitting log lines. Someone was debugging a noisy facility a while back. SSH in as `trainee` (passwordless `sudo`), find where rsyslog is routing (or discarding) these messages, and get them actually reaching the log file.\n\nYou're done when a fresh `local0` message actually appears in `/var/log/app/app.log`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

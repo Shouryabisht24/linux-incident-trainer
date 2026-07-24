@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "The error names an exact file: `libcalc.so.1`. Search for anything related on disk: `ls -la /usr/local/lib/ | grep calc`. This time it's really not there -- no real file, no symlink, nothing to just relink." },
+  { "order_index": 2, "text": "A missing symlink you could just recreate; a missing real file needs to come from somewhere else. Check for backups: `ls /var/backups/local-lib/`." },
+  { "order_index": 3, "text": "Restore the real file from the backup, using its correct versioned name: `sudo cp /var/backups/local-lib/libcalc.so.1.0.0 /usr/local/lib/libcalc.so.1.0.0`. Then recreate the SONAME symlink the dynamic linker actually looks for at runtime: `sudo ln -sf libcalc.so.1.0.0 /usr/local/lib/libcalc.so.1`." },
+  { "order_index": 4, "text": "The dynamic linker uses a cache, not a live directory scan -- refresh it: `sudo ldconfig`. Then try `calc-app` again." }
+]

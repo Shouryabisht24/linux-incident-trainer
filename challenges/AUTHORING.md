@@ -79,7 +79,28 @@ re-create it — do not eyeball a Dockerfile and call it done.
   `apt` commands in the build (a failed download would break `docker build`).
 - **`check.sh` must be fast and side-effect-light** — it runs on every "Check". Add `--connect-timeout` to any
   `curl`, clean up probe files, and don't wait on time-based mechanisms (cron): assert the *precondition* that
-  makes the job run (daemon up, script executable, `run-parts --test` lists it) or run the job yourself.
+  makes the job run (daemon up, script executable, `run-parts --test` lists it) or run the job yourself. A
+  `curl` against a socket that accepts the TCP connection but never sends a response (e.g. a `listen()`ing
+  process that never `accept()`s) can hang past `--connect-timeout` — add `--max-time` too.
+- **`pgrep -f <name>` can still match a dead process.** This container's PID 1 is `sleep infinity` (or `/sbin/init`
+  for systemd ones), which never `wait()`s on children — a process you `kill` becomes a permanent `<defunct>`
+  zombie, and `pgrep -f` falls back to matching a zombie's `comm` field once its `/proc/<pid>/cmdline` has gone
+  empty. If `check.sh` needs to confirm something is *no longer running* (not just "no longer has a live
+  cmdline"), loop the matched PIDs and skip any whose `/proc/<pid>/stat` state field is `Z`.
+- **`pkill -f <path>`/`<name>` can accidentally match PID 1 itself** if the Dockerfile `CMD` happens to contain
+  that same string as literal text (e.g. `CMD ["sh","-c","nohup /usr/local/bin/foo & exec sleep infinity"]` —
+  the whole `CMD` string, including `/usr/local/bin/foo`, is PID 1's own `cmdline`). Killing PID 1 kills the
+  container. Prefer `pkill -x <exact-comm>` (15-char `comm`, no substring risk) for anything whose name might
+  also appear in `CMD`'s own text, or kill a specific PID discovered via `lsof`/`fuser` instead of pattern-matching.
+- **journald's own internal enforcement (rate limiting, persistent-journal-directory permissions) is not
+  reliable to build a challenge around** in this environment — see `decisions/0016` for what was tried and why
+  it didn't survive a real `docker build && docker run` cycle. journald *config* (`Storage=`, drop-ins under
+  `journald.conf.d/`) is fine; it's journald *policing itself at runtime* that's the problem.
+- **Compile a real C binary (`gcc`, installed via `apt-get` like any other package) for anything a shell script
+  fundamentally can't do**: setuid (the kernel ignores the setuid bit on anything with a `#!` shebang, no
+  exceptions), a real listening socket that holds a port without answering, or a versioned shared library with
+  a real embedded `SONAME` for `ldconfig` to resolve. See `decisions/0016` for the concrete pattern
+  (write `.c` to `/tmp` in `seed.sh`, `gcc -O2 -o <dest>`, `rm -f` the source).
 
 ## challenge.json quick reference
 

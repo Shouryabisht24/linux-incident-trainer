@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Look closely at the file ownership: `ls -la /home/reports/data`. If the owner column shows a plain number instead of a username, that UID doesn't match any current account -- a strong sign an account's UID changed underneath its own files." },
+  { "order_index": 2, "text": "Check what UID the `reports` account actually has right now: `id reports`. Compare that number against the numeric owner you saw on the files." },
+  { "order_index": 3, "text": "They don't match. The account was recreated (e.g. from a backup/provisioning tool) and came back with a different UID than before, while the files on disk still carry the old one -- Linux permissions are entirely UID-number based, not name-based, so as far as the kernel is concerned, `reports` and the owner of those files are now two completely different identities." },
+  { "order_index": 4, "text": "The files' UID is the source of truth here (that's the data). Reassign the account back to match it: `sudo usermod -u <old-uid> reports`, then confirm `ls -la /home/reports/data` now shows `reports` as the owner again, and the account can read/write its own files." }
+]

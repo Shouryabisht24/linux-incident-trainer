@@ -1,0 +1,12 @@
+{
+  "slug": "systemd-service-wrong-user",
+  "title": "reportd.service fails instantly with status=217/USER",
+  "category": "systemd-services",
+  "difficulty": "intermediate",
+  "description_md": "The `reportd` service fails immediately every time systemd tries to start it -- it never even gets as far as running its own program. `systemctl status reportd` shows `status=217/USER`. A service account was renamed during a security review and the unit file was never updated to match. SSH in as `trainee` (passwordless `sudo`), find the mismatch, correct it, and get the service running.\n\nYou're done when `systemctl is-active reportd` reports `active`.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

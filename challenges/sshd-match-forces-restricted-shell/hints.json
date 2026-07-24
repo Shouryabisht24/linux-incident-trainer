@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Authentication itself is fine (no password prompt, no rejection), so this isn't a key/AllowUsers-style problem. The connection succeeds; it's what happens *after* login that's wrong. Look at the whole sshd config, not just the top: `cat /etc/ssh/sshd_config`, all the way to the end." },
+  { "order_index": 2, "text": "Look for a `Match User deploy` block. Conditional blocks like this apply extra directives only to sessions matching the condition, and they're easy to lose track of once they're not right at the top of the file." },
+  { "order_index": 3, "text": "It sets `ForceCommand internal-sftp` for `deploy`. `ForceCommand` silently replaces *any* command the client asks to run with the configured one, regardless of what was actually requested -- so `ssh deploy@host 'echo SSH_OK'` runs an SFTP subsystem instead, not `echo`. That block was written for a different, genuinely sftp-only account and ended up matching `deploy` too." },
+  { "order_index": 4, "text": "Remove the `Match User deploy` block (or narrow it back to the account it was actually meant for), then validate and reload: `sudo sshd -t && sudo pkill sshd && sudo /usr/sbin/sshd`." }
+]

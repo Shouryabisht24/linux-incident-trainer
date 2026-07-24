@@ -1,0 +1,12 @@
+{
+  "slug": "net-port-conflict-stale-process",
+  "title": "nginx won't bind to 8080: 'Address already in use'",
+  "category": "networking-dns",
+  "difficulty": "beginner",
+  "description_md": "The web app is supposed to be served by nginx on port 8080, but `curl http://localhost:8080/` refuses the connection and nginx's own startup fails with `Address already in use`. nginx's config hasn't changed. SSH in as `trainee` (passwordless `sudo`), find out what's already sitting on that port, clear it, and get the real service running.\n\nYou're done when `curl http://localhost:8080/` succeeds.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

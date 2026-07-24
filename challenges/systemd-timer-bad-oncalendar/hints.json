@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "`systemctl status cleanup.timer` -- it should show a failure activating, something like `Failed to start cleanup.timer: Invalid argument`." },
+  { "order_index": 2, "text": "Look at the timer unit itself: `cat /etc/systemd/system/cleanup.timer`. The `OnCalendar=` line isn't in systemd's actual calendar-event grammar -- it's plain English." },
+  { "order_index": 3, "text": "systemd calendar specs look like `OnCalendar=*-*-* 03:00:00` (year-month-day hour:minute:second, `*` meaning 'any'), or the shorthand `OnCalendar=daily` for midnight. You can check any expression before committing to it: `systemd-analyze calendar '*-*-* 03:00:00'`." },
+  { "order_index": 4, "text": "Fix the line, then reload and (re)start the timer: `sudo systemctl daemon-reload && sudo systemctl restart cleanup.timer`, and confirm with `systemctl list-timers cleanup.timer`." }
+]

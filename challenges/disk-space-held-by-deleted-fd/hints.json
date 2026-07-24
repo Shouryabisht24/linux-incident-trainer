@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Confirm the mismatch yourself: `df -h /var/log/streamer` (nearly full) vs `du -sh /var/log/streamer` and `ls -la /var/log/streamer` (basically nothing). Deleted files that are still held open by a running process are invisible to `ls`/`du` but the kernel can't reclaim their blocks." },
+  { "order_index": 2, "text": "Find who's holding a deleted file open on that filesystem: `sudo lsof +L1 /var/log/streamer` (lists open files with a hard-link count under 1, i.e. deleted-but-open) or `sudo lsof | grep deleted`." },
+  { "order_index": 3, "text": "Identify the process from that output (it's `streamer`, running as a background daemon). Stopping it releases its file descriptor, which is the only thing keeping those blocks allocated." },
+  { "order_index": 4, "text": "Stop it: `sudo pkill -f /usr/local/bin/streamer` (or `sudo kill <pid>` from the lsof output), then re-check `df -h /var/log/streamer`." }
+]

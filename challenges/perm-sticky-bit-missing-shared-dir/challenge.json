@@ -1,0 +1,12 @@
+{
+  "slug": "perm-sticky-bit-missing-shared-dir",
+  "title": "Shared drop directory: one job's files keep getting deleted by another",
+  "category": "permissions-ownership",
+  "difficulty": "beginner",
+  "description_md": "`/srv/shared/dropbox` is a shared scratch directory where a few unrelated batch-job accounts (`batchjob`, `otherjob`) hand files off to each other, the same way `/tmp` works system-wide. Files owned by one job keep disappearing before they're picked up -- another job's own cleanup is sweeping the whole directory, not just its own files. SSH in as `trainee` (passwordless `sudo`), work out what protection this kind of shared directory is missing, and add it.\n\nYou're done when a file owned by `batchjob` can no longer be deleted by `otherjob`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

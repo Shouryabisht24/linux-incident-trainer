@@ -1,0 +1,12 @@
+{
+  "slug": "proc-zombie-process-leak",
+  "title": "Process table is filling up with <defunct> entries",
+  "category": "process-performance",
+  "difficulty": "intermediate",
+  "description_md": "`ps aux` on this box shows a steadily growing pile of `<defunct>` (zombie) processes, all parented to the same background job dispatcher. The container's process-count limit is tight, and this is slowly eating into it -- eventually nothing will be able to fork a new process at all. SSH in as `trainee` (passwordless `sudo`), find what's spawning children it never cleans up, and stop it.\n\nYou're done when the dispatcher process is no longer running.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

@@ -1,0 +1,12 @@
+{
+  "slug": "logs-logrotate-misconfigured",
+  "title": "billing.log has been growing forever -- logrotate never touches it",
+  "category": "logs-journald",
+  "difficulty": "beginner",
+  "description_md": "`/var/log/billing/billing.log` just keeps growing; it's never once been rotated, even though logrotate is installed and there's clearly a config for this app. SSH in as `trainee` (passwordless `sudo`), find why logrotate is silently skipping it, and fix the config so rotation actually works.\n\nYou're done when forcing a logrotate run (`sudo logrotate --force /etc/logrotate.d/billing`) actually rotates the real, current log file.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

@@ -1,0 +1,12 @@
+{
+  "slug": "sshd-host-key-perms-too-open",
+  "title": "sshd won't start at all: 'no hostkeys available'",
+  "category": "ssh-remote-access",
+  "difficulty": "intermediate",
+  "description_md": "Other users trying to SSH into this box get refused at the TCP level -- sshd isn't even listening. Starting it manually shows `sshd: no hostkeys available -- exiting`. A broad \"permissions audit\" script ran across `/etc` recently. You're already on the box as `trainee` (passwordless `sudo`); find what's actually stopping sshd from using its own host keys, and get it running.\n\nYou're done when sshd is actually running and listening on port 22.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

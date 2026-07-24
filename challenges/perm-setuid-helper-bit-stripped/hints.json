@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Reproduce it as the real actor first: `sudo -u auditor /usr/local/bin/read-audit-log`. Compare that with running it as root/trainee -- does it work differently depending on who runs it?" },
+  { "order_index": 2, "text": "`ls -l /usr/local/bin/read-audit-log` shows `-rwxr-xr-x root root` -- executable, root-owned, looks fine at a glance. Look more carefully at the permission string itself, specifically the owner's execute position." },
+  { "order_index": 3, "text": "A helper meant to let a non-root user touch a root-only file needs the setuid bit (an 's' in the owner-execute slot, e.g. `-rwsr-xr-x`) so it runs with root's effective privileges regardless of who invokes it. It's currently missing." },
+  { "order_index": 4, "text": "Restore it: `sudo chmod u+s /usr/local/bin/read-audit-log`. Confirm with `ls -l` (owner-execute shows `s`), then re-run it as `auditor`." }
+]
