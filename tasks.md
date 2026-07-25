@@ -384,3 +384,53 @@ translate them into the existing dark palette — not a theme flip, no Stripe br
       CSS (grid auto-placement traced by hand, gradient opacities checked against the near-black ground) rather
       than a rendered screenshot — a real-browser look (light hover states, the drift animation's motion, and
       the bento grid's actual proportions at a few viewport widths) is still worth the user doing themselves.
+
+## Phase 6 follow-up 2 — dark → light theme flip (app-wide, single theme, no toggle)
+Full color/surface-treatment pass over `frontend/src/styles.css` (plus one `LandingPage.tsx` inline-style fix and
+one `index.html` meta tag) — layout, component logic, and copy untouched everywhere. See `decisions/0017-*.md` for
+the complete before/after palette, the actual computed contrast ratios, and the reasoning behind every non-obvious
+call; this entry is a summary.
+- [x] Re-picked every token in `:root` for a light ground rather than inverting the dark values: soft off-white
+      page (`#f2f4f8`), pure-white card surface (`#ffffff`, brighter than the page so elevation lifts up instead
+      of down), a darker inset-surface tone (`#e8ebf1`) for inputs/code/chips, near-black text (`#171a23`), and
+      re-saturated/darkened accent/success/danger/warning hues (the old dark-tuned hex values were all
+      under-contrast as text on light — verified by computing WCAG contrast ratios by hand, not by eye; numbers in
+      the decision doc). Added `--color-*-rgb` channel tokens so every `rgba(<semantic color>, alpha)` tint/glow in
+      the file stays wired to the token instead of a hardcoded triplet (~25 sites fixed; these would have silently
+      gone stale — still pointing at the *old* blue/green/red/amber — the moment the base hex changed).
+- [x] Found and re-treated all 9 hand-tuned `rgba(255,255,255,…)`/`rgba(0,0,0,…)` dark-mode overlay values (toast/
+      feature-card/auth-card shadows, spinner ring, hero-bg dot-grid, feature-card gloss lines, hero-terminal
+      shadow) — none left as-is. Shadows moved to a shared ink-toned `--color-shadow-rgb` token at light-appropriate
+      low opacity (two-layer tight+ambient, the standard light-mode elevation pattern); the feature-card "glossy
+      top edge" lines were removed outright rather than recolored, since a white-tinted highlight on an
+      already-pure-white card is a no-op — elevation there now comes from shadow alone. Also found and fixed two
+      more hardcoded dark-specific colors outside that list: the landing-nav/auth-card frosted-glass backgrounds
+      (`rgba(15,17,21,.72)`/`rgba(23,26,33,.72)`, dark navy glass) flipped to `rgba(255,255,255,.78)`, white glass.
+- [x] Re-tuned the hero's gradient-mesh (`.hero-bg`) and dot-grid opacities for a light ground (a saturated color
+      needs less alpha to register on light than the old lighter hues needed on near-black); `.hero-wave` needed no
+      change since its fill was already token-driven (`var(--color-bg-elevated)`), so it tracks the flip
+      automatically.
+- [x] **Terminal exception**: `TerminalPane`/`xterm.js` needed zero code changes — it never had a `theme` passed to
+      `new Terminal()`, so it already renders xterm's own default dark theme regardless of the surrounding app, and
+      its `.terminal-wrap` background is a hardcoded `#000` untouched by this pass. `.terminal-status` (the
+      connection dot/Reconnect button) sits outside `.terminal-wrap` in the ordinary light chrome and correctly
+      picked up the new tokens. Separately (a related but distinct call, documented in `decisions/0017`), the
+      landing page's decorative `.hero-terminal` mock and the self-host `.code-block` snippet were also kept dark
+      since they visually represent that same real terminal — both were wired straight to the app's semantic
+      tokens and would have silently broken (near-black text on a near-black mock) once those went light, so they
+      were rewired to a new dedicated `--term-mock-*` token set that preserves the old dark palette verbatim,
+      scoped only to these two surfaces.
+- [x] Verified: `npx tsc --noEmit` and `npm run build` clean; grepped the built `dist/assets/index-*.css` and
+      confirmed the new `:root` block (`--color-bg: #f2f4f8`, `--color-accent: #3562e0`, `color-scheme:light`, …)
+      made it into the actual bundle, not just the source. Rebuilt and booted the real stack twice — once against
+      the base `docker-compose.yml` only to exercise the production nginx image on `:3000` (confirmed `/`, the
+      built CSS through nginx byte-for-byte matches the direct build, and `/api/public-stats` still returns
+      `{"challengeCount":50,"categoryCount":10}`), then rebuilt again with the dev override (documented steady
+      state) and confirmed `:5173`'s live Vite-served `styles.css` also carries the new tokens. Computed actual
+      WCAG contrast ratios (relative-luminance formula, not eyeballed) for body/muted/faint text on both surfaces,
+      button text on button background, and badge text on badge background — all clear AA 4.5:1, several clear or
+      nearly clear AAA 7:1; full numbers in `decisions/0017-*.md`. **No headless browser was available**, so the
+      actual rendered look (gradient/wave feel, shadow softness, hover states, frosted-glass blur) was verified by
+      reasoning through the CSS/built output rather than a screenshot — a real look in a browser is still worth the
+      user doing themselves, same caveat as prior visual passes. Dev-override stack left running as the steady
+      state afterward; no test artifacts or extra containers were created by this pass.

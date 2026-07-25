@@ -332,9 +332,9 @@ function HeroTerminal() {
   return (
     <div className="hero-terminal" role="img" aria-label="Terminal session diagnosing and fixing a failed systemd service">
       <div className="hero-terminal-bar">
-        <span className="hero-terminal-dot" style={{ background: "var(--color-danger)" }} />
-        <span className="hero-terminal-dot" style={{ background: "var(--color-warning)" }} />
-        <span className="hero-terminal-dot" style={{ background: "var(--color-success)" }} />
+        <span className="hero-terminal-dot" style={{ background: "var(--term-mock-danger)" }} />
+        <span className="hero-terminal-dot" style={{ background: "var(--term-mock-warning)" }} />
+        <span className="hero-terminal-dot" style={{ background: "var(--term-mock-success)" }} />
         <span className="hero-terminal-title">trainee@systemd-crashloop</span>
       </div>
       <pre className="hero-terminal-body">

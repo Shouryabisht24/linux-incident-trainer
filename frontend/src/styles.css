@@ -1,24 +1,55 @@
 :root {
-  --color-bg: #0f1115;
-  --color-bg-elevated: #171a21;
-  --color-bg-elevated-2: #1e222b;
-  --color-border: #2a2f3a;
-  --color-text: #e8eaed;
-  --color-text-muted: #9aa1ac;
-  --color-text-faint: #6b7280;
-  --color-accent: #5b8cff;
-  --color-accent-hover: #7ba0ff;
-  --color-accent-contrast: #0b1020;
-  --color-success: #3ecf8e;
-  --color-success-bg: rgba(62, 207, 142, 0.12);
-  --color-danger: #ff6b6b;
-  --color-danger-bg: rgba(255, 107, 107, 0.12);
-  --color-warning: #f5b942;
-  --color-warning-bg: rgba(245, 185, 66, 0.12);
+  /* Light theme. Soft cool-neutral ground (not stark white) with a brighter white
+     surface for cards — elevation reads via that lift plus shadow, not glow/border
+     the way the old dark theme did. Every hue below was re-picked (not inverted)
+     for AA contrast on a light ground; see decisions/0017-*.md for the numbers. */
+  --color-bg: #f2f4f8;
+  --color-bg-elevated: #ffffff;
+  --color-bg-elevated-2: #e8ebf1;
+  --color-border: #dbe0e8;
+  --color-border-strong: #c7cedb;
+  --color-text: #171a23;
+  --color-text-muted: #4b5563;
+  --color-text-faint: #66707c;
+  --color-accent: #3562e0;
+  --color-accent-hover: #2951c9;
+  --color-accent-active: #1f3ea3;
+  --color-accent-contrast: #ffffff;
+  --color-accent-rgb: 53, 98, 224;
+  --color-success: #157a4e;
+  --color-success-bg: rgba(var(--color-success-rgb), 0.12);
+  --color-success-rgb: 21, 122, 78;
+  --color-danger: #c62e2e;
+  --color-danger-bg: rgba(var(--color-danger-rgb), 0.12);
+  --color-danger-rgb: 198, 46, 46;
+  --color-warning: #9a6100;
+  --color-warning-bg: rgba(var(--color-warning-rgb), 0.12);
+  --color-warning-rgb: 154, 97, 0;
 
-  --difficulty-beginner: #3ecf8e;
-  --difficulty-intermediate: #f5b942;
-  --difficulty-hard: #ff6b6b;
+  /* Dark, ink-toned shadow base (not pure black) — light-mode elevation is carried by
+     soft shadow, so this gets reused a lot; a slightly blue-tinted ink reads less muddy
+     than flat black at low opacity. */
+  --color-shadow-rgb: 16, 24, 40;
+
+  --difficulty-beginner: var(--color-success);
+  --difficulty-intermediate: var(--color-warning);
+  --difficulty-hard: var(--color-danger);
+
+  /* Deliberately-dark decorative "terminal look" surfaces only — the landing page's
+     hero terminal mockup and the self-host code block. Real terminals read as dark by
+     convention (same reasoning that keeps the actual TerminalPane/xterm.js dark), and
+     these mockups represent that same terminal, so they keep the app's former dark
+     palette verbatim rather than inheriting the new light tokens. */
+  --term-mock-bg: #0a0c10;
+  --term-mock-bar-bg: #171a21;
+  --term-mock-border: #2a2f3a;
+  --term-mock-text: #9aa1ac;
+  --term-mock-text-bright: #e8eaed;
+  --term-mock-text-faint: #6b7280;
+  --term-mock-prompt: #7ba0ff;
+  --term-mock-success: #3ecf8e;
+  --term-mock-danger: #ff6b6b;
+  --term-mock-warning: #f5b942;
 
   --radius-sm: 6px;
   --radius-md: 10px;
@@ -33,7 +64,7 @@
   --space-8: 72px;
   --font-mono: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
 
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 * {
@@ -197,8 +228,8 @@ pre code {
 }
 
 .btn:hover:not(:disabled) {
-  background: #262b36;
-  border-color: #3a4150;
+  background: #dde2ea;
+  border-color: var(--color-border-strong);
 }
 
 .btn:active:not(:disabled) {
@@ -223,13 +254,13 @@ pre code {
 }
 
 .btn-primary:active:not(:disabled) {
-  background: #4a78e0;
-  border-color: #4a78e0;
+  background: var(--color-accent-active);
+  border-color: var(--color-accent-active);
 }
 
 .btn-danger {
   color: var(--color-danger);
-  border-color: rgba(255, 107, 107, 0.35);
+  border-color: rgba(var(--color-danger-rgb), 0.35);
 }
 
 .btn-danger:hover:not(:disabled) {
@@ -321,17 +352,17 @@ select.filter-select {
 
 .badge-beginner {
   color: var(--difficulty-beginner);
-  background: rgba(62, 207, 142, 0.14);
+  background: rgba(var(--color-success-rgb), 0.13);
 }
 
 .badge-intermediate {
   color: var(--difficulty-intermediate);
-  background: rgba(245, 185, 66, 0.14);
+  background: rgba(var(--color-warning-rgb), 0.13);
 }
 
 .badge-hard {
   color: var(--difficulty-hard);
-  background: rgba(255, 107, 107, 0.14);
+  background: rgba(var(--color-danger-rgb), 0.13);
 }
 
 .badge-neutral {
@@ -466,7 +497,7 @@ select.filter-select {
 }
 
 .select-wrap select.filter-select:hover {
-  border-color: #3a4150;
+  border-color: var(--color-border-strong);
 }
 
 .select-wrap select.filter-select:focus {
@@ -563,9 +594,11 @@ select.filter-select {
 .challenge-card:hover,
 .challenge-card:focus-visible {
   border-color: var(--color-accent);
-  background: var(--color-bg-elevated-2);
+  background: var(--color-bg-elevated);
   transform: translateY(-3px);
-  box-shadow: 0 16px 32px -20px rgba(91, 140, 255, 0.35);
+  box-shadow:
+    0 2px 6px rgba(var(--color-shadow-rgb), 0.06),
+    0 20px 36px -18px rgba(var(--color-accent-rgb), 0.28);
 }
 
 .challenge-card:focus-visible {
@@ -574,14 +607,16 @@ select.filter-select {
 }
 
 .challenge-card.solved {
-  border-color: rgba(62, 207, 142, 0.35);
-  background: linear-gradient(180deg, rgba(62, 207, 142, 0.06), transparent 60%), var(--color-bg-elevated);
+  border-color: rgba(var(--color-success-rgb), 0.35);
+  background: linear-gradient(180deg, rgba(var(--color-success-rgb), 0.07), transparent 60%), var(--color-bg-elevated);
 }
 
 .challenge-card.solved:hover,
 .challenge-card.solved:focus-visible {
-  border-color: rgba(62, 207, 142, 0.6);
-  box-shadow: 0 16px 32px -20px rgba(62, 207, 142, 0.4);
+  border-color: rgba(var(--color-success-rgb), 0.55);
+  box-shadow:
+    0 2px 6px rgba(var(--color-shadow-rgb), 0.06),
+    0 20px 36px -18px rgba(var(--color-success-rgb), 0.3);
 }
 
 .challenge-card-title {
@@ -601,7 +636,7 @@ select.filter-select {
   font-weight: 600;
   color: var(--color-success);
   background: var(--color-success-bg);
-  border: 1px solid rgba(62, 207, 142, 0.35);
+  border: 1px solid rgba(var(--color-success-rgb), 0.35);
   padding: 2px 8px;
   border-radius: 999px;
   white-space: nowrap;
@@ -625,7 +660,7 @@ select.filter-select {
   background: linear-gradient(
     100deg,
     var(--color-bg-elevated-2) 30%,
-    #2a2f3a 50%,
+    var(--color-bg-elevated) 50%,
     var(--color-bg-elevated-2) 70%
   );
   background-size: 200% 100%;
@@ -743,13 +778,13 @@ select.filter-select {
 
 .alert-error {
   background: var(--color-danger-bg);
-  border-color: rgba(255, 107, 107, 0.3);
+  border-color: rgba(var(--color-danger-rgb), 0.3);
   color: var(--color-danger);
 }
 
 .alert-success {
   background: var(--color-success-bg);
-  border-color: rgba(62, 207, 142, 0.3);
+  border-color: rgba(var(--color-success-rgb), 0.3);
   color: var(--color-success);
 }
 
@@ -878,7 +913,9 @@ select.filter-select {
 .toast {
   border-radius: var(--radius-sm);
   padding: var(--space-3) var(--space-4);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  box-shadow:
+    0 2px 6px rgba(var(--color-shadow-rgb), 0.08),
+    0 14px 32px -10px rgba(var(--color-shadow-rgb), 0.22);
   font-size: 0.9rem;
   border: 1px solid var(--color-border);
   background: var(--color-bg-elevated);
@@ -897,11 +934,11 @@ select.filter-select {
 }
 
 .toast-success {
-  border-color: rgba(62, 207, 142, 0.4);
+  border-color: rgba(var(--color-success-rgb), 0.4);
 }
 
 .toast-error {
-  border-color: rgba(255, 107, 107, 0.4);
+  border-color: rgba(var(--color-danger-rgb), 0.4);
 }
 
 .toast-info {
@@ -935,7 +972,7 @@ select.filter-select {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.25);
+  border: 2px solid rgba(var(--color-shadow-rgb), 0.18);
   border-top-color: currentColor;
   animation: spin 700ms linear infinite;
   display: inline-block;
@@ -1048,7 +1085,7 @@ select.filter-select {
 }
 
 .landing-nav.condensed {
-  background: rgba(15, 17, 21, 0.72);
+  background: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(14px) saturate(140%);
   -webkit-backdrop-filter: blur(14px) saturate(140%);
   border-bottom-color: var(--color-border);
@@ -1128,7 +1165,10 @@ select.filter-select {
 /* Gradient-mesh + dot-grid backdrop, full-bleed behind the constrained hero content. Built from
    the same semantic accent/success/warning tokens used everywhere else on the page (status dots,
    badges) rather than introducing new colors — so the "wave" reads as this product's palette, not
-   a borrowed one. Animates as a slow, near-imperceptible drift; fully frozen under
+   a borrowed one. Opacities are tuned for a light ground (much lower than the old dark-theme
+   values needed — a saturated color shows up faster against white than it did against near-black,
+   so the same 0.22/0.13/0.08 read as muddy patches here) and the dot-grid flips from white flecks
+   to ink flecks. Animates as a slow, near-imperceptible drift; fully frozen under
    prefers-reduced-motion (see the reduced-motion block at the end of this file). */
 .hero-bg {
   position: absolute;
@@ -1136,10 +1176,10 @@ select.filter-select {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(640px circle at 82% -8%, rgba(91, 140, 255, 0.22), transparent 60%),
-    radial-gradient(520px circle at 4% 18%, rgba(62, 207, 142, 0.13), transparent 58%),
-    radial-gradient(460px circle at 55% 92%, rgba(245, 185, 66, 0.08), transparent 62%),
-    radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1.6px);
+    radial-gradient(640px circle at 82% -8%, rgba(var(--color-accent-rgb), 0.12), transparent 60%),
+    radial-gradient(520px circle at 4% 18%, rgba(var(--color-success-rgb), 0.08), transparent 58%),
+    radial-gradient(460px circle at 55% 92%, rgba(var(--color-warning-rgb), 0.07), transparent 62%),
+    radial-gradient(rgba(var(--color-shadow-rgb), 0.05) 1px, transparent 1.6px);
   background-repeat: no-repeat, no-repeat, no-repeat, repeat;
   background-size: auto, auto, auto, 28px 28px;
   background-position: 0 0, 0 0, 0 0, 0 0;
@@ -1187,8 +1227,8 @@ select.filter-select {
   font-size: 0.8rem;
   letter-spacing: 0.02em;
   color: var(--color-accent-hover);
-  background: rgba(91, 140, 255, 0.12);
-  border: 1px solid rgba(91, 140, 255, 0.3);
+  background: rgba(var(--color-accent-rgb), 0.1);
+  border: 1px solid rgba(var(--color-accent-rgb), 0.28);
   padding: var(--space-1) var(--space-3);
   border-radius: 999px;
   margin-bottom: var(--space-4);
@@ -1218,14 +1258,21 @@ select.filter-select {
   gap: var(--space-3);
 }
 
-/* ---- hero terminal mock ---- */
+/* ---- hero terminal mock ----
+   Deliberately stays dark (see the --term-mock-* tokens at the top of this file) — it's a
+   depiction of the same real terminal that TerminalPane/xterm.js renders elsewhere, which the
+   light-theme pass intentionally leaves dark, so this mockup would misrepresent the product if it
+   went light. Every color below is pinned to a --term-mock-* token rather than the app's semantic
+   tokens, since those now point at light-surface values that would render invisibly here. */
 
 .hero-terminal {
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--term-mock-border);
   border-radius: var(--radius-lg);
-  background: #0a0c10;
+  background: var(--term-mock-bg);
   overflow: hidden;
-  box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.6);
+  box-shadow:
+    0 10px 24px -12px rgba(var(--color-shadow-rgb), 0.28),
+    0 30px 60px -24px rgba(var(--color-shadow-rgb), 0.35);
 }
 
 .hero-terminal-bar {
@@ -1233,8 +1280,8 @@ select.filter-select {
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
-  background: var(--color-bg-elevated);
-  border-bottom: 1px solid var(--color-border);
+  background: var(--term-mock-bar-bg);
+  border-bottom: 1px solid var(--term-mock-border);
 }
 
 .hero-terminal-dot {
@@ -1248,7 +1295,7 @@ select.filter-select {
   margin-left: var(--space-2);
   font-family: var(--font-mono);
   font-size: 0.78rem;
-  color: var(--color-text-faint);
+  color: var(--term-mock-text-faint);
 }
 
 .hero-terminal-body {
@@ -1257,25 +1304,25 @@ select.filter-select {
   font-family: var(--font-mono);
   font-size: 0.82rem;
   line-height: 1.7;
-  color: var(--color-text-muted);
+  color: var(--term-mock-text);
   overflow-x: auto;
   white-space: pre;
 }
 
 .hero-terminal-body .t-prompt {
-  color: var(--color-accent-hover);
+  color: var(--term-mock-prompt);
 }
 
 .hero-terminal-body .t-cmd {
-  color: var(--color-text);
+  color: var(--term-mock-text-bright);
 }
 
 .hero-terminal-body .t-danger {
-  color: var(--color-danger);
+  color: var(--term-mock-danger);
 }
 
 .hero-terminal-body .t-success {
-  color: var(--color-success);
+  color: var(--term-mock-success);
   font-weight: 600;
 }
 
@@ -1284,7 +1331,7 @@ select.filter-select {
   width: 0.5em;
   height: 1em;
   margin-left: 2px;
-  background: var(--color-success);
+  background: var(--term-mock-success);
   vertical-align: text-bottom;
   animation: cursor-blink 1s step-end infinite;
 }
@@ -1365,8 +1412,10 @@ select.filter-select {
    ("ten real incident categories") runs full-width as a low banner since its content is
    naturally a wide list, not a tall block. `grid-auto-flow: dense` backfills the remaining four
    1x1 cards around those two spans with no manual row/column bookkeeping needed. Depth comes from
-   the same soft-shadow + top-sheen treatment used on `.challenge-card`/`.auth-card` elsewhere in
-   the app, not a new visual language. */
+   a two-layer soft shadow (tight contact shadow + large soft ambient one) instead of the old dark
+   theme's glossy top-edge sheen — a faint white gradient/inset line meant to catch light on a near-
+   black card is a no-op on a card that's already the brightest surface in the theme (pure white),
+   so light mode leans on shadow alone for elevation instead, per the design pass's brief. */
 
 .features-grid {
   display: grid;
@@ -1378,19 +1427,23 @@ select.filter-select {
   position: relative;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: linear-gradient(165deg, rgba(255, 255, 255, 0.035), transparent 55%), var(--color-bg-elevated);
+  background: var(--color-bg-elevated);
   padding: var(--space-5);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 20px 44px -36px rgba(0, 0, 0, 0.7);
+  box-shadow:
+    0 1px 2px rgba(var(--color-shadow-rgb), 0.04),
+    0 20px 40px -28px rgba(var(--color-shadow-rgb), 0.18);
   transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }
 
 .feature-card:hover {
-  border-color: rgba(91, 140, 255, 0.45);
+  border-color: rgba(var(--color-accent-rgb), 0.4);
   transform: translateY(-4px);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 24px 48px -26px rgba(91, 140, 255, 0.38);
+  box-shadow:
+    0 4px 10px rgba(var(--color-shadow-rgb), 0.06),
+    0 26px 46px -22px rgba(var(--color-accent-rgb), 0.26);
 }
 
 .feature-icon-chip {
@@ -1401,8 +1454,8 @@ select.filter-select {
   height: 44px;
   flex-shrink: 0;
   border-radius: var(--radius-md);
-  background: rgba(91, 140, 255, 0.12);
-  border: 1px solid rgba(91, 140, 255, 0.24);
+  background: rgba(var(--color-accent-rgb), 0.1);
+  border: 1px solid rgba(var(--color-accent-rgb), 0.22);
   color: var(--color-accent);
 }
 
@@ -1424,7 +1477,7 @@ select.filter-select {
    so it reads as "the" feature rather than one of a uniform set. */
 .features-grid .feature-card:nth-child(1) {
   padding: var(--space-6);
-  background: linear-gradient(155deg, rgba(91, 140, 255, 0.12), transparent 62%), var(--color-bg-elevated);
+  background: linear-gradient(155deg, rgba(var(--color-accent-rgb), 0.08), transparent 62%), var(--color-bg-elevated);
 }
 
 .features-grid .feature-card:nth-child(1) .feature-icon-chip {
@@ -1515,7 +1568,7 @@ select.filter-select {
   font-family: var(--font-mono);
   font-size: 0.85rem;
   color: var(--color-accent);
-  background: rgba(91, 140, 255, 0.12);
+  background: rgba(var(--color-accent-rgb), 0.1);
   border-radius: var(--radius-sm);
   padding: var(--space-1) var(--space-2);
   flex-shrink: 0;
@@ -1546,15 +1599,17 @@ select.filter-select {
   margin-bottom: var(--space-3);
 }
 
+/* Deliberately dark, same reasoning as .hero-terminal above — reads as a terminal/shell output,
+   pinned to the --term-mock-* tokens rather than the (now light) semantic ones. */
 .code-block {
   margin: 0;
-  background: #0a0c10;
-  border: 1px solid var(--color-border);
+  background: var(--term-mock-bg);
+  border: 1px solid var(--term-mock-border);
   border-radius: var(--radius-md);
   padding: var(--space-4);
   font-family: var(--font-mono);
   font-size: 0.86rem;
-  color: var(--color-success);
+  color: var(--term-mock-success);
   overflow-x: auto;
   white-space: pre;
   align-self: center;
@@ -1586,7 +1641,7 @@ select.filter-select {
 }
 
 .faq-item:hover {
-  border-color: rgba(91, 140, 255, 0.35);
+  border-color: rgba(var(--color-accent-rgb), 0.35);
 }
 
 .faq-item summary {
@@ -1668,7 +1723,7 @@ html {
 
 /* =========================================================================
    Auth page (/login) — login/signup entry point.
-   Extends the same dark palette/spacing tokens as the rest of the app —
+   Extends the same light palette/spacing tokens as the rest of the app —
    and the landing page specifically (radial hero gradient, glass condensed-
    nav treatment, eyebrow pill) — rather than introducing a second visual
    language for the one page a new visitor lands on right after it.
@@ -1681,8 +1736,8 @@ html {
   justify-content: center;
   padding: var(--space-6) var(--space-4);
   background:
-    radial-gradient(560px circle at 12% -10%, rgba(91, 140, 255, 0.14), transparent 60%),
-    radial-gradient(420px circle at 100% 30%, rgba(62, 207, 142, 0.07), transparent 55%);
+    radial-gradient(560px circle at 12% -10%, rgba(var(--color-accent-rgb), 0.1), transparent 60%),
+    radial-gradient(420px circle at 100% 30%, rgba(var(--color-success-rgb), 0.06), transparent 55%);
 }
 
 .auth-shell {
@@ -1730,10 +1785,12 @@ html {
   width: 100%;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: rgba(23, 26, 33, 0.72);
+  background: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
-  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.55);
+  box-shadow:
+    0 4px 12px rgba(var(--color-shadow-rgb), 0.08),
+    0 24px 48px -20px rgba(var(--color-shadow-rgb), 0.18);
   padding: var(--space-6);
   display: flex;
   flex-direction: column;
