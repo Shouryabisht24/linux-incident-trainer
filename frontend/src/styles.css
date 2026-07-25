@@ -30,6 +30,7 @@
   --space-5: 24px;
   --space-6: 32px;
   --space-7: 48px;
+  --space-8: 72px;
   --font-mono: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
 
   color-scheme: dark;
@@ -249,6 +250,17 @@ pre code {
 .btn-sm {
   padding: var(--space-1) var(--space-3);
   font-size: 0.82rem;
+}
+
+/* Small trailing-arrow glyph for text/ghost CTAs — keeps secondary actions reading as
+   understated links rather than competing buttons, while still hinting they're clickable. */
+.btn-arrow {
+  display: inline-block;
+  transition: transform 160ms ease;
+}
+
+.btn:hover:not(:disabled) .btn-arrow {
+  transform: translateX(3px);
 }
 
 /* ---- form ---- */
@@ -995,10 +1007,23 @@ select.filter-select {
 
 .landing .section-head h2 {
   font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 
 .section-sub {
   font-size: 1.02rem;
+}
+
+@media (min-width: 860px) {
+  .landing .section {
+    padding: var(--space-8) var(--space-4);
+  }
+
+  .landing .section-head {
+    margin-bottom: var(--space-7);
+  }
 }
 
 /* ---- nav ---- */
@@ -1094,17 +1119,66 @@ select.filter-select {
 
 /* ---- hero ---- */
 
+.hero-section {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Gradient-mesh + dot-grid backdrop, full-bleed behind the constrained hero content. Built from
+   the same semantic accent/success/warning tokens used everywhere else on the page (status dots,
+   badges) rather than introducing new colors — so the "wave" reads as this product's palette, not
+   a borrowed one. Animates as a slow, near-imperceptible drift; fully frozen under
+   prefers-reduced-motion (see the reduced-motion block at the end of this file). */
+.hero-bg {
+  position: absolute;
+  inset: -10% -10% 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(640px circle at 82% -8%, rgba(91, 140, 255, 0.22), transparent 60%),
+    radial-gradient(520px circle at 4% 18%, rgba(62, 207, 142, 0.13), transparent 58%),
+    radial-gradient(460px circle at 55% 92%, rgba(245, 185, 66, 0.08), transparent 62%),
+    radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1.6px);
+  background-repeat: no-repeat, no-repeat, no-repeat, repeat;
+  background-size: auto, auto, auto, 28px 28px;
+  background-position: 0 0, 0 0, 0 0, 0 0;
+  animation: hero-mesh-drift 28s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes hero-mesh-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-1.5%, 1%, 0) scale(1.02);
+  }
+}
+
+.hero-wave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  z-index: 1;
+  width: 100%;
+  height: clamp(40px, 7vw, 84px);
+  display: block;
+  pointer-events: none;
+}
+
 .hero {
+  position: relative;
+  z-index: 2;
   max-width: 1120px;
   width: 100%;
   margin: 0 auto;
-  padding: var(--space-6) var(--space-4) var(--space-7);
+  padding: var(--space-7) var(--space-4) var(--space-8);
   display: grid;
   gap: var(--space-6);
   align-items: center;
-  background:
-    radial-gradient(560px circle at 85% -10%, rgba(91, 140, 255, 0.16), transparent 60%),
-    radial-gradient(420px circle at 0% 20%, rgba(62, 207, 142, 0.08), transparent 55%);
 }
 
 .eyebrow {
@@ -1121,17 +1195,21 @@ select.filter-select {
 }
 
 .hero h1 {
-  font-size: clamp(2rem, 1.5rem + 2.2vw, 3.1rem);
-  letter-spacing: -0.01em;
+  font-size: clamp(2.25rem, 1.5rem + 3.2vw, 3.75rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.08;
   text-wrap: balance;
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
 .hero-sub {
-  font-size: clamp(1rem, 0.95rem + 0.3vw, 1.15rem);
+  font-size: clamp(1rem, 0.95rem + 0.3vw, 1.1rem);
+  font-weight: 400;
+  line-height: 1.65;
   color: var(--color-text-muted);
-  max-width: 52ch;
-  margin-bottom: var(--space-5);
+  max-width: 50ch;
+  margin-bottom: var(--space-6);
 }
 
 .hero-cta-row {
@@ -1224,8 +1302,9 @@ select.filter-select {
 
 @media (min-width: 860px) {
   .hero {
-    grid-template-columns: 1fr 1fr;
-    padding-top: var(--space-7);
+    grid-template-columns: 1.05fr 1fr;
+    padding-top: var(--space-8);
+    gap: var(--space-7);
   }
 }
 
@@ -1245,9 +1324,10 @@ select.filter-select {
 /* ---- stats ---- */
 
 .stats-section {
-  border-top: 1px solid var(--color-border);
+  /* No top border: the hero's wave divider already provides the seam into this section. */
   border-bottom: 1px solid var(--color-border);
   background: var(--color-bg-elevated);
+  position: relative;
 }
 
 .stats-grid {
@@ -1279,31 +1359,55 @@ select.filter-select {
   }
 }
 
-/* ---- features ---- */
+/* ---- features: bento grid ----
+   Six cards, asymmetric on purpose: card 1 (the most fundamental claim — "a genuinely broken
+   container") reads as the anchor tile at roughly double the area of its neighbors, and card 5
+   ("ten real incident categories") runs full-width as a low banner since its content is
+   naturally a wide list, not a tall block. `grid-auto-flow: dense` backfills the remaining four
+   1x1 cards around those two spans with no manual row/column bookkeeping needed. Depth comes from
+   the same soft-shadow + top-sheen treatment used on `.challenge-card`/`.auth-card` elsewhere in
+   the app, not a new visual language. */
 
 .features-grid {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-5);
   grid-template-columns: 1fr;
 }
 
 .feature-card {
+  position: relative;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: var(--color-bg-elevated);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.035), transparent 55%), var(--color-bg-elevated);
   padding: var(--space-5);
-  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 20px 44px -36px rgba(0, 0, 0, 0.7);
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
 }
 
 .feature-card:hover {
   border-color: rgba(91, 140, 255, 0.45);
-  transform: translateY(-3px);
-  box-shadow: 0 16px 32px -20px rgba(91, 140, 255, 0.35);
+  transform: translateY(-4px);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 24px 48px -26px rgba(91, 140, 255, 0.38);
+}
+
+.feature-icon-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md);
+  background: rgba(91, 140, 255, 0.12);
+  border: 1px solid rgba(91, 140, 255, 0.24);
+  color: var(--color-accent);
 }
 
 .feature-icon {
-  color: var(--color-accent);
-  margin-bottom: var(--space-3);
+  color: inherit;
 }
 
 .feature-card h3 {
@@ -1316,15 +1420,68 @@ select.filter-select {
   font-size: 0.94rem;
 }
 
+/* Card 1 — the anchor tile: bigger chip, bigger type, a touch more padding and a stronger tint
+   so it reads as "the" feature rather than one of a uniform set. */
+.features-grid .feature-card:nth-child(1) {
+  padding: var(--space-6);
+  background: linear-gradient(155deg, rgba(91, 140, 255, 0.12), transparent 62%), var(--color-bg-elevated);
+}
+
+.features-grid .feature-card:nth-child(1) .feature-icon-chip {
+  width: 56px;
+  height: 56px;
+}
+
+.features-grid .feature-card:nth-child(1) .feature-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.features-grid .feature-card:nth-child(1) h3 {
+  font-size: 1.35rem;
+}
+
+.features-grid .feature-card:nth-child(1) p {
+  font-size: 1rem;
+  max-width: 46ch;
+}
+
 @media (min-width: 720px) {
   .features-grid {
     grid-template-columns: repeat(2, 1fr);
+    grid-auto-flow: dense;
+  }
+
+  .features-grid .feature-card:nth-child(1),
+  .features-grid .feature-card:nth-child(5) {
+    grid-column: 1 / -1;
   }
 }
 
 @media (min-width: 1020px) {
   .features-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-flow: dense;
+    grid-auto-rows: minmax(160px, auto);
+  }
+
+  .features-grid .feature-card:nth-child(1) {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+
+  /* Card 5 — the wide banner: same content, laid out as a horizontal strip instead of a stacked
+     block, because a full-width row is wasted as a tall card. */
+  .features-grid .feature-card:nth-child(5) {
+    grid-column: 1 / -1;
+    grid-row: span 1;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-5);
+  }
+
+  .features-grid .feature-card:nth-child(5) .feature-copy {
+    flex: 1;
   }
 }
 
@@ -1722,8 +1879,16 @@ html {
     opacity: 1;
   }
 
+  .hero-bg {
+    animation: none;
+  }
+
   .feature-card:hover,
   .challenge-card:hover {
+    transform: none;
+  }
+
+  .btn:hover:not(:disabled) .btn-arrow {
     transform: none;
   }
 

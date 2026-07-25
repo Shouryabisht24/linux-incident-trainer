@@ -1,8 +1,18 @@
-# DevOps Troubleshooting Trainer
+# Linux Incident Trainer
 
 A self-hosted, Dockerized learning tool for practicing real-world Linux/DevOps production incidents. Each challenge gives you a **live terminal into an actually-broken container** — not a quiz — with progressive hints and a full solution available as a last resort.
 
 See `/Users/shourya/.claude/plans/logical-jumping-puddle.md` for the full implementation plan, `tasks.md` for build progress, and `decisions/` for the reasoning behind non-obvious architectural choices.
+
+## What you get
+
+- **Accounts and progress tracking** — sign up, log in (JWT-based), and your solved/unsolved state persists per challenge.
+- **50 real challenges across 10 categories** — permissions & ownership, disk & filesystem, process & performance, networking & DNS, systemd & services, logs & journald, package management, users/groups/sudo, cron & scheduling, and SSH & remote access. The public landing page (`/`) shows the live, current count via `GET /api/public-stats`.
+- **A genuinely broken container per challenge**, not a simulation — real services (nginx, systemd, cron, sshd, etc.) with an actual fault baked into the image, freshly built and started per session.
+- **A real live terminal** — `xterm.js` over a WebSocket straight into the container via `docker exec`, as an unprivileged `trainee` user with sudo, the same as a real on-call session.
+- **Progressive hints and a full solution** revealed on demand, plus an automated "Check My Fix" that inspects the container's actual state rather than pattern-matching an answer.
+- **Session resume** — refreshing mid-challenge reconnects your terminal to the still-running container instead of losing your place.
+- **A progress dashboard** with a per-category solved/total breakdown.
 
 ## Requirements
 
@@ -19,7 +29,37 @@ docker compose up --build
 - Frontend: http://localhost:3000 (or http://localhost:5173 in dev, via `docker-compose.override.yml`)
 - Backend health check: http://localhost:4000/health
 
-`docker-compose.override.yml` is auto-loaded by `docker compose up` and adds bind mounts + hot reload for local development. It is not intended for production use.
+`docker-compose.override.yml` is auto-loaded by `docker compose up` and adds bind mounts + hot reload for local development. It is not intended for production use — the prod path (no override, real `docker compose -f docker-compose.yml up`) serves the built frontend via nginx on port 3000.
+
+## Usage
+
+1. Open the app (see ports above). Logged out, you land on a public landing page describing the tool; **Get Started** takes you to signup.
+2. Sign up with an email and password (password must be 8+ characters; neither field may contain whitespace).
+3. Browse `/challenges` — filter by category, difficulty, or solved status, or search by title.
+4. Open a challenge and click **Start Challenge**. This builds the challenge's image (first time only — cached after) and boots a fresh, broken container for you.
+5. Use the live terminal to diagnose and fix the issue as `trainee` (you have passwordless `sudo`). Reveal hints if stuck, or the full solution as a last resort (this ends the challenge for you).
+6. Click **Check My Fix** — it runs the challenge's real verification script against the container's actual state.
+7. **Stop Session** when done, or just move on — idle sessions are automatically reaped. Check `/progress` for your per-category solved breakdown.
+
+Adding new challenges: see `challenges/AUTHORING.md` for the authoring pattern and pitfalls learned from building the first 50.
+
+## Configuration
+
+Set via `.env` (see `.env.example`) or the environment directly. All have sensible defaults except the two marked required.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `POSTGRES_PASSWORD` | — (required) | Postgres password, shared by the `postgres` and `backend` services |
+| `JWT_SECRET` | — (required) | Signs both long-lived auth tokens and short-lived WS terminal tickets |
+| `PORT` | `4000` | Backend HTTP/WS port |
+| `DATABASE_URL` | derived from compose | Overrides the Postgres connection string directly if set |
+| `MAX_CONCURRENT_SESSIONS` | `3` | Global cap on simultaneous live challenge containers |
+| `IDLE_TIMEOUT_MINUTES` | `20` | How long an inactive session survives before the reaper reclaims it |
+| `SOLVED_GRACE_MINUTES` | `5` | Shorter grace period for already-solved sessions before teardown |
+| `CHALLENGE_CONTAINER_NETWORK` | `devops-trainer-challenges` | Bridge network name for challenges that opt into `requires_network` |
+| `AUTH_LOGIN_MAX` / `AUTH_SIGNUP_MAX` | `10` / `5` | Rate-limit thresholds per window |
+| `AUTH_RATE_WINDOW_MS` | `900000` (15 min) | Rate-limit window |
+| `LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error` |
 
 ## Security notes
 

@@ -364,6 +364,22 @@ function HeroTerminal() {
   );
 }
 
+// Full-bleed gradient-mesh + dot-grid backdrop, plus the wave divider that seams into the stats
+// section below. Purely decorative (aria-hidden) — the wave is a single short SVG path, not an
+// illustration, so it stays cheap to render and easy to tweak.
+function HeroBackground() {
+  return (
+    <div className="hero-bg" aria-hidden="true">
+      <svg className="hero-wave" viewBox="0 0 1440 96" preserveAspectRatio="none" aria-hidden="true">
+        <path
+          d="M0,30 C240,78 480,4 720,26 C960,48 1200,86 1440,38 L1440,96 L0,96 Z"
+          fill="var(--color-bg-elevated)"
+        />
+      </svg>
+    </div>
+  );
+}
+
 function Hero() {
   const reducedMotion = useReducedMotion();
 
@@ -373,26 +389,32 @@ function Hero() {
   }
 
   return (
-    <section className="hero" id="top">
-      <div className="hero-copy">
-        <span className="eyebrow">Not a quiz. Not a video course.</span>
-        <h1>Practice production incidents on a Linux box that's actually broken.</h1>
-        <p className="hero-sub">
-          Linux Incident Trainer drops you into a live terminal inside a genuinely broken Docker container —
-          misconfigured services, full disks, masked units, bad sudoers — and checks whether you actually fixed
-          it.
-        </p>
-        <div className="hero-cta-row">
-          <Link to="/login?mode=signup" className="btn btn-primary btn-lg">
-            Get started
-          </Link>
-          <a href="#walkthrough" className="btn btn-ghost btn-lg" onClick={scrollToWalkthrough}>
-            See how it works
-          </a>
+    <section className="hero-section" id="top">
+      <HeroBackground />
+      <div className="hero">
+        <div className="hero-copy">
+          <span className="eyebrow">Not a quiz. Not a video course.</span>
+          <h1>Practice production incidents on a Linux box that's actually broken.</h1>
+          <p className="hero-sub">
+            Linux Incident Trainer drops you into a live terminal inside a genuinely broken Docker container —
+            misconfigured services, full disks, masked units, bad sudoers — and checks whether you actually fixed
+            it.
+          </p>
+          <div className="hero-cta-row">
+            <Link to="/login?mode=signup" className="btn btn-primary btn-lg">
+              Get started
+            </Link>
+            <a href="#walkthrough" className="btn btn-ghost btn-lg" onClick={scrollToWalkthrough}>
+              See how it works
+              <span className="btn-arrow" aria-hidden="true">
+                &rarr;
+              </span>
+            </a>
+          </div>
         </div>
-      </div>
-      <div className="hero-visual">
-        <HeroTerminal />
+        <div className="hero-visual">
+          <HeroTerminal />
+        </div>
       </div>
     </section>
   );
@@ -414,9 +436,13 @@ function FeaturesSection() {
       <div className="features-grid">
         {FEATURES.map((f, i) => (
           <Reveal key={f.title} delayMs={(i % 3) * 80} className="feature-card">
-            <f.icon className="feature-icon" />
-            <h3>{f.title}</h3>
-            <p className="muted">{f.body}</p>
+            <span className="feature-icon-chip">
+              <f.icon className="feature-icon" />
+            </span>
+            <div className="feature-copy">
+              <h3>{f.title}</h3>
+              <p className="muted">{f.body}</p>
+            </div>
           </Reveal>
         ))}
       </div>

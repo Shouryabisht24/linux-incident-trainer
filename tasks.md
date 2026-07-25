@@ -329,3 +329,58 @@ while verifying the fix and fixed alongside it.
       Stop button) still correctly shows "Terminal connection lost" plus the "Disconnected"/"Reconnect" UI
       (screenshot-verified), confirming the suppression is scoped to self-initiated stops only. All test users,
       sessions, and containers created during verification were cleaned up afterward; dev stack left running.
+
+## Phase 6 follow-up — landing page visual redesign (Stripe-inspired layout patterns, dark theme kept)
+Purely a layout/visual pass over `frontend/src/pages/LandingPage.tsx` and the landing section of
+`frontend/src/styles.css` — content, copy, code-splitting, and the scroll-reveal/reduced-motion conventions from
+Phase 6 are untouched. Goal was to borrow Stripe's *structural* patterns (bento-grid feature layout, wave/gradient
+hero backdrop, strong headline/subhead type-scale contrast, card depth + hover, single-primary-CTA hierarchy) and
+translate them into the existing dark palette — not a theme flip, no Stripe branding/copy/illustrations reused.
+- [x] **Hero**: restructured into `.hero-section` (full-bleed, `overflow:hidden`) containing a decorative
+      `.hero-bg` layer — three low-opacity radial gradients built from the app's existing semantic tokens
+      (`--color-accent`/`--color-success`/`--color-warning`, the same three colors already used for the
+      terminal-mock traffic-light dots) plus a faint repeating dot-grid, animated with a slow 28s drift
+      (`hero-mesh-drift`) — and a short single-path SVG wave (`.hero-wave`, ~10 path commands, not hand-authored
+      illustration-scale) that seams the hero into the stats section below, whose color matches
+      `--color-bg-elevated` so the two sections read as one continuous shape. Both the drift animation and the
+      `.feature-card`/`.btn-arrow` hover transforms are frozen under `prefers-reduced-motion` via the existing
+      reduced-motion block at the end of `styles.css`. `.hero` content itself is now `z-index: 2` above the
+      backdrop; layout/copy unchanged. Headline type-scale contrast increased: `.hero h1` now `clamp(2.25rem …
+      3.75rem)` at `font-weight: 800` / `letter-spacing: -0.025em` (previously inherited the global 600-weight
+      h1 rule capped at 3.1rem); `.hero-sub` kept at `font-weight: 400`, dropped slightly to `clamp(1rem …
+      1.1rem)` so the gap between headline and subhead reads clearly rather than both sitting in the same
+      visual weight class.
+- [x] **Features → bento grid**: `.features-grid` is now an asymmetric grid instead of a uniform 2/3-column one.
+      Card 1 ("a genuinely broken container") spans 2 cols × 2 rows as the anchor tile (bigger icon chip, bigger
+      heading, stronger tint) at ≥1020px; card 5 ("ten real incident categories") spans the full row as a
+      horizontal banner instead of a stacked block, since its content is naturally list-shaped, not tall.
+      `grid-auto-flow: dense` backfills the remaining four 1×1 cards with no manual row/column bookkeeping —
+      verified by hand-tracing the placement algorithm (documented in the CSS comment) to confirm no empty grid
+      holes open up at the 2-col (720–1019px) or 4-col (≥1020px) breakpoints; falls back to a plain single-column
+      stack below 720px. Depth: each card got a resting shadow + top-sheen gradient (previously flat, shadow
+      only appeared on hover), reusing the same treatment already established on `.challenge-card`/`.auth-card`
+      rather than inventing a new one; hover now lifts further (`translateY(-4px)`, was `-3px`) with a stronger
+      accent-tinted glow. Icons moved into a new `.feature-icon-chip` (tinted rounded-square badge) rather than
+      floating bare above the heading.
+- [x] **CTA hierarchy**: audited — was already single-primary (`.btn-primary`) plus ghost/text secondary actions
+      in nav, hero, and final CTA, no competing solid buttons found. Only change: added a small trailing-arrow
+      glyph (new shared `.btn-arrow` class, nudges right on hover, frozen under reduced-motion) to the hero's
+      "See how it works" ghost CTA so it reads more clearly as an understated in-page link rather than a second
+      button competing with "Get started".
+- [x] **Vertical rhythm**: added a `--space-8: 72px` token; `.landing .section` padding and `.section-head`
+      bottom margin step up to it at ≥860px (was a flat `--space-7`/48px at all widths). `.hero` top padding at
+      ≥860px also moved to `--space-8`. `.features-grid` gap bumped `--space-4` → `--space-5`.
+- [x] Verified: `npx tsc --noEmit` and `npm run build` both clean; `LandingPage-*.js` chunk unchanged at ~15KB
+      (no bundle regression), confirmed via the built `dist/assets/` output. Rebuilt and booted the real stack
+      twice — once against the base `docker-compose.yml` only (bypassing the dev override) to exercise the real
+      production nginx image on `:3000` the way Phase 6's original verification did, confirming `/`, the built
+      `index-*.js`/`.css`, and `/api/public-stats` (proxied through nginx, `{"challengeCount":50,"categoryCount":10}`,
+      matching the now-complete 50-challenge catalogue) all serve correctly and that the new CSS
+      (`grid-auto-flow:dense`, `hero-mesh-drift`, `feature-icon-chip`, `hero-wave`) and JSX markup
+      (`hero-bg`, `feature-copy`, `btn-arrow`) actually made it into the deployed bundle — then rebuilt again
+      with the dev override (the project's documented steady state) and confirmed `:5173` and `/api/public-stats`
+      still serve correctly through it. **No headless browser was available in this pass**, so the bento-grid
+      placement, gradient-mesh contrast, and wave-divider alignment were verified by reasoning through the actual
+      CSS (grid auto-placement traced by hand, gradient opacities checked against the near-black ground) rather
+      than a rendered screenshot — a real-browser look (light hover states, the drift animation's motion, and
+      the bento grid's actual proportions at a few viewport widths) is still worth the user doing themselves.
