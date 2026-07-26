@@ -2,7 +2,7 @@ import { Router } from "express";
 import { asyncRoute } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { clientIp, rateLimit } from "../middleware/rateLimit.js";
-import { getUserById, login, signup } from "../services/auth.service.js";
+import { changePassword, getUserById, login, signup, updateDisplayName } from "../services/auth.service.js";
 
 export const authRouter = Router();
 
@@ -25,6 +25,18 @@ const signupLimiter = rateLimit({
   windowMs: Number(process.env.AUTH_RATE_WINDOW_MS ?? 15 * 60 * 1000),
   max: Number(process.env.AUTH_SIGNUP_MAX ?? 5),
   keyFn: (req) => clientIp(req),
+});
+
+// Password change is a sensitive account-mutation action, same threat model as login (someone with
+// a stolen session token trying to brute-force the current password to lock the real owner out).
+// Keyed per-user (req.userId, set by requireAuth which always runs first in the chain below) rather
+// than per-IP, since the whole point is limiting attempts against *one account* regardless of which
+// IP they come from.
+const changePasswordLimiter = rateLimit({
+  name: "change-password",
+  windowMs: Number(process.env.AUTH_RATE_WINDOW_MS ?? 15 * 60 * 1000),
+  max: Number(process.env.AUTH_CHANGE_PASSWORD_MAX ?? 5),
+  keyFn: (req) => req.userId ?? clientIp(req),
 });
 
 authRouter.post(
@@ -72,6 +84,48 @@ authRouter.get(
       res.status(404).json({ error: "user not found" });
       return;
     }
+    res.json({ user });
+  }),
+);
+
+authRouter.post(
+  "/change-password",
+  requireAuth,
+  changePasswordLimiter,
+  asyncRoute(async (req, res) => {
+    const { currentPassword, newPassword } = req.body ?? {};
+    if (typeof currentPassword !== "string" || typeof newPassword !== "string" || newPassword.length < 8) {
+      res.status(400).json({ error: "current password and a new password (min 8 chars) are required" });
+      return;
+    }
+    if (HAS_WHITESPACE.test(newPassword)) {
+      res.status(400).json({ error: "new password must not contain whitespace" });
+      return;
+    }
+    try {
+      await changePassword(req.userId!, currentPassword, newPassword);
+    } catch {
+      // Don't leak more than necessary: any failure here (wrong current password, user not found)
+      // reports the same generic "current password is incorrect" — never distinguishes account
+      // existence or hash-comparison internals to the client.
+      res.status(400).json({ error: "current password is incorrect" });
+      return;
+    }
+    res.json({ ok: true });
+  }),
+);
+
+authRouter.patch(
+  "/display-name",
+  requireAuth,
+  asyncRoute(async (req, res) => {
+    const { displayName } = req.body ?? {};
+    if (displayName !== null && typeof displayName !== "string") {
+      res.status(400).json({ error: "displayName must be a string or null" });
+      return;
+    }
+    const trimmed = typeof displayName === "string" ? displayName.trim() : null;
+    const user = await updateDisplayName(req.userId!, trimmed || null);
     res.json({ user });
   }),
 );

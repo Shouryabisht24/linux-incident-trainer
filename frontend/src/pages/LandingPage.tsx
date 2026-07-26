@@ -1,104 +1,26 @@
-import { useEffect, useState, type MouseEvent, type ReactNode, type RefObject, type SVGProps } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { Link } from "react-router-dom";
+import { MarketingLayout } from "../components/MarketingLayout";
+import { useAuth } from "../context/AuthContext";
 import { useCountUp } from "../hooks/useCountUp";
 import { useReducedMotion } from "../hooks/useReducedMotion";
 import { useScrollReveal } from "../hooks/useScrollReveal";
 import { usePublicStats } from "../api/queries";
 
 // ---------------------------------------------------------------------------
-// Icons — small hand-authored line icons (no icon package dependency, no
-// emoji). Each is a plain 22x22 stroke glyph.
-// ---------------------------------------------------------------------------
-
-function IconProps(props: SVGProps<SVGSVGElement>): SVGProps<SVGSVGElement> {
-  return {
-    width: 22,
-    height: 22,
-    viewBox: "0 0 22 22",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.6,
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-    "aria-hidden": true,
-    ...props,
-  };
-}
-
-function TerminalIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...IconProps(props)}>
-      <rect x="2" y="3.5" width="18" height="15" rx="2" />
-      <path d="M6 8.5l3 2.5-3 2.5" />
-      <path d="M11.5 13.5h4.5" />
-    </svg>
-  );
-}
-
-function CheckShieldIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...IconProps(props)}>
-      <path d="M11 2.5l7 2.6v5.2c0 4.4-3 7.3-7 9.2-4-1.9-7-4.8-7-9.2V5.1z" />
-      <path d="M7.7 11.2l2.2 2.2 4.4-4.6" />
-    </svg>
-  );
-}
-
-function StepsIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...IconProps(props)}>
-      <path d="M3 17.5h4v-4H3z" />
-      <path d="M9 12.5h4v-8H9z" />
-      <path d="M15 17.5h4v-10h-4z" />
-    </svg>
-  );
-}
-
-function GridIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...IconProps(props)}>
-      <rect x="2.5" y="2.5" width="7" height="7" rx="1.2" />
-      <rect x="12.5" y="2.5" width="7" height="7" rx="1.2" />
-      <rect x="2.5" y="12.5" width="7" height="7" rx="1.2" />
-      <rect x="12.5" y="12.5" width="7" height="7" rx="1.2" />
-    </svg>
-  );
-}
-
-function BoxIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...IconProps(props)}>
-      <path d="M11 2.7l7.5 4.3v8L11 19.3l-7.5-4.3v-8z" />
-      <path d="M3.5 7l7.5 4.3 7.5-4.3" />
-      <path d="M11 11.3v8" />
-    </svg>
-  );
-}
-
-function RefreshIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...IconProps(props)}>
-      <path d="M4 11a7 7 0 0 1 12-4.9l1.5 1.5" />
-      <path d="M17.5 3.5v4.4H13" />
-      <path d="M18 11a7 7 0 0 1-12 4.9l-1.5-1.5" />
-      <path d="M4.5 18.5v-4.4H9" />
-    </svg>
-  );
-}
-
-function ChevronIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg {...IconProps(props)} width={16} height={16} viewBox="0 0 16 16">
-      <path d="M4 6l4 4 4-4" />
-    </svg>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // Reveal — scroll-triggered fade/rise wrapper. Purely presentational; the
 // visibility bookkeeping lives in useScrollReveal so every section can share
 // the exact same animation contract (and the exact same reduced-motion
-// escape hatch).
+// escape hatch). Kept as this page's own local copy (an identical copy also
+// lives in components/ui.tsx for use elsewhere) — accepted duplication, per
+// this codebase's existing convention (decisions/0021-*.md).
 // ---------------------------------------------------------------------------
 
 function Reveal({
@@ -106,11 +28,13 @@ function Reveal({
   delayMs = 0,
   className = "",
   as = "div",
+  onPointerMove,
 }: {
   children: ReactNode;
   delayMs?: number;
   className?: string;
   as?: "div" | "li" | "details";
+  onPointerMove?: (e: PointerEvent<HTMLDivElement>) => void;
 }) {
   const [ref, visible] = useScrollReveal<HTMLElement>();
   const Tag = as as "div";
@@ -119,6 +43,7 @@ function Reveal({
       ref={ref as unknown as RefObject<HTMLDivElement>}
       className={`reveal${visible ? " is-visible" : ""}${className ? ` ${className}` : ""}`}
       style={{ transitionDelay: visible ? `${delayMs}ms` : "0ms" }}
+      onPointerMove={onPointerMove}
     >
       {children}
     </Tag>
@@ -176,189 +101,141 @@ function StatsSection() {
 }
 
 // ---------------------------------------------------------------------------
-// Content data
+// Moves the spotlight-glow's origin to the pointer position via a plain DOM
+// style mutation, not React state — this fires on every `pointermove`, and
+// re-rendering the whole card (or the whole grid) at that frequency for a
+// purely visual effect would be exactly the "dozens of re-renders"
+// vercel-react-best-practices warns against. Duplicated here (rather than a
+// shared hook) per this codebase's existing convention for this bare pure
+// function, already used this way across FeaturesPage.tsx/DashboardPage.tsx/
+// ProgressDashboardPage.tsx.
 // ---------------------------------------------------------------------------
 
-const FEATURES = [
-  {
-    icon: BoxIcon,
-    title: "A genuinely broken container",
-    body: "Every challenge boots a real Docker container running a real service — nginx, systemd, cron, sshd — with an actual production-style fault baked in. There's no simulated filesystem pretending to be broken.",
-  },
-  {
-    icon: TerminalIcon,
-    title: "A live shell, not a video",
-    body: "Your terminal streams over a WebSocket straight into the container via xterm.js. Run the same commands you'd run on call — ps, systemctl, journalctl, chmod — and get real output back.",
-  },
-  {
-    icon: CheckShieldIcon,
-    title: "Verified, not multiple choice",
-    body: "Each challenge ships an automated check that inspects the container's actual state after your fix. It passes because the service is really back up — not because you picked option B.",
-  },
-  {
-    icon: StepsIcon,
-    title: "Hints, then the full solution",
-    body: "Stuck? Reveal hints one at a time before falling back to a complete written solution. Nothing is spoiled up front.",
-  },
-  {
-    icon: GridIcon,
-    title: "Ten real incident categories",
-    body: "Permissions, disk & filesystem, process & performance, networking & DNS, systemd, logs, package management, users & sudo, cron, and SSH — the categories that actually page people.",
-  },
-  {
-    icon: RefreshIcon,
-    title: "Ephemeral, isolated, resumable",
-    body: "Every container has its own CPU/memory/process limits and no outbound network by default, and tears itself down when you're done or idle. Refresh mid-challenge and your terminal reconnects right where you left off.",
-  },
-];
-
-const WALKTHROUGH_STEPS = [
-  {
-    title: "Start a session",
-    body: "Pick a challenge — say, a systemd unit that won't start — and a fresh container boots with the incident already live inside it.",
-  },
-  {
-    title: "Get a live shell",
-    body: "A terminal streams straight into the box, running as an unprivileged trainee user, same as a real production host.",
-  },
-  {
-    title: "Find the break",
-    body: "Run the commands you'd actually reach for: systemctl status, journalctl -xe, ls -la, curl localhost. The failure is real, so the output is real too.",
-  },
-  {
-    title: "Fix it for real",
-    body: "Edit the config, correct the permission, restart the service — whatever the incident actually requires. Nothing here is a fill-in-the-blank.",
-  },
-  {
-    title: "Check your fix",
-    body: "Click \"Check my fix\" and a script inspects the container's live state. Pass, and it's marked solved. Fail, and you keep digging — or reveal a hint.",
-  },
-];
-
-const FAQS = [
-  {
-    q: "Does this touch my actual machine?",
-    a: "No. Every incident runs inside an ephemeral, resource-limited Docker container — capped CPU, memory, and process count, no outbound network by default. Nothing you do inside a challenge reaches the host.",
-  },
-  {
-    q: "Do I need Docker installed?",
-    a: "Only if you're the one self-hosting the app. As someone using an already-running instance, all you need is a browser — the terminal streams over WebSocket, no local Docker required on your end.",
-  },
-  {
-    q: "Is my progress saved?",
-    a: "Yes. Solved challenges, hints used, and best attempts are tracked per account, and an in-progress session automatically resumes if you refresh the page or come back later.",
-  },
-  {
-    q: "What if I get stuck?",
-    a: "Reveal hints one at a time, and if you're still stuck, reveal the full written solution as a last resort. Neither counts against you beyond showing up in your own history.",
-  },
-  {
-    q: "Is this free?",
-    a: "Yes — it's a free, self-hosted, single-instance tool. No billing, no tiers, no seat limits. Just the Docker Compose stack.",
-  },
-  {
-    q: "Can I run more than one challenge at once?",
-    a: "No, deliberately — one live session per account at a time. Starting a new one automatically tears down whatever you had running.",
-  },
-];
-
-// ---------------------------------------------------------------------------
-// Nav
-// ---------------------------------------------------------------------------
-
-function LandingNav() {
-  const [condensed, setCondensed] = useState(false);
-  const reducedMotion = useReducedMotion();
-
-  useEffect(() => {
-    let ticking = false;
-    function onScroll() {
-      if (ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        setCondensed(window.scrollY > 24);
-        ticking = false;
-      });
-    }
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  function scrollToId(id: string) {
-    return (e: MouseEvent) => {
-      e.preventDefault();
-      document.getElementById(id)?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
-    };
-  }
-
-  return (
-    <header className={`landing-nav${condensed ? " condensed" : ""}`}>
-      <div className="landing-nav-inner">
-        <a href="#top" className="landing-brand" onClick={scrollToId("top")}>
-          Linux Incident Trainer
-        </a>
-        <nav className="landing-nav-links" aria-label="Page sections">
-          <a href="#features" onClick={scrollToId("features")}>
-            Features
-          </a>
-          <a href="#walkthrough" onClick={scrollToId("walkthrough")}>
-            How it works
-          </a>
-          <a href="#self-host" onClick={scrollToId("self-host")}>
-            Self-hosting
-          </a>
-          <a href="#faq" onClick={scrollToId("faq")}>
-            FAQ
-          </a>
-        </nav>
-        <div className="landing-nav-cta">
-          <Link to="/login" className="btn btn-ghost btn-sm">
-            Log in
-          </Link>
-          <Link to="/login?mode=signup" className="btn btn-primary btn-sm">
-            Get started
-          </Link>
-        </div>
-      </div>
-    </header>
-  );
+function handleSpotlightMove(e: PointerEvent<HTMLElement>) {
+  const rect = e.currentTarget.getBoundingClientRect();
+  e.currentTarget.style.setProperty("--spot-x", `${e.clientX - rect.left}px`);
+  e.currentTarget.style.setProperty("--spot-y", `${e.clientY - rect.top}px`);
 }
 
 // ---------------------------------------------------------------------------
 // Hero
 // ---------------------------------------------------------------------------
 
+interface TranscriptSegment {
+  text: string;
+  /** One of the .t-* color classes below, or omitted for plain output text. */
+  cls?: string;
+}
+
+// The exact terminal session this hero depicts — plain data, not JSX, so it can be flattened into
+// a single character stream once (module load, not per-render) for HeroTerminal's reveal below.
+const HERO_TRANSCRIPT: TranscriptSegment[] = [
+  { text: "trainee@systemd-crashloop:~$ ", cls: "t-prompt" },
+  { text: "systemctl status app.service", cls: "t-cmd" },
+  { text: "\n" },
+  { text: "● app.service - Demo Application", cls: "t-danger" },
+  { text: "\n   Active: " },
+  { text: "failed (Result: exit-code)", cls: "t-danger" },
+  { text: "\n   Process: ExecStart=/usr/bin/demo-app-typo (code=exited, status=203/EXEC)\n\n" },
+  { text: "trainee@systemd-crashloop:~$ ", cls: "t-prompt" },
+  { text: "sudo sed -i 's/demo-app-typo/demo-app/' /etc/systemd/system/app.service", cls: "t-cmd" },
+  { text: "\n" },
+  { text: "trainee@systemd-crashloop:~$ ", cls: "t-prompt" },
+  { text: "sudo systemctl daemon-reload && sudo systemctl restart app.service", cls: "t-cmd" },
+  { text: "\n" },
+  { text: "trainee@systemd-crashloop:~$ ", cls: "t-prompt" },
+  { text: "systemctl is-active app.service", cls: "t-cmd" },
+  { text: "\n" },
+  { text: "active", cls: "t-success" },
+];
+
+interface TranscriptChar {
+  ch: string;
+  cls?: string;
+}
+
+const HERO_CHARS: TranscriptChar[] = HERO_TRANSCRIPT.flatMap((seg) =>
+  Array.from(seg.text, (ch) => ({ ch, cls: seg.cls })),
+);
+
+const HERO_REVEAL_MS_PER_CHAR = 6;
+
+// The signature element: the hero terminal plays back its transcript character-by-character on
+// scroll-into-view rather than appearing instantly, ending on the real `active` success line, with
+// a status strip that transitions danger -> success in sync. Reveal progress is driven by a ref +
+// requestAnimationFrame that mutates each character span's class directly — not per-character
+// React state, which would mean hundreds of re-renders for a purely visual effect (see
+// vercel-react-best-practices' "use useRef for transient values" guidance). The only React state
+// update in the whole sequence is the single flip to `revealComplete` once the last character
+// lands, which is what the status strip and cursor actually key off.
 function HeroTerminal() {
+  const reducedMotion = useReducedMotion();
+  const [wrapRef, visible] = useScrollReveal<HTMLDivElement>();
+  const [revealComplete, setRevealComplete] = useState(reducedMotion);
+  const spansRef = useRef<(HTMLSpanElement | null)[]>([]);
+  const frameRef = useRef<number>();
+  const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (!visible || startedRef.current) return;
+    startedRef.current = true;
+
+    if (reducedMotion) {
+      // Reduced-motion visitors get the finished transcript immediately — no playback at all.
+      spansRef.current.forEach((el) => el?.classList.add("is-revealed"));
+      setRevealComplete(true);
+      return;
+    }
+
+    const total = HERO_CHARS.length;
+    const startTime = performance.now();
+    let revealed = 0;
+
+    function tick(now: number) {
+      const target = Math.min(total, Math.floor((now - startTime) / HERO_REVEAL_MS_PER_CHAR));
+      for (; revealed < target; revealed++) {
+        spansRef.current[revealed]?.classList.add("is-revealed");
+      }
+      if (revealed >= total) {
+        setRevealComplete(true);
+        return;
+      }
+      frameRef.current = requestAnimationFrame(tick);
+    }
+    frameRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (frameRef.current !== undefined) cancelAnimationFrame(frameRef.current);
+    };
+  }, [visible, reducedMotion]);
+
   return (
-    <div className="hero-terminal" role="img" aria-label="Terminal session diagnosing and fixing a failed systemd service">
+    <div
+      ref={wrapRef}
+      className={`hero-terminal${revealComplete ? " is-fixed" : ""}`}
+      role="img"
+      aria-label="Terminal session diagnosing and fixing a failed systemd service"
+    >
+      <div className="hero-terminal-status-strip" aria-hidden="true" />
       <div className="hero-terminal-bar">
         <span className="hero-terminal-dot" style={{ background: "var(--term-mock-danger)" }} />
         <span className="hero-terminal-dot" style={{ background: "var(--term-mock-warning)" }} />
         <span className="hero-terminal-dot" style={{ background: "var(--term-mock-success)" }} />
         <span className="hero-terminal-title">trainee@systemd-crashloop</span>
       </div>
-      <pre className="hero-terminal-body">
-        <span className="t-prompt">trainee@systemd-crashloop:~$ </span>
-        <span className="t-cmd">systemctl status app.service</span>
-        {"\n"}
-        <span className="t-danger">● app.service - Demo Application</span>
-        {"\n"}
-        {"   Active: "}
-        <span className="t-danger">failed (Result: exit-code)</span>
-        {"\n"}
-        {"   Process: ExecStart=/usr/bin/demo-app-typo (code=exited, status=203/EXEC)"}
-        {"\n\n"}
-        <span className="t-prompt">trainee@systemd-crashloop:~$ </span>
-        <span className="t-cmd">sudo sed -i 's/demo-app-typo/demo-app/' /etc/systemd/system/app.service</span>
-        {"\n"}
-        <span className="t-prompt">trainee@systemd-crashloop:~$ </span>
-        <span className="t-cmd">sudo systemctl daemon-reload && sudo systemctl restart app.service</span>
-        {"\n"}
-        <span className="t-prompt">trainee@systemd-crashloop:~$ </span>
-        <span className="t-cmd">systemctl is-active app.service</span>
-        {"\n"}
-        <span className="t-success">active</span>
-        <span className="hero-terminal-cursor" aria-hidden="true" />
+      <pre className="hero-terminal-body" aria-hidden="true">
+        {HERO_CHARS.map((c, i) => (
+          <span
+            key={i}
+            ref={(el) => {
+              spansRef.current[i] = el;
+            }}
+            className={`hero-char${c.cls ? ` ${c.cls}` : ""}`}
+          >
+            {c.ch}
+          </span>
+        ))}
+        <span className={`hero-terminal-cursor${revealComplete ? " is-active" : ""}`} aria-hidden="true" />
       </pre>
     </div>
   );
@@ -381,15 +258,10 @@ function HeroBackground() {
 }
 
 function Hero() {
-  const reducedMotion = useReducedMotion();
-
-  function scrollToWalkthrough(e: MouseEvent) {
-    e.preventDefault();
-    document.getElementById("walkthrough")?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
-  }
+  const { user } = useAuth();
 
   return (
-    <section className="hero-section" id="top">
+    <section className="hero-section">
       <HeroBackground />
       <div className="hero">
         <div className="hero-copy">
@@ -401,155 +273,92 @@ function Hero() {
             it.
           </p>
           <div className="hero-cta-row">
-            <Link to="/login?mode=signup" className="btn btn-primary btn-lg">
-              Get started
-            </Link>
-            <a href="#walkthrough" className="btn btn-ghost btn-lg" onClick={scrollToWalkthrough}>
+            {user ? (
+              <Link to="/dashboard" className="btn btn-primary btn-lg">
+                Go to dashboard
+              </Link>
+            ) : (
+              <Link to="/login?mode=signup" className="btn btn-primary btn-lg">
+                Get started
+              </Link>
+            )}
+            <Link to="/how-it-works" className="btn btn-ghost btn-lg">
               See how it works
               <span className="btn-arrow" aria-hidden="true">
                 &rarr;
               </span>
-            </a>
+            </Link>
           </div>
         </div>
         <div className="hero-visual">
-          <HeroTerminal />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Sections
-// ---------------------------------------------------------------------------
-
-function FeaturesSection() {
-  return (
-    <section className="section" id="features" aria-labelledby="features-heading">
-      <Reveal>
-        <div className="section-head">
-          <h2 id="features-heading">What you're actually getting</h2>
-          <p className="muted section-sub">Everything below is a real feature of the running app, not marketing shorthand.</p>
-        </div>
-      </Reveal>
-      <div className="features-grid">
-        {FEATURES.map((f, i) => (
-          <Reveal key={f.title} delayMs={(i % 3) * 80} className="feature-card">
-            <span className="feature-icon-chip">
-              <f.icon className="feature-icon" />
-            </span>
-            <div className="feature-copy">
-              <h3>{f.title}</h3>
-              <p className="muted">{f.body}</p>
-            </div>
-          </Reveal>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function WalkthroughSection() {
-  return (
-    <section className="section" id="walkthrough" aria-labelledby="walkthrough-heading">
-      <Reveal>
-        <div className="section-head">
-          <h2 id="walkthrough-heading">What solving one incident actually looks like</h2>
-          <p className="muted section-sub">The same five steps, every time — no two challenges break the same way.</p>
-        </div>
-      </Reveal>
-      <ol className="walkthrough-list">
-        {WALKTHROUGH_STEPS.map((step, i) => (
-          <Reveal as="li" key={step.title} delayMs={i * 70} className="walkthrough-step">
-            <span className="walkthrough-index tabular" aria-hidden="true">
-              {String(i + 1).padStart(2, "0")}
-            </span>
-            <div>
-              <h3>{step.title}</h3>
-              <p className="muted">{step.body}</p>
-            </div>
-          </Reveal>
-        ))}
-      </ol>
-    </section>
-  );
-}
-
-function SelfHostSection() {
-  return (
-    <section className="section" id="self-host" aria-labelledby="self-host-heading">
-      <Reveal>
-        <div className="self-host-card">
-          <div>
-            <h2 id="self-host-heading">Free. Self-hosted. Yours.</h2>
-            <p className="muted">
-              This isn't a hosted product — it's a Docker Compose stack you run yourself, on your own machine or
-              homelab. Postgres, the backend, and the frontend all come up with one command; challenge containers
-              are built and torn down on demand.
-            </p>
-            <p className="faint">
-              It mounts the Docker socket to manage challenge containers, so keep it on a private network — see the
-              project README's security notes before exposing it beyond localhost.
-            </p>
+          <div className="hero-terminal-frame">
+            <HeroTerminal />
           </div>
-          <pre className="code-block" aria-label="Setup commands">
-            <code>{"cp .env.example .env\ndocker compose up --build"}</code>
-          </pre>
         </div>
-      </Reveal>
+      </div>
     </section>
   );
 }
 
-function FaqSection() {
+// ---------------------------------------------------------------------------
+// About-nav — a small grid of cards linking out to the four pages Features/
+// Walkthrough/SelfHost/Faq were split into (see MarketingLayout.tsx / the
+// four new pages under pages/). Replaces those sections' old in-page anchor
+// links now that they're separate routes.
+// ---------------------------------------------------------------------------
+
+const ABOUT_NAV_ITEMS = [
+  { title: "Features", body: "What's actually inside the platform.", to: "/features" },
+  { title: "How it works", body: "What solving one incident looks like, step by step.", to: "/how-it-works" },
+  { title: "Self-hosting", body: "Run it yourself with one docker compose command.", to: "/self-hosting" },
+  { title: "FAQ", body: "Common questions, answered.", to: "/faq" },
+];
+
+function AboutNavCards() {
   return (
-    <section className="section" id="faq" aria-labelledby="faq-heading">
+    <section className="section" aria-labelledby="about-nav-heading">
       <Reveal>
         <div className="section-head">
-          <h2 id="faq-heading">Frequently asked questions</h2>
+          <span className="section-kicker">
+            <span className="kicker-prompt">~/</span>learn-more
+          </span>
+          <h2 id="about-nav-heading">Everything else about this app</h2>
         </div>
       </Reveal>
-      <div className="faq-list">
-        {FAQS.map((item, i) => (
-          <Reveal as="details" key={item.q} delayMs={(i % 3) * 60} className="faq-item">
-            <summary>
-              <span>{item.q}</span>
-              <ChevronIcon className="faq-chevron" />
-            </summary>
-            <p className="muted">{item.a}</p>
+      <div className="marketing-nav-grid">
+        {ABOUT_NAV_ITEMS.map((item, i) => (
+          <Reveal as="div" key={item.title} delayMs={(i % 4) * 70}>
+            <Link to={item.to} className="marketing-nav-card" onPointerMove={handleSpotlightMove}>
+              <h3>{item.title}</h3>
+              <p className="muted">{item.body}</p>
+            </Link>
           </Reveal>
         ))}
       </div>
     </section>
   );
 }
+
+// ---------------------------------------------------------------------------
 
 function FinalCta() {
+  const { user } = useAuth();
   return (
     <section className="section final-cta-section" aria-labelledby="final-cta-heading">
       <Reveal className="final-cta">
-        <h2 id="final-cta-heading">Ready to fix something that's actually broken?</h2>
-        <p className="muted">Create an account and your first broken container is one click away.</p>
-        <Link to="/login?mode=signup" className="btn btn-primary btn-lg">
-          Get started
+        <h2 id="final-cta-heading">
+          {user ? "Ready to jump back in?" : "Ready to fix something that's actually broken?"}
+        </h2>
+        <p className="muted">
+          {user
+            ? "Your dashboard has where you left off, and what's next."
+            : "Create an account and your first broken container is one click away."}
+        </p>
+        <Link to={user ? "/dashboard" : "/login?mode=signup"} className="btn btn-primary btn-lg">
+          {user ? "Go to dashboard" : "Get started"}
         </Link>
       </Reveal>
     </section>
-  );
-}
-
-function LandingFooter() {
-  return (
-    <footer className="landing-footer">
-      <div className="landing-footer-inner">
-        <span className="landing-brand">Linux Incident Trainer</span>
-        <p className="faint">A self-hosted way to practice fixing real Linux incidents before they happen on call.</p>
-        <Link to="/login" className="nav-link">
-          Already have an account? Log in
-        </Link>
-      </div>
-    </footer>
   );
 }
 
@@ -565,21 +374,11 @@ export function LandingPage() {
   }, []);
 
   return (
-    <div className="landing">
-      <a className="skip-link" href="#top">
-        Skip to content
-      </a>
-      <LandingNav />
-      <main>
-        <Hero />
-        <StatsSection />
-        <FeaturesSection />
-        <WalkthroughSection />
-        <SelfHostSection />
-        <FaqSection />
-        <FinalCta />
-      </main>
-      <LandingFooter />
-    </div>
+    <MarketingLayout>
+      <Hero />
+      <StatsSection />
+      <AboutNavCards />
+      <FinalCta />
+    </MarketingLayout>
   );
 }

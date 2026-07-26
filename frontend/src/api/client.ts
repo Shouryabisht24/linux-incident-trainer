@@ -58,6 +58,13 @@ export interface PublicStats {
   categoryCount: number;
 }
 
+export interface HelpRequest {
+  id: string;
+  subject: string;
+  message: string;
+  created_at: string;
+}
+
 export function getToken(): string | null {
   return localStorage.getItem("token");
 }
@@ -96,6 +103,16 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
   me: () => request<{ user: AuthUser }>("/api/auth/me"),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ ok: true }>("/api/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+  updateDisplayName: (displayName: string | null) =>
+    request<{ user: AuthUser }>("/api/auth/display-name", {
+      method: "PATCH",
+      body: JSON.stringify({ displayName }),
+    }),
   listCategories: () => request<{ categories: Category[] }>("/api/categories"),
   listChallenges: () => request<{ challenges: ChallengeSummary[] }>("/api/challenges"),
   getChallenge: (slug: string) => request<ChallengeDetail>(`/api/challenges/${slug}`),
@@ -118,4 +135,7 @@ export const api = {
   getSolution: (id: string) => request<{ solutionMd: string }>(`/api/sessions/${id}/solution`),
   getProgress: () => request<Progress>("/api/progress"),
   getPublicStats: () => request<PublicStats>("/api/public-stats"),
+  submitHelpRequest: (subject: string, message: string) =>
+    request<{ helpRequest: HelpRequest }>("/api/help", { method: "POST", body: JSON.stringify({ subject, message }) }),
+  listHelpRequests: () => request<{ helpRequests: HelpRequest[] }>("/api/help"),
 };

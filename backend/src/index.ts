@@ -10,6 +10,7 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { categoriesRouter } from "./routes/categories.routes.js";
 import { challengesRouter } from "./routes/challenges.routes.js";
+import { helpRouter } from "./routes/help.routes.js";
 import { progressRouter } from "./routes/progress.routes.js";
 import { publicStatsRouter } from "./routes/publicStats.routes.js";
 import { sessionsRouter } from "./routes/sessions.routes.js";
@@ -39,6 +40,7 @@ app.use("/api/categories", categoriesRouter);
 app.use("/api/challenges", challengesRouter);
 app.use("/api/sessions", sessionsRouter);
 app.use("/api/progress", progressRouter);
+app.use("/api/help", helpRouter);
 
 app.use(errorHandler);
 

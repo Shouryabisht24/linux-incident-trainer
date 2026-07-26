@@ -272,7 +272,7 @@ export function ChallengeListPage() {
   const solvedPct = total > 0 ? (solvedCount / total) * 100 : 0;
 
   return (
-    <div className="page">
+    <div className="page challenges-page">
       <div className="challenges-header">
         <div>
           <span className="eyebrow">Practice queue</span>

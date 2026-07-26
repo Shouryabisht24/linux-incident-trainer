@@ -11,11 +11,17 @@
   --color-text: #171a23;
   --color-text-muted: #4b5563;
   --color-text-faint: #66707c;
-  --color-accent: #3562e0;
-  --color-accent-hover: #2951c9;
-  --color-accent-active: #1f3ea3;
+  /* Deep signal-teal/cyan — the ANSI hue conventionally used for paths/prompts/hostnames in
+     terminal color schemes, reading as "monitoring/status" rather than generic-SaaS "click here to
+     buy." Replaces the old #3562e0 (see decisions/0018-*.md for the full rationale and recomputed
+     WCAG contrast numbers for every context this hue is used in). Hover/active are the same hue and
+     saturation, stepped darker in HSL lightness (31% / 25% / 19%) rather than picked by eye, so the
+     three stay a visibly consistent family. */
+  --color-accent: #0e7490;
+  --color-accent-hover: #0b5d74;
+  --color-accent-active: #094758;
   --color-accent-contrast: #ffffff;
-  --color-accent-rgb: 53, 98, 224;
+  --color-accent-rgb: 14, 116, 144;
   --color-success: #157a4e;
   --color-success-bg: rgba(var(--color-success-rgb), 0.12);
   --color-success-rgb: 21, 122, 78;
@@ -30,6 +36,16 @@
      soft shadow, so this gets reused a lot; a slightly blue-tinted ink reads less muddy
      than flat black at low opacity. */
   --color-shadow-rgb: 16, 24, 40;
+
+  /* Faint grain texture — a single-tone (black) fractal-noise tile, alpha baked into the
+     SVG itself via feColorMatrix (0 to 0.05, averaging ~0.025) rather than controlled with
+     a CSS `opacity` on the element, since the latter would also fade any text/content
+     sharing that surface. Reused verbatim wherever a flat light surface (page ground or an
+     elevated card) needs a hair of tactile depth — see the "texture" rule block near the
+     end of this file for the curated list of surfaces this is applied to; deliberately not
+     applied everywhere (e.g. not on the challenge grid's many small tiles, not on toasts)
+     to keep it a restrained accent rather than a repeated visual motif. */
+  --texture-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.12 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 
   --difficulty-beginner: var(--color-success);
   --difficulty-intermediate: var(--color-warning);
@@ -62,7 +78,25 @@
   --space-6: 32px;
   --space-7: 48px;
   --space-8: 72px;
-  --font-mono: "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+
+  /* Type system — a deliberate three-way pairing, all self-hosted via @fontsource (real .woff2
+     files bundled at build time, no runtime Google Fonts CDN dependency; see main.tsx's imports and
+     decisions/0018-*.md). Each token lists its system-stack as a fallback for the brief window
+     before the webfont loads (font-display: swap, set by @fontsource's own generated CSS) and for
+     any environment the self-hosted file somehow fails to reach.
+     - Display (h1-h4, hero, section heads): Overpass, weights 700/800 only — a screen redesign of
+       U.S. highway signage type (Highway Gothic). Chosen for the subject-matter link (infrastructure
+       signage <-> production infrastructure), not the trendy geometric-grotesk cluster
+       (Space Grotesk/Sora/Manrope) that's itself become a generic "AI site" tell.
+     - Body: IBM Plex Sans, weights 400/500/600 — an engineering-institution heritage face, legible
+       at paragraph sizes, restrained enough not to compete with the display face.
+     - Mono/utility: IBM Plex Mono, weights 400/500 — same family lineage as the body face (a
+       genuinely paired choice, not three unrelated faces); also passed into TerminalPane.tsx's
+       `new Terminal({...})` call, so the real live terminal, this decorative hero mockup, inline
+       `code`, and the self-host code block all render the same face for the first time. */
+  --font-display: "Overpass", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-body: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
 
   color-scheme: light;
 }
@@ -79,8 +113,11 @@ body,
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: var(--color-bg);
+  font-family: var(--font-body);
+  /* Split from a single `background` shorthand so the grain tile layers over the flat page
+     ground without fighting any other background usage — see --texture-grain above. */
+  background-color: var(--color-bg);
+  background-image: var(--texture-grain);
   color: var(--color-text);
   -webkit-font-smoothing: antialiased;
 }
@@ -93,7 +130,12 @@ h1,
 h2,
 h3,
 h4 {
-  font-weight: 600;
+  /* Display face cascades from here to every heading site-wide (challenge cards, dashboard,
+     walkthrough steps, FAQ) automatically — that's the intended "everywhere else just inherits the
+     token" behavior for this pass, not an oversight. font-weight 700 is Overpass's lighter loaded
+     weight (800 is reserved for the hero h1 / landing section heads, which already set it inline). */
+  font-family: var(--font-display);
+  font-weight: 700;
   line-height: 1.25;
   margin: 0 0 var(--space-3);
 }
@@ -191,21 +233,32 @@ pre code {
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
   font-size: 0.92rem;
+  transition: background-color 160ms cubic-bezier(0.16, 1, 0.3, 1), color 160ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .nav-link:hover {
-  color: var(--color-text);
-  background: var(--color-bg-elevated-2);
+  color: var(--color-accent);
+  background: rgba(var(--color-accent-rgb), 0.1);
 }
 
 .nav-link.active {
-  color: var(--color-text);
-  background: var(--color-bg-elevated-2);
+  color: var(--color-accent);
+  background: rgba(var(--color-accent-rgb), 0.1);
 }
 
 .navbar-user {
   color: var(--color-text-faint);
   font-size: 0.85rem;
+  text-decoration: none;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: background-color 160ms cubic-bezier(0.16, 1, 0.3, 1), color 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.navbar-user:hover,
+.navbar-user.active {
+  color: var(--color-accent);
+  background: rgba(var(--color-accent-rgb), 0.1);
 }
 
 /* ---- buttons ---- */
@@ -220,7 +273,16 @@ pre code {
   background: var(--color-bg-elevated-2);
   color: var(--color-text);
   cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease, opacity 120ms ease, transform 80ms ease;
+  /* Shared with `.reveal`/`.auth-shell-animate`/`.auth-collapse` etc. below — reusing this
+     file's one existing "signature" ease-out-expo curve for every new hover/press transition
+     rather than introducing a second easing family, so the motion reads as one considered
+     system instead of several unrelated tweaks. */
+  transition:
+    background-color 160ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 160ms cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 160ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 200ms cubic-bezier(0.16, 1, 0.3, 1);
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -251,6 +313,11 @@ pre code {
 .btn-primary:hover:not(:disabled) {
   background: var(--color-accent-hover);
   border-color: var(--color-accent-hover);
+  /* Primary actions (Start Challenge, Check My Fix, auth submit, hero/final CTAs) get a
+     lift + tinted glow on hover — secondary/ghost buttons intentionally don't, so this reads
+     as "the one thing to click" rather than every button shifting at once. */
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -4px rgba(var(--color-accent-rgb), 0.5);
 }
 
 .btn-primary:active:not(:disabled) {
@@ -305,7 +372,8 @@ pre code {
 }
 
 .field input,
-.field select {
+.field select,
+.field textarea {
   font: inherit;
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-sm);
@@ -315,9 +383,15 @@ pre code {
 }
 
 .field input:focus,
-.field select:focus {
+.field select:focus,
+.field textarea:focus {
   outline: 2px solid var(--color-accent);
   outline-offset: 1px;
+}
+
+.field textarea {
+  min-height: 120px;
+  resize: vertical;
 }
 
 select.filter-select {
@@ -588,17 +662,21 @@ select.filter-select {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+  transition:
+    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .challenge-card:hover,
 .challenge-card:focus-visible {
   border-color: var(--color-accent);
   background: var(--color-bg-elevated);
-  transform: translateY(-3px);
+  transform: translateY(-5px);
   box-shadow:
-    0 2px 6px rgba(var(--color-shadow-rgb), 0.06),
-    0 20px 36px -18px rgba(var(--color-accent-rgb), 0.28);
+    0 3px 8px rgba(var(--color-shadow-rgb), 0.08),
+    0 26px 44px -18px rgba(var(--color-accent-rgb), 0.36);
 }
 
 .challenge-card:focus-visible {
@@ -761,6 +839,18 @@ select.filter-select {
 
 .dot-connecting {
   background: var(--color-warning);
+  animation: dot-pulse-ring 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+/* Expanding + fading ring so a mid-connecting session visibly differs from a static
+   connected dot, rather than the two only being distinguishable by color. */
+@keyframes dot-pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--color-warning-rgb), 0.45);
+  }
+  100% {
+    box-shadow: 0 0 0 8px rgba(var(--color-warning-rgb), 0);
+  }
 }
 
 .dot-disconnected {
@@ -774,6 +864,21 @@ select.filter-select {
   padding: var(--space-3) var(--space-4);
   font-size: 0.9rem;
   border: 1px solid transparent;
+  /* Covers the "Check My Fix" result banner (an `.alert-success`/`.alert-error`, not a
+     `.toast`) with the same kind of soft arrival the toast system already has, instead of
+     just snapping into place — same duration/curve/distance as `.toast-in` for consistency. */
+  animation: alert-in 200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes alert-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .alert-error {
@@ -1049,6 +1154,25 @@ select.filter-select {
   text-wrap: balance;
 }
 
+/* Section "path" kicker — a mono directory-style label (`~/features`) standing in for the plain
+   pill eyebrow everywhere except the hero. This is the through-line the visual-identity pass
+   (decisions/0018) left as a single hero moment: every major section now opens with the same
+   monospace/terminal-path language, not just one signature graphic. Deliberately plain text, not a
+   pill/badge — a real path doesn't have a background chip, and too many repeated pill shapes down
+   the page would read as decoration rather than a considered system. */
+.section-kicker {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--color-text-faint);
+  margin-bottom: var(--space-2);
+}
+
+.section-kicker .kicker-prompt {
+  color: rgba(var(--color-accent-rgb), 0.75);
+  margin-right: 0.15em;
+}
+
 .section-sub {
   font-size: 1.02rem;
 }
@@ -1061,6 +1185,61 @@ select.filter-select {
   .landing .section-head {
     margin-bottom: var(--space-7);
   }
+}
+
+/* ---- marketing page headers ----
+   The four split-out marketing routes (/features, /how-it-works, /self-hosting, /faq) each open
+   straight into their `.section-head` right below the sticky nav — there's no hero mesh above them
+   the way there is on `/` and `/about`. This gives each of them a quiet static echo of that same
+   gradient-mesh language (two low-alpha radial gradients, no animation — deliberately NOT
+   `hero-mesh-drift`, since a one-time hero moment repeated on every sub-page would stop reading as
+   a moment) so the split doesn't leave those pages feeling flatter than the page they came from.
+   Each page gets its own modifier with different focal points/token pairings so the four don't
+   read as identical copies of one background. */
+.marketing-page-header {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.marketing-page-header::before {
+  content: "";
+  position: absolute;
+  inset: -15% -10% -30%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(760px circle at 12% 0%, rgba(var(--color-accent-rgb), 0.09), transparent 62%),
+    radial-gradient(680px circle at 92% 30%, rgba(var(--color-warning-rgb), 0.06), transparent 60%);
+}
+
+.marketing-page-header > * {
+  position: relative;
+  z-index: 1;
+}
+
+.marketing-page-header--features::before {
+  background:
+    radial-gradient(760px circle at 12% 0%, rgba(var(--color-accent-rgb), 0.09), transparent 62%),
+    radial-gradient(680px circle at 92% 30%, rgba(var(--color-warning-rgb), 0.06), transparent 60%);
+}
+
+.marketing-page-header--how-it-works::before {
+  background:
+    radial-gradient(700px circle at 88% -6%, rgba(var(--color-success-rgb), 0.08), transparent 60%),
+    radial-gradient(640px circle at 6% 40%, rgba(var(--color-accent-rgb), 0.06), transparent 60%);
+}
+
+.marketing-page-header--self-hosting::before {
+  background:
+    radial-gradient(720px circle at 50% -10%, rgba(var(--color-warning-rgb), 0.07), transparent 60%),
+    radial-gradient(600px circle at 4% 70%, rgba(var(--color-success-rgb), 0.06), transparent 58%);
+}
+
+.marketing-page-header--faq::before {
+  background:
+    radial-gradient(700px circle at 96% 4%, rgba(var(--color-accent-rgb), 0.08), transparent 60%),
+    radial-gradient(640px circle at 0% 90%, rgba(var(--color-warning-rgb), 0.05), transparent 58%);
 }
 
 /* ---- nav ---- */
@@ -1102,6 +1281,38 @@ select.filter-select {
   color: var(--color-text);
   text-decoration: none;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Three small "terminal traffic light" dots on the wordmark itself — the first, smallest
+   appearance of the terminal-chrome motif that recurs through the rest of the page (feature-card
+   tab headers, the walkthrough terminal, the hero). A restrained callback, not a repeat of the
+   hero's full window chrome. */
+.brand-mark {
+  display: inline-flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.brand-mark span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+}
+
+.brand-mark span:nth-child(1) {
+  background: rgba(var(--color-danger-rgb), 0.55);
+}
+
+.brand-mark span:nth-child(2) {
+  background: rgba(var(--color-warning-rgb), 0.55);
+}
+
+.brand-mark span:nth-child(3) {
+  background: rgba(var(--color-success-rgb), 0.55);
 }
 
 .landing-nav-links {
@@ -1265,7 +1476,42 @@ select.filter-select {
    went light. Every color below is pinned to a --term-mock-* token rather than the app's semantic
    tokens, since those now point at light-surface values that would render invisibly here. */
 
+/* Animated gradient-ring frame — the pass's other hand-implemented "component pattern" borrow (the
+   shadcn/Aceternity "moving border" family): a conic-gradient ring slowly rotating behind the
+   terminal panel, built with `@property` for a smoothly interpolable custom angle rather than a JS
+   rAF loop (this one *can* be pure CSS, so it is — no reason to spend a JS loop on it). Frozen at a
+   single static angle under `prefers-reduced-motion` by the file's existing global
+   animation-duration override, same as every other animation here. This is the signature element's
+   one craft upgrade this pass — the transcript reveal itself (decisions/0018) is untouched. */
+@property --border-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.hero-terminal-frame {
+  position: relative;
+  border-radius: calc(var(--radius-lg) + 3px);
+  padding: 2px;
+  background: conic-gradient(
+    from var(--border-angle),
+    rgba(var(--color-accent-rgb), 0.65),
+    rgba(var(--color-success-rgb), 0.45) 25%,
+    transparent 45%,
+    transparent 55%,
+    rgba(var(--color-accent-rgb), 0.65) 100%
+  );
+  animation: hero-frame-spin 7s linear infinite;
+}
+
+@keyframes hero-frame-spin {
+  to {
+    --border-angle: 360deg;
+  }
+}
+
 .hero-terminal {
+  position: relative;
   border: 1px solid var(--term-mock-border);
   border-radius: var(--radius-lg);
   background: var(--term-mock-bg);
@@ -1273,6 +1519,21 @@ select.filter-select {
   box-shadow:
     0 10px 24px -12px rgba(var(--color-shadow-rgb), 0.28),
     0 30px 60px -24px rgba(var(--color-shadow-rgb), 0.35);
+}
+
+/* The signature element's broken->fixed status cue: a thin strip on the terminal chrome that
+   transitions danger->success in sync with the transcript reveal reaching its final line (the
+   `.is-fixed` class is added by HeroTerminal once every character has revealed). A CSS transition
+   on an existing color pair, not a new component — borrowing the real incident/status-page
+   red->green convention directly. */
+.hero-terminal-status-strip {
+  height: 3px;
+  background: var(--term-mock-danger);
+  transition: background-color 600ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.hero-terminal.is-fixed .hero-terminal-status-strip {
+  background: var(--term-mock-success);
 }
 
 .hero-terminal-bar {
@@ -1300,13 +1561,15 @@ select.filter-select {
 
 .hero-terminal-body {
   margin: 0;
-  padding: var(--space-4);
+  padding: var(--space-5);
   font-family: var(--font-mono);
-  font-size: 0.82rem;
-  line-height: 1.7;
+  font-size: 0.92rem;
+  line-height: 1.75;
   color: var(--term-mock-text);
   overflow-x: auto;
-  white-space: pre;
+  white-space: pre-wrap;
+  word-break: break-word;
+  min-height: 15.5em;
 }
 
 .hero-terminal-body .t-prompt {
@@ -1326,6 +1589,20 @@ select.filter-select {
   font-weight: 600;
 }
 
+/* Per-character reveal — each transcript character is a real DOM node from first render
+   (`opacity: 0`, no layout shift since the full block occupies its final height immediately), and
+   HeroTerminal flips `.is-revealed` on them directly via refs as it plays, bypassing React state
+   entirely for the per-frame work (see the component for why). A quick opacity fade rather than a
+   hard cut so it doesn't strobe at the ~6ms/char pace it runs at. */
+.hero-char {
+  opacity: 0;
+  transition: opacity 110ms linear;
+}
+
+.hero-char.is-revealed {
+  opacity: 1;
+}
+
 .hero-terminal-cursor {
   display: inline-block;
   width: 0.5em;
@@ -1333,6 +1610,14 @@ select.filter-select {
   margin-left: 2px;
   background: var(--term-mock-success);
   vertical-align: text-bottom;
+  opacity: 0;
+}
+
+/* Cursor only starts blinking once the transcript has fully played (or immediately, for
+   reduced-motion visitors) — matching a real terminal, where the cursor sits idle at the prompt
+   once output has finished rather than blinking through a command's output. */
+.hero-terminal-cursor.is-active {
+  opacity: 1;
   animation: cursor-blink 1s step-end infinite;
 }
 
@@ -1349,9 +1634,17 @@ select.filter-select {
 
 @media (min-width: 860px) {
   .hero {
-    grid-template-columns: 1.05fr 1fr;
+    /* Asymmetric on purpose — the terminal (the product's actual "characteristic thing," per the
+       hero-as-thesis principle) gets roughly 60% of the row instead of splitting evenly with the
+       headline, so it reads as the centerpiece rather than a same-weight screenshot beside the
+       pitch. */
+    grid-template-columns: 0.78fr 1.22fr;
     padding-top: var(--space-8);
     gap: var(--space-7);
+  }
+
+  .hero-copy {
+    max-width: 40ch;
   }
 }
 
@@ -1425,6 +1718,7 @@ select.filter-select {
 
 .feature-card {
   position: relative;
+  overflow: hidden;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-elevated);
@@ -1435,15 +1729,157 @@ select.filter-select {
   box-shadow:
     0 1px 2px rgba(var(--color-shadow-rgb), 0.04),
     0 20px 40px -28px rgba(var(--color-shadow-rgb), 0.18);
-  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease;
+  transition:
+    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .feature-card:hover {
-  border-color: rgba(var(--color-accent-rgb), 0.4);
-  transform: translateY(-4px);
+  border-color: rgba(var(--color-accent-rgb), 0.5);
+  transform: translateY(-6px);
   box-shadow:
-    0 4px 10px rgba(var(--color-shadow-rgb), 0.06),
-    0 26px 46px -22px rgba(var(--color-accent-rgb), 0.26);
+    0 6px 14px rgba(var(--color-shadow-rgb), 0.08),
+    0 30px 52px -20px rgba(var(--color-accent-rgb), 0.34);
+}
+
+/* Cursor-tracked spotlight glow — the pass's one hand-implemented "component-library pattern"
+   borrow (the shadcn/Aceternity "spotlight card" family), built with plain CSS custom properties
+   set from a `pointermove` handler rather than a dependency. `--spot-x`/`--spot-y` default to the
+   card's center so there's a sane fallback before the first pointermove fires. Restricted to
+   `pointer: fine` (a real mouse) — on touch, hover has no meaning and the effect would either never
+   fire or stick at a stale position, so it's simply absent there rather than faked. This is the
+   pass's one deliberately "crafted" micro-interaction, kept to a single low-opacity radial tint
+   rather than a heavier glow/border/scale combination — precision over quantity, per the direction
+   that past animation passes on this project ran either too gimmicky or too subtle. */
+.feature-card,
+.dashboard-continue-live,
+.dashboard-progress-card,
+.marketing-nav-card {
+  --spot-x: 50%;
+  --spot-y: 30%;
+}
+
+.feature-card-tab,
+.feature-icon-chip,
+.feature-copy {
+  position: relative;
+  z-index: 1;
+}
+
+/* Dashboard reuses the exact same spotlight mechanism as `.feature-card` above — same
+   default custom properties, same ::before radial-gradient, same pointer:fine gate — just
+   extended to the two dashboard cards with a real pointermove-driven glow (the continue-
+   session live card and the progress snapshot card). `.marketing-nav-card` (LandingPage.tsx's
+   `AboutNavCards`) is the third instance of the identical pattern. */
+.dashboard-continue-live > *,
+.dashboard-progress-card > *,
+.marketing-nav-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (pointer: fine) {
+  .feature-card::before,
+  .dashboard-continue-live::before,
+  .dashboard-progress-card::before,
+  .marketing-nav-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: radial-gradient(360px circle at var(--spot-x) var(--spot-y), rgba(var(--color-accent-rgb), 0.13), transparent 70%);
+    opacity: 0;
+    transition: opacity 220ms cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+  }
+
+  .feature-card:hover::before,
+  .dashboard-continue-live:hover::before,
+  .dashboard-progress-card:hover::before,
+  .marketing-nav-card:hover::before {
+    opacity: 1;
+  }
+}
+
+/* ---- marketing nav cards (LandingPage.tsx's AboutNavCards, "~/learn-more") ----
+   Links out to the four split marketing pages (/features, /how-it-works, /self-hosting, /faq).
+   Modeled loosely on `.feature-card`'s box-model (border/background/padding/shadow) but without
+   its file-tab header — this card has no "backed by a real file" conceit, it's a plain nav card. */
+.marketing-nav-grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .marketing-nav-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1020px) {
+  .marketing-nav-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.marketing-nav-card {
+  position: relative;
+  overflow: hidden;
+  display: block;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  padding: var(--space-5);
+  text-decoration: none;
+  color: inherit;
+  height: 100%;
+  transition:
+    border-color 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.marketing-nav-card:hover {
+  border-color: rgba(var(--color-accent-rgb), 0.5);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -28px rgba(var(--color-accent-rgb), 0.34);
+}
+
+.marketing-nav-card h3 {
+  font-size: 1.02rem;
+  margin-bottom: var(--space-2);
+}
+
+.marketing-nav-card p {
+  margin-bottom: 0;
+  font-size: 0.9rem;
+}
+
+/* File-tab header — each feature card opens with a small code-editor-style tab strip naming the
+   real file in this codebase that actually backs the claim below it (seed.sh, terminalSocket.ts,
+   check.sh, hints.json, challenge.json, session.service.ts — all genuine paths under the
+   per-challenge content directories and backend/src, not invented filenames), extending the
+   "monospace as visual language" observation past the single hero terminal into every card on the
+   page. */
+.feature-card-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-text-faint);
+  margin-bottom: var(--space-1);
+}
+
+.feature-card-tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(var(--color-accent-rgb), 0.55);
+  flex-shrink: 0;
 }
 
 .feature-icon-chip {
@@ -1538,50 +1974,118 @@ select.filter-select {
   }
 }
 
-/* ---- walkthrough ---- */
+/* ---- walkthrough: presented as a real annotated script, not a numbered-card list ----
+   The second, distinct appearance of the terminal/code motif on the page (the first being the
+   hero). Deliberately kept *light*, unlike the hero/self-host code block — this panel doesn't
+   depict the real product terminal (which stays dark by established convention, decisions/0017),
+   it's a code-editor-style presentation device for the five walkthrough steps, so it uses the
+   page's normal light surface tokens rather than adding a third dark surface to a pass whose
+   explicit constraint is "keep the light theme." Numbering here is earned, not decorative — per
+   frontend-design's guidance on numbered markers, this content genuinely is an ordered sequence (a
+   literal script executed top to bottom), unlike a numbered-marker treatment applied to
+   non-sequential content. */
+
+.walkthrough-terminal {
+  max-width: 760px;
+  margin: 0 auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  overflow: hidden;
+  box-shadow:
+    0 1px 2px rgba(var(--color-shadow-rgb), 0.04),
+    0 20px 40px -28px rgba(var(--color-shadow-rgb), 0.18);
+}
+
+.walkthrough-terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-bg-elevated-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.walkthrough-terminal-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+}
+
+.walkthrough-terminal-title {
+  margin-left: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-text-faint);
+}
 
 .walkthrough-list {
   list-style: none;
   margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  max-width: 720px;
-  margin-inline: auto;
+  padding: var(--space-2) 0;
 }
 
 .walkthrough-step {
-  display: flex;
-  gap: var(--space-4);
-  align-items: flex-start;
-  padding: var(--space-4);
-  border-radius: var(--radius-md);
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: var(--space-2) var(--space-4);
+  align-items: baseline;
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
   transition: background-color 180ms ease;
 }
 
+.walkthrough-list li:last-child .walkthrough-step {
+  border-bottom: none;
+}
+
 .walkthrough-step:hover {
-  background: var(--color-bg-elevated);
+  background: var(--color-bg-elevated-2);
 }
 
 .walkthrough-index {
+  grid-row: 1 / span 3;
   font-family: var(--font-mono);
-  font-size: 0.85rem;
-  color: var(--color-accent);
-  background: rgba(var(--color-accent-rgb), 0.1);
-  border-radius: var(--radius-sm);
-  padding: var(--space-1) var(--space-2);
-  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: var(--color-text-faint);
+  padding-top: 0.2em;
 }
 
-.walkthrough-step h3 {
-  font-size: 1rem;
-  margin-bottom: var(--space-1);
+.walkthrough-comment {
+  grid-column: 2;
+  margin: 0 0 var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.walkthrough-comment .kicker-prompt {
+  color: var(--color-text-faint);
+  font-weight: 400;
+  margin-right: 0.4em;
+}
+
+.walkthrough-cmd {
+  grid-column: 2;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--color-accent-hover);
+  background: rgba(var(--color-accent-rgb), 0.08);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-2);
+  display: inline-block;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
 }
 
 .walkthrough-step p {
-  margin-bottom: 0;
-  font-size: 0.94rem;
+  grid-column: 2;
+  margin: var(--space-1) 0 0;
+  font-size: 0.92rem;
 }
 
 /* ---- self-host ---- */
@@ -1655,6 +2159,13 @@ select.filter-select {
   font-weight: 600;
   border-radius: var(--radius-sm);
   transition: color 150ms ease;
+}
+
+.faq-item summary .kicker-prompt {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  color: rgba(var(--color-accent-rgb), 0.75);
+  margin-right: var(--space-2);
 }
 
 .faq-item summary:hover {
@@ -1871,11 +2382,13 @@ html {
   gap: var(--space-4);
 }
 
-.field input.field-invalid {
+.field input.field-invalid,
+.field textarea.field-invalid {
   border-color: var(--color-danger);
 }
 
-.field input.field-invalid:focus {
+.field input.field-invalid:focus,
+.field textarea.field-invalid:focus {
   outline-color: var(--color-danger);
 }
 
@@ -1918,6 +2431,504 @@ html {
   }
 }
 
+/* =========================================================================
+   Dashboard (/dashboard) — the authenticated "home." Reuses the same
+   `.card`/`.eyebrow`/`.badge`/`.challenge-card`/`.progress-bar-*` primitives as
+   every other authenticated page rather than introducing a parallel visual
+   language, per this app's existing pattern of one shared design system
+   across the authenticated app (only the public landing page gets its own
+   heavier treatment). See decisions/0019-*.md for why this page exists
+   alongside (not instead of) `/progress`.
+   ========================================================================= */
+
+.dashboard-header {
+  margin-bottom: var(--space-6);
+}
+
+.dashboard-header h1 {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+
+/* A quiet callback to the landing page's terminal cursor — blinks once at the end of the greeting,
+   tying the authenticated app's one "home" moment back to the same signature motif without
+   repeating the full transcript-reveal treatment here. */
+.dashboard-header-cursor {
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  background: var(--color-accent);
+  animation: cursor-blink 1s step-end infinite;
+}
+
+/* .dashboard-card-kicker is the pre-rename name, kept as an alias here only because
+   ProfilePage.tsx (out of scope for this pass) still references it directly — every
+   in-scope usage (Dashboard, Progress) has moved to .kicker-line as the one shared name. */
+.kicker-line,
+.dashboard-card-kicker {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--color-text-faint);
+  margin-bottom: var(--space-3);
+}
+
+.dashboard-grid {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+.dashboard-main,
+.dashboard-side {
+  min-width: 0;
+}
+
+.dashboard-continue-card {
+  display: block;
+}
+
+/* Full-bleed inner anchor for the live-session branch — the outer card element is now the
+   `Reveal` wrapper (so it can carry the spotlight pointermove handler), so the actual
+   `<Link>` moves one level in and needs to visually disappear into the card around it. */
+.dashboard-continue-card-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.dashboard-continue-live {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(var(--color-accent-rgb), 0.35);
+  transition: border-color 180ms ease, transform 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dashboard-continue-live:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-3px);
+  box-shadow:
+    0 6px 14px rgba(var(--color-shadow-rgb), 0.08),
+    0 26px 44px -20px rgba(var(--color-accent-rgb), 0.3);
+}
+
+.dashboard-continue-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin-bottom: var(--space-1);
+}
+
+.dashboard-continue-cta {
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.dashboard-continue-empty-icon {
+  color: var(--color-text-faint);
+  margin-bottom: var(--space-3);
+}
+
+.dashboard-section-head {
+  margin-bottom: var(--space-4);
+  align-items: baseline;
+}
+
+.dashboard-section-head h2 {
+  margin-bottom: 0;
+  font-size: 1.15rem;
+}
+
+.dashboard-recommend-grid {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.dashboard-progress-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.dashboard-progress-count {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: var(--space-3);
+}
+
+.dashboard-progress-categories {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.dashboard-progress-cat-row-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dashboard-progress-cat-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 0.88rem;
+}
+
+/* Thin mini progress bar under each top-3 category row — composes the existing
+   `.progress-bar-track`/`.progress-bar-fill` base classes rather than duplicating their rules. */
+.dashboard-progress-cat-bar {
+  height: 4px;
+}
+
+.dashboard-progress-link {
+  width: 100%;
+  justify-content: center;
+}
+
+.dashboard-links-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.dashboard-link-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-1);
+  border-radius: var(--radius-sm);
+  color: inherit;
+  text-decoration: none;
+  transition: background-color 160ms ease;
+}
+
+.dashboard-link-row:hover {
+  background: var(--color-bg-elevated-2);
+}
+
+.dashboard-link-icon {
+  color: var(--color-accent);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.dashboard-link-title {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+@media (min-width: 900px) {
+  .dashboard-grid {
+    grid-template-columns: 1.6fr 1fr;
+  }
+}
+
+/* =========================================================================
+   Progress dashboard (/progress) — a hero summary card + small-multiples
+   category grid, restructured from the original flat "one h1 + stacked rows"
+   layout. Shares `.card`/`.eyebrow`/`.badge`/`.kicker-line`/spotlight/reveal
+   primitives with the rest of the authenticated app rather than a parallel
+   language, same reasoning as the Dashboard block above.
+   ========================================================================= */
+
+.progress-page-header {
+  margin-bottom: var(--space-6);
+}
+
+.progress-summary-card {
+  position: relative;
+  overflow: hidden;
+  --spot-x: 50%;
+  --spot-y: 30%;
+  margin-bottom: var(--space-6);
+}
+
+.progress-summary-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+@media (pointer: fine) {
+  .progress-summary-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: radial-gradient(360px circle at var(--spot-x) var(--spot-y), rgba(var(--color-accent-rgb), 0.13), transparent 70%);
+    opacity: 0;
+    transition: opacity 220ms cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: none;
+  }
+
+  .progress-summary-card:hover::before {
+    opacity: 1;
+  }
+}
+
+.progress-summary-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.progress-summary-primary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.progress-summary-secondary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-left: var(--space-6);
+  border-left: 1px solid var(--color-border);
+}
+
+.progress-grid-heading {
+  font-size: 1.15rem;
+  margin-bottom: var(--space-4);
+}
+
+.progress-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-4);
+}
+
+/* `.category-tile` gets its own border/background/padding modeled on `.challenge-card` —
+   deliberately NOT `.card` and deliberately NOT added to the `--texture-grain` selector list
+   above (see the "Texture" comment block for why: that grain is reserved for a handful of
+   large, single-instance-per-page surfaces, and repeating it across a tiled grid this size
+   would turn a barely-perceptible accent into visible per-tile noise, same reasoning that
+   already keeps the challenge grid off that list). Plain, static, non-interactive — no
+   hover-lift, no link — per this page's category-tile rule (see decisions/0021-*.md). */
+.category-tile {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.category-tile-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.category-tile-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.category-tile-body {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 44px;
+}
+
+.category-tile-count {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.category-tile-empty-copy {
+  margin-bottom: 0;
+  font-size: 0.85rem;
+}
+
+.badge-status-complete {
+  color: var(--color-success);
+  background: rgba(var(--color-success-rgb), 0.13);
+}
+
+.badge-status-progress {
+  color: var(--color-warning);
+  background: rgba(var(--color-warning-rgb), 0.13);
+}
+
+/* ---- progress ring (donut) ----
+   A direct extension of the hero terminal frame's `--border-angle` moving-border technique
+   above: `@property` gives the browser a smoothly interpolable custom value to transition
+   (a percentage here, instead of an angle), so the ring fills in rather than snapping to its
+   final state. See decisions/0021-*.md. */
+@property --ring-pct {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+.progress-ring {
+  --ring-pct: 0%;
+  position: relative;
+  display: inline-block;
+  border-radius: 50%;
+  background: conic-gradient(var(--color-accent) var(--ring-pct), var(--color-bg-elevated-2) 0);
+  transition: --ring-pct 900ms cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+}
+
+.progress-ring::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  background: var(--color-bg-elevated);
+}
+
+.progress-ring--sm {
+  width: 44px;
+  height: 44px;
+}
+
+.progress-ring--sm::after {
+  inset: 5px;
+}
+
+.progress-ring--lg {
+  width: 84px;
+  height: 84px;
+}
+
+.progress-ring--lg::after {
+  inset: 9px;
+}
+
+/* =========================================================================
+   Profile / account settings (/profile)
+   ========================================================================= */
+
+.profile-email {
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  margin-bottom: var(--space-5);
+}
+
+.profile-stack {
+  gap: var(--space-5);
+}
+
+.profile-card h2 {
+  font-size: 1.1rem;
+  margin-bottom: var(--space-2);
+}
+
+.profile-card > p {
+  margin-bottom: var(--space-4);
+}
+
+/* =========================================================================
+   Help / support (/help)
+   ========================================================================= */
+
+/* `.help-request-item` composes `.card`'s general look-and-feel (border/
+   radius/background) rather than reinventing it, but is deliberately its own
+   class — not `.category-tile`/`.challenge-card`, which carry unrelated
+   status/difficulty semantics that don't apply to a plain submission record. */
+.help-request-item {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  padding: var(--space-4);
+}
+
+.help-request-item h3 {
+  font-size: 0.98rem;
+  margin-bottom: 0;
+}
+
+.help-request-item p {
+  margin-top: var(--space-2);
+  margin-bottom: 0;
+  font-size: 0.92rem;
+  white-space: pre-wrap;
+}
+
+/* =========================================================================
+   Page background washes — Dashboard/Challenges/Progress each get a quiet,
+   static two-radial-gradient wash behind their content (lower alpha, larger
+   softer radius than the marketing-page-header treatment above, and no
+   animation at all — these are pages a user revisits constantly, not a
+   one-time entry moment). `position: relative; isolation: isolate` on the
+   page root plus `z-index: -1` on `::before` keeps the wash behind the page's
+   own cards without bleeding behind `NavBar` (a separate sibling element, not
+   a descendant of `.page`). Each page uses a different accent/success/
+   warning pairing and focal point so the three are related but distinguishable
+   — deliberately NOT applied to `.category-tile`/`.challenge-card` or any
+   per-category icon mapping (decisions/0021-*.md already rejected that).
+   ========================================================================= */
+
+.dashboard-page,
+.challenges-page,
+.progress-page {
+  position: relative;
+  isolation: isolate;
+}
+
+.dashboard-page::before,
+.challenges-page::before,
+.progress-page::before {
+  content: "";
+  position: absolute;
+  inset: -6% -6% 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.dashboard-page::before {
+  background:
+    radial-gradient(620px circle at 90% -4%, rgba(var(--color-accent-rgb), 0.07), transparent 58%),
+    radial-gradient(520px circle at 0% 60%, rgba(var(--color-success-rgb), 0.05), transparent 60%);
+}
+
+.challenges-page::before {
+  background:
+    radial-gradient(600px circle at 6% -6%, rgba(var(--color-warning-rgb), 0.06), transparent 58%),
+    radial-gradient(560px circle at 96% 55%, rgba(var(--color-accent-rgb), 0.05), transparent 60%);
+}
+
+.progress-page::before {
+  background:
+    radial-gradient(600px circle at 96% 0%, rgba(var(--color-success-rgb), 0.06), transparent 58%),
+    radial-gradient(540px circle at 4% 70%, rgba(var(--color-warning-rgb), 0.05), transparent 60%);
+}
+
+/* =========================================================================
+   Texture — faint grain on the most prominent flat elevated surfaces.
+   Reuses the same --texture-grain tile the page background uses (defined in
+   :root), reapplied at the same intrinsic alpha rather than a second
+   technique. Declared as a standalone `background-image` longhand, after
+   every selector's own `background`/`background-color` rule elsewhere in
+   this file, so — at equal specificity — it wins the cascade for just that
+   one sub-property without needing to touch each rule's existing background
+   value. Where a *more specific* selector already sets its own background
+   image (`.challenge-card.solved`, `.features-grid .feature-card:nth-child(1)`,
+   both elsewhere in this file), that still wins as normal — those cards keep
+   their tint instead of stacking a second effect on top.
+   Deliberately curated to a handful of large, single-instance-per-page
+   surfaces (auth card, toolbar, dashboard/solution card, landing stats band,
+   feature cards) rather than every card class — repeating it across dozens
+   of small tiles (the challenge grid, toasts, FAQ rows) would turn a barely-
+   perceptible accent into visible per-tile noise once tiled that many times.
+   ========================================================================= */
+
+.card,
+.challenges-toolbar,
+.auth-card,
+.feature-card,
+.stats-section {
+  background-image: var(--texture-grain);
+}
+
 /* ---- reduced motion ---- */
 
 @media (prefers-reduced-motion: reduce) {
@@ -1936,12 +2947,30 @@ html {
     opacity: 1;
   }
 
+  .dot-connecting {
+    animation: none;
+    box-shadow: none;
+  }
+
+  /* Belt-and-suspenders alongside HeroTerminal's own reducedMotion check (which skips the reveal
+     loop and marks every character revealed synchronously) — guarantees the full transcript is
+     visible even in the one-frame gap before that effect runs, same reasoning as `.reveal` above. */
+  .hero-char {
+    opacity: 1 !important;
+    transition: none !important;
+  }
+
+  .hero-terminal-status-strip {
+    transition: none;
+  }
+
   .hero-bg {
     animation: none;
   }
 
   .feature-card:hover,
-  .challenge-card:hover {
+  .challenge-card:hover,
+  .btn-primary:hover:not(:disabled) {
     transform: none;
   }
 

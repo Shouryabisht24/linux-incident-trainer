@@ -28,9 +28,18 @@ export function TerminalPane({ wsTicket, onExit, onStatusChange }: TerminalPaneP
     if (!containerRef.current) return;
 
     let intentionalClose = false;
+    let disposed = false;
     onStatusChangeRef.current?.("connecting");
 
-    const term = new Terminal({ cursorBlink: true, convertEol: true, fontSize: 14 });
+    // fontFamily is additive only — xterm falls back through the rest of the stack (its own
+    // built-in monospace default lives after these) if the self-hosted Plex Mono woff2 hasn't
+    // finished loading yet, so a slow font fetch never blocks the terminal from opening.
+    const term = new Terminal({
+      cursorBlink: true,
+      convertEol: true,
+      fontSize: 14,
+      fontFamily: '"IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace',
+    });
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(containerRef.current);
@@ -69,11 +78,25 @@ export function TerminalPane({ wsTicket, onExit, onStatusChange }: TerminalPaneP
     });
     resizeObserver.observe(containerRef.current);
 
+    // The very first fit() above can run before the self-hosted Plex Mono woff2 finishes loading,
+    // in which case xterm measures its cell size off a fallback font — usually near-identical, but
+    // re-fitting once the real font is ready guards against a subtly-off cols/rows on that first
+    // render. document.fonts is universally supported in the browsers this app already requires
+    // for WebSocket/xterm, so no feature-detect fallback is needed.
+    document.fonts.ready.then(() => {
+      if (disposed) return;
+      fit.fit();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "resize", cols: term.cols, rows: term.rows }));
+      }
+    });
+
     return () => {
       // Mark this close as intentional (unmount, or the wsTicket prop changed for a
       // reconnect) so the resulting onclose event doesn't also fire onExit — that's
       // reserved for closes we didn't initiate ourselves.
       intentionalClose = true;
+      disposed = true;
       dataListener.dispose();
       resizeObserver.disconnect();
       ws.close();

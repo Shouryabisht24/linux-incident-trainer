@@ -72,6 +72,40 @@ export async function getUserById(userId: string): Promise<User | null> {
   return row ? toUser(row) : null;
 }
 
+/**
+ * Changes a user's password. Requires the current password and verifies it via `bcrypt.compare`
+ * against the stored hash first — there is no path to change a password without proving the
+ * current one. Throws a generic "current password is incorrect" error on mismatch (never reveals
+ * whether the account itself exists or anything about the stored hash).
+ */
+export async function changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
+  const result = await pool.query<UserRow>("SELECT password_hash FROM users WHERE id = $1", [userId]);
+  const row = result.rows[0];
+  if (!row) throw new Error("user not found");
+
+  const valid = await bcrypt.compare(currentPassword, row.password_hash);
+  if (!valid) throw new Error("current password is incorrect");
+
+  const newHash = await bcrypt.hash(newPassword, 10);
+  await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [newHash, userId]);
+}
+
+/**
+ * Updates a user's display name only. No password verification needed — this is a harmless
+ * profile-cosmetics field, not a security-sensitive credential, same as at signup where it's
+ * accepted with no extra proof of identity beyond the signup flow itself.
+ */
+export async function updateDisplayName(userId: string, displayName: string | null): Promise<User> {
+  const result = await pool.query<UserRow>(
+    `UPDATE users SET display_name = $1 WHERE id = $2
+     RETURNING id, email, password_hash, display_name, created_at`,
+    [displayName, userId],
+  );
+  const row = result.rows[0];
+  if (!row) throw new Error("user not found");
+  return toUser(row);
+}
+
 function toUser(row: UserRow): User {
   return { id: row.id, email: row.email, display_name: row.display_name, created_at: row.created_at };
 }

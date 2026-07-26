@@ -434,3 +434,325 @@ call; this entry is a summary.
       reasoning through the CSS/built output rather than a screenshot — a real look in a browser is still worth the
       user doing themselves, same caveat as prior visual passes. Dev-override stack left running as the steady
       state afterward; no test artifacts or extra containers were created by this pass.
+
+## Phase 6 follow-up 3 — light theme texture + micro-interaction pass ("too basic" feedback)
+Restrained polish pass on `frontend/src/styles.css` only in response to feedback that the freshly-flipped light
+theme read as "too basic" — explicit user constraint was restraint ("don't over do it"), so this stayed to a small,
+deliberate set of additions rather than a broad redesign. No JSX/layout/component-logic/copy touched; every new
+animation routes through the existing reduced-motion contract (the global `prefers-reduced-motion` block at the end
+of the file), nothing bypasses it.
+- [x] **Texture** — one new `--texture-grain` token in `:root`: a small (160×160) `feTurbulence` fractal-noise SVG
+      tile with the alpha baked directly into the SVG's `feColorMatrix` (0 to 0.05, averaging ~0.025 — i.e. the
+      "2-4%" range asked for) rather than controlled via a CSS `opacity`, since the latter would also fade any text
+      sharing that surface. Applied in two spots: (1) `body`'s page background (split the old single `background`
+      shorthand into `background-color`/`background-image` so the grain layers over the flat ground on every page),
+      and (2) a curated list of large, mostly-single-instance elevated surfaces — `.card`, `.challenges-toolbar`,
+      `.auth-card`, `.feature-card`, `.stats-section` — declared as a standalone rule near the end of the file so it
+      wins the cascade for just `background-image` at equal specificity without touching each surface's own
+      existing background rule. Deliberately *not* applied to the challenge grid's many small tiles, toasts, or FAQ
+      rows — tiling a barely-perceptible accent across dozens of small elements would turn it into visible per-tile
+      noise, the opposite of restraint.
+- [x] **Animation** — four targeted additions, reusing the file's one existing "signature" easing curve
+      (`cubic-bezier(0.16, 1, 0.3, 1)`, already used by `.reveal`/`.auth-shell-animate`/`.auth-collapse`) for every
+      new transition instead of inventing a second easing family:
+      1. `.btn-primary` gets a restrained hover lift (`translateY(-1px)` + a tinted `rgba(accent, .35)` glow,
+         160-200ms) — scoped to primary CTAs only (Start Challenge, Check My Fix, auth submit, hero/final CTAs) so
+         it reads as "the one thing to click," not applied to every button variant.
+      2. `.challenge-card`/`.feature-card` hover transitions swapped from plain `ease` to the shared curve (same
+         180ms duration, same translateY/shadow values — just a more considered deceleration).
+      3. `.nav-link` (the in-app navbar) had no hover transition at all before this pass — added one.
+      4. `.alert` (covers the "Check My Fix" pass/fail result banner, not just the separate `.toast` system) gets a
+         soft 200ms fade+rise entrance instead of snapping into place, matching the existing `.toast-in` treatment.
+      Reviewed but left unchanged as already adequate: the skeleton shimmer sweep (already a genuine gradient sweep,
+      not a static pulse) and the chip/filter-toggle transition (already has a gentle 140ms color transition).
+      Extending the existing `.btn-arrow` icon-shift pattern to other CTAs was considered but would require adding a
+      markup element in `LandingPage.tsx` — out of scope for a CSS-only pass under the "don't touch layout/component
+      logic" constraint; the primary-button hover lift above serves the same "considered CTA hover" role instead.
+      `.btn-primary:hover` also added to the reduced-motion block's explicit transform-cancel list (existing
+      convention already used for `.feature-card`/`.challenge-card` hover), not just left to the global
+      duration-zero wildcard.
+- [x] Verified: `npx tsc --noEmit` and `npm run build` clean. Decoded and XML-parsed the `--texture-grain` data URI
+      standalone to confirm it's well-formed before trusting it in the browser. Grepped the built
+      `dist/assets/index-*.css` and confirmed every change landed in the actual bundle (the token, the `body`
+      split, the curated grain selector list, `.nav-link`'s new transition, `@keyframes alert-in`, the
+      `.btn-primary:hover` lift/glow, and its reduced-motion cancellation). Rebuilt and booted the real stack
+      (`docker compose up --build -d`); `postgres` healthy, backend `/health` OK, and confirmed the dev-override
+      Vite server on `:5173` serves the updated `styles.css` live with all of the above present — `:3000` wasn't
+      checked this pass since the dev override (the documented steady state) runs Vite directly and doesn't listen
+      on port 80 inside the container, matching how the prior light-theme-flip pass described that mode. **No
+      headless browser was available in this environment**, so the actual felt subtlety of the grain and the hover
+      motion was verified by reasoning through the exact alpha/timing values chosen (documented above), not a
+      screenshot — whether "don't overdo it" actually landed is a taste call that a real look in a browser is still
+      the best (and only real) judge of. Dev-override stack left running as the steady state; no test artifacts or
+      extra containers created by this pass.
+
+## Phase 6 follow-up 4 — visual identity pass (accent hue, self-hosted typography, hero signature element)
+Full pass per the approved "Visual Identity Pass" addendum (using the newly-installed `frontend-design` skill plus
+`vercel-react-best-practices`), in response to feedback that the app "should not look basic." Pure visual/typography
+pass — no session lifecycle, auth, WebSocket protocol, data fetching, filter logic, or routing changes; the only
+edit inside a functionally live file is one additive `fontFamily` prop (plus a directly-related font-load robustness
+addition next to it) on `TerminalPane.tsx`. Full rationale and numbers in `decisions/0018-visual-identity-pass.md`.
+- [x] Installed the `frontend-design` skill (`npx skills add anthropics/skills@frontend-design`); confirmed
+      `vercel-react-best-practices` was already installed from Phase 0 rather than reinstalling blind.
+- [x] **Accent hue**: `--color-accent` `#3562e0` → `#0e7490` (deep signal-teal, the ANSI hue conventionally used for
+      paths/prompts/hostnames in terminal schemes) — a two-token edit (`--color-accent`, `--color-accent-rgb`)
+      thanks to `decisions/0017`'s earlier `rgba(var(--color-accent-rgb), alpha)` refactor. `-hover`/`-active`
+      re-derived via HSL lightness steps (31% → 25% → 19%) rather than picked by eye. Success/danger/warning
+      unchanged. Recomputed real WCAG contrast (script, not eyeballed) for every usage context — buttons 5.36:1
+      (7.41:1 hover, 10.22:1 active), links 5.36:1/4.87:1, tinted badge-style labels 4.67:1/5.90:1 — all clear AA.
+      Found (and fixed) one pre-existing sub-AA gap along the way: `.walkthrough-index` scored ~4.26:1 with the new
+      hue and ~4.21:1 with the *old* one (not a regression) — fixed by swapping its text color to
+      `--color-accent-hover`, the same token `.eyebrow` already used against the identical tint, clearing 5.90:1.
+- [x] **Typography**: Overpass (display, 700/800) + IBM Plex Sans (body, 400/500/600) + IBM Plex Mono
+      (mono/utility, 400/500), replacing the old 100%-system-font stack. Self-hosted via `@fontsource` npm packages
+      (real `.woff2` files, no runtime Google Fonts CDN dependency) — an adjustment from the plan's originally-
+      described hand-placed `frontend/public/fonts/` binaries, since `@fontsource` ships the same real files
+      version-managed like any other dependency; documented in `decisions/0018-*.md` along with why. Wired into
+      `--font-display`/`--font-body`/`--font-mono` tokens, consumed by `body` and the base `h1-h4` rule (cascades to
+      every heading site-wide automatically, matching the addendum's own scope rule). `.walkthrough-index` already
+      referenced `var(--font-mono)`, so it picked up Plex Mono for free with no code change. Added a `vite.config.ts`
+      `assetFileNames` override giving font files a stable, un-hashed path so `index.html`'s two `<link
+      rel="preload">` tags (Plex Sans 400, Overpass 800) reference the exact same URL the built CSS's `@font-face
+      src` actually requests — a second, related adjustment from the plan's assumption of hand-known static paths,
+      also documented in `decisions/0018-*.md`.
+- [x] **Terminal font unification**: `TerminalPane.tsx`'s `new Terminal({...})` now sets
+      `fontFamily: '"IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace'` (previously unset, xterm's own
+      default). Additive/non-blocking. Alongside it, the initial `fit.fit()` now also re-runs once
+      `document.fonts.ready` resolves (guarded against post-unmount), closing the gap where the very first fit could
+      measure off a fallback font before Plex Mono finishes loading.
+- [x] **Hero signature element** (the one bold visual moment in the whole pass — everywhere else just inherits the
+      new tokens/typography via cascade): resized the hero terminal to visually dominant (`.hero` grid
+      `1.05fr 1fr` → `0.78fr 1.22fr` at ≥860px, terminal body font/line-height/padding bumped a step, switched to
+      wrapping instead of horizontal scroll for the wider column); added a scroll-triggered (reusing the existing
+      `useScrollReveal` hook, no new infra) character-by-character transcript reveal (~6ms/char, ~2.8s for the
+      470-character transcript, text unchanged from before this pass) driven by a ref + `requestAnimationFrame` loop
+      that mutates each character span's class directly via a ref array — not per-character `useState`, per
+      `vercel-react-best-practices`' "use `useRef` for transient values" guidance, so the only React state update in
+      the whole sequence is one flip when the last character lands; a new 3px status strip on the terminal chrome
+      transitions `--term-mock-danger` → `--term-mock-success` (600ms, the file's existing signature easing curve)
+      in sync with that same state flip. Gated by both `useReducedMotion` (skips straight to the finished state,
+      backed by a redundant CSS `!important` override for the one-frame gap before the effect runs) and
+      `useScrollReveal`, exactly like every other animation on the page. No new dependency.
+- [x] Verified: `npx tsc --noEmit` and `npm run build` clean. Grepped the built `dist/assets/index-*.css` and
+      confirmed all 7 expected `@font-face` rules, each pointing at a real file that exists under
+      `dist/assets/fonts/`; confirmed `index.html`'s two preload `href`s are byte-identical to the paths the built
+      CSS's own `@font-face src` references for those same files; confirmed the new `--color-accent*`/`--font-*`
+      tokens landed verbatim; confirmed the hero reveal logic and the `fontFamily` string are present in their
+      respective code-split JS chunks, not just source. Computed every contrast ratio via the WCAG relative-
+      luminance formula in a script, not eyeballed — full table in `decisions/0018-*.md`. Rebuilt and booted the
+      real stack (`docker compose up --build -d`); `postgres` healthy, backend `/health` OK, dev-override `:5173`
+      confirmed serving the new tokens live. Terminal-resize verification: no headless browser available, so
+      verified at the protocol level instead — signed up a real account, started a real session against
+      `perm-config-blocks-service`, connected to `/ws/terminal` with the same message protocol `TerminalPane.tsx`
+      uses, and confirmed `stty size` inside the live PTY exactly matched a `{cols:120, rows:40}` resize message
+      sent over the socket, confirming the backend PTY resize path is unaffected by the frontend font change.
+      **No headless browser was available in this environment**, so the actual rendered look (how dominant the
+      resized hero terminal feels, the reveal's pacing, `FitAddon`'s real in-browser cols/rows) was verified by
+      reasoning through the exact CSS/JS values and built output rather than a screenshot — a real look in a browser
+      is still worth the user doing, same caveat as every design pass before this one. Test session/container torn
+      down via the stop API immediately after (confirmed zero `app=devops-trainer` containers remained) and the two
+      throwaway test accounts deleted from `users`; dev-override stack left running as the steady state.
+
+## Phase 7 — Authenticated dashboard, profile/password-change, landing page redesign (round 3)
+Three pieces of direct user feedback, tackled together: (1) no real authenticated "home" — the navbar brand link
+and post-login redirect both just pointed at `/challenges`, so clicking the brand while already there did nothing
+visible; (2) no account/profile page at all, and specifically no way to change a password; (3) another landing-page
+design pass, since the Stripe-bento/theme-flip/texture/visual-identity passes (`decisions/0012`–`0018`) hadn't
+landed for the user yet. Full rationale in `decisions/0019-dashboard-profile-landing-redesign.md`.
+
+- [x] **New `/dashboard` route — the real authenticated home.** `frontend/src/pages/DashboardPage.tsx`. `RootRoute`
+      now redirects authenticated visitors to `/dashboard` (was `/challenges`); `NavBar`'s brand link and a new
+      "Dashboard" nav item both point there too. Contains: a welcome header (display name, falling back to the
+      email's local-part); a "continue where you left off" card that reuses the *exact same* `useActiveSession()`
+      query `ChallengeDetailPage` already uses for resume (no parallel session-fetching logic); a progress snapshot
+      card built on the *exact same* `useProgress()` query/cache entry `/progress` reads (top 3 categories by solve
+      rate + the overall bar), so the two pages can never show diverging numbers — see the decision doc for why this
+      is a shared-query summary rather than a second computation; a "pick up next" row of up to 3 unsolved challenge
+      cards (falls back to "revisit a solved one" if none are unsolved) built on the same `useChallenges()` query
+      `/challenges` uses; and a quick-links card (Browse challenges / Full progress / Account settings).
+      **`Challenges` and `Progress` stay as separate nav items and separate pages, unchanged** — Dashboard is a
+      lighter summary layered on top of the same data, not a replacement for either.
+- [x] **New `/profile` route — account settings, including password change.** `frontend/src/pages/ProfilePage.tsx`,
+      linked from the navbar (the user's display name/email in the top-right is now a `NavLink` to `/profile`
+      instead of inert text). Two cards: display-name edit (simple, no password needed) and change-password
+      (current / new / confirm, reusing the exact same `useNoSpaceField` hook the login/signup form uses — pulled
+      out of `AuthForm.tsx` into a shared `frontend/src/hooks/useNoSpaceField.ts` so both forms stay identical
+      instead of drifting). Backend: `POST /api/auth/change-password` (verifies the current password via
+      `bcrypt.compare` before allowing any change — no exception — then re-hashes and updates; same 8-char/no-
+      whitespace validation as signup) and `PATCH /api/auth/display-name` (no password check — a cosmetic field,
+      same as at signup). The change-password route gets the same `rateLimit()` middleware already used on
+      login/signup, but keyed by `req.userId` (post-`requireAuth`) rather than IP, since the point is limiting
+      attempts against *one account* regardless of source IP.
+- [x] **Landing page — third design pass**, this time taking explicit structural/interaction cues from
+      supabase.com (real interface as the visual language, not just in the hero) plus hand-implemented versions of
+      two shadcn/Aceternity-style component patterns, with an explicit "precision over quantity" brief given the
+      user's history of animation reading either gimmicky or too subtle. No new dependency. See
+      `decisions/0019-*.md` for the full before/after reasoning against `decisions/0012`–`0018`.
+- [x] Verified: `npx tsc --noEmit` and `npm run build` clean on both packages (one real bug caught in the process —
+      a CSS comment containing a literal `challenges/*/` path closed the comment block early via the embedded
+      `*/`, corrupting everything after it; esbuild's CSS minifier flagged it as a syntax warning during
+      `npm run build`, traced to the exact line, and reworded to avoid the sequence — confirmed the warning is gone
+      and the built CSS contains the intended rules on rebuild). Rebuilt and booted the real stack
+      (`docker compose up --build -d`); `postgres` healthy, backend `/health` OK. Exercised the real backend
+      end-to-end, not just compiled code: signed up a fresh account, confirmed `/api/auth/me`, `/api/sessions/active`
+      (null, as expected pre-session — the exact query the dashboard's continue-session card uses),
+      `/api/progress`, and `/api/challenges` (50 challenges, real titles/categories — the exact queries the
+      dashboard's progress/recommended sections use) all return real data through a bearer token. Changed that
+      account's password via `POST /api/auth/change-password`: confirmed a wrong current password is rejected
+      (400, generic message, no information leak), a new password containing whitespace is rejected (400), the
+      correct current password succeeds (200), a subsequent login with the *old* password then fails and a login
+      with the *new* password succeeds — the full round trip, not just "the endpoint returns 200". Confirmed the
+      rate limiter: repeated wrong-password attempts against the same account started returning 429 after the
+      configured threshold, and a *second, unrelated* account's own change-password attempt right afterward still
+      returned a normal 400 (not 429) — proving the limiter is keyed per-user, not global/per-IP. Confirmed the nav
+      fix by code trace (no headless browser available): `NavBar`'s brand `NavLink` now targets `/dashboard`, which
+      is a distinct registered route/component from `/challenges`, so clicking it while already on `/challenges`
+      navigates to different, real content instead of no-op-ing. **No headless browser was available in this
+      environment**, so the landing page's actual rendered feel (the spotlight-hover glow, the animated hero
+      border, the walkthrough terminal's layout) was verified by reasoning through the exact CSS and by grepping the
+      built `dist/assets/index-*.css`/`LandingPage-*.js` for every new class/token landing in the real bundle, not a
+      screenshot — a real look in a browser is still worth the user doing, same caveat as every design pass before
+      this one. Test accounts created during verification (`test-verify-*@example.com`,
+      `test-verify2-*@example.com`, `test-dash-*@example.com`) were deleted from `users` afterward; `docker ps -a
+      --filter label=app=devops-trainer` was empty throughout (this pass never started a real challenge session, so
+      no container cleanup was needed). Pre-existing users/rows from earlier sessions' testing were left untouched
+      — not this pass's artifacts to clean up. Dev-override stack left running as the steady state.
+
+## Phase 7 follow-up — `/about`: a way back to the public landing page (post-Phase 7)
+Phase 7's dashboard fixed "clicking the brand link while already on the challenge list does nothing" — but left a
+different gap the user then hit directly: once logged in, there was no link anywhere back to the public marketing
+page at all, since `RootRoute` deliberately redirects any authenticated visit to `/` straight to `/dashboard`. See
+`decisions/0020-*.md`.
+- [x] New `/about` route (`frontend/src/App.tsx`) renders the same `LandingPage` component outside `RootRoute`'s
+      auth redirect, so it's reachable regardless of login state. `NavBar` gets an "About" link to it. `/` itself is
+      unchanged — still redirects a logged-in visitor away, per Phase 7's original reasoning.
+- [x] `LandingPage`'s four CTAs (`LandingNav`, `Hero`, `FinalCta`, `LandingFooter`) are now auth-aware via
+      `useAuth()`: logged out sees "Log in"/"Get started" as before; logged in sees "Go to dashboard" instead,
+      since showing a login prompt to someone already logged in is confusing even though it isn't broken.
+- [x] Fixed a related staleness found while touching this: `LoginPage` redirected an already-authenticated user to
+      `/challenges`, a holdover from before `/dashboard` existed. Now matches `RootRoute` and redirects to
+      `/dashboard`.
+- [x] Verified: `npx tsc --noEmit` and `npm run build` clean. Confirmed via the build output that `LandingPage`
+      still resolves to a single shared chunk (one `LandingPage-*.js`, not two) — the second route doesn't
+      double-ship its JS, since both dynamic `import()` calls (in `RootRoute.tsx` and `App.tsx`) share the same
+      module specifier.
+
+## 2026-07-25 — Dashboard/Progress design pass: donut-ring progress, non-interactive category tiles
+`/progress` was still the original flat "one h1 + one card of stacked category rows" from before the Dashboard even
+existed, visually thinner than the page it now sits next to. This pass rebuilds it as a hero summary card + small-
+multiples category grid, and brings a few of the Dashboard's own still-missing touches (animated live-session dot,
+a real empty state, per-category mini bars) up to parity. Zero new npm dependencies — every effect is hand-built
+CSS custom properties + inline SVG, same convention as every prior pass. See `decisions/0021-*.md` for the full
+rationale, including why the new donut ring is a direct extension of the existing `--border-angle` hero-terminal
+trick, why category tiles have no per-category icons (data-driven status badges instead), and why they're
+deliberately non-interactive (`ChallengeListPage`'s category filter is local `useState`, not a URL param, so a
+`/challenges?category=slug` link would silently do nothing).
+- [x] `frontend/src/components/ui.tsx`: promoted `Reveal` (previously local-only to `LandingPage.tsx`) into a 5th
+      shared export, identical signature/behavior. `LandingPage.tsx`'s own copy is untouched — accepted duplication,
+      out of scope for this pass.
+- [x] `frontend/src/pages/DashboardPage.tsx`: page header, the continue-session card (all three branches), the
+      progress snapshot card, the recommended-challenges grid, and the quick-links card all now go through
+      `Reveal`. The live-session branch restructures so `Reveal` (carrying the spotlight `onPointerMove`) is the
+      outer card and the `<Link>` becomes a full-bleed inner anchor (`.dashboard-continue-card-link`). The empty
+      branch gets real content instead of a bare paragraph: `TerminalIcon`, a bold "No session running" headline,
+      and a genuine "Start a challenge →" CTA. The progress snapshot card's solved count now counts up
+      (`useCountUp`) and its bars (main + new per-category mini bars) animate in from 0% only once scrolled into
+      view, gated by `useScrollReveal` called unconditionally at the top of the component (hook order stays stable
+      across its loading/error/success branches). The recommended grid's cards get a staggered `reveal`
+      transitionDelay keyed off their array index.
+- [x] `frontend/src/pages/ProgressDashboardPage.tsx`: full rewrite. New hero `progress-summary-card` (large donut
+      ring + count-up solved/total + a "N/10 categories complete" stat derived client-side, spotlight-glow on
+      pointermove) above a `progress-category-grid` of small `CategoryTile`s — one per category, in the same fixed
+      order `/api/progress` returns (deliberately not re-sorted, per the existing 0019 "fixed category order" rule
+      for this page specifically — Dashboard's own top-3 teaser is still allowed to sort). Each tile shows a small
+      donut ring + solved/total count when `total > 0`, or an explicit "No challenges seeded in this category yet."
+      empty-state message when `total === 0`, plus a status badge (`badge-neutral` / new `badge-status-progress` /
+      new `badge-status-complete`) derived from `{ total, solved }`. Both pages keep reading the exact same
+      `useProgress()` query/cache entry — nothing about the data-fetching layer changed.
+- [x] `frontend/src/styles.css`: renamed `.dashboard-card-kicker` to `.kicker-line` (kept as a comma-selector alias
+      since `ProfilePage.tsx`, out of scope here, still references the old name directly). Added the `dot-pulse-ring`
+      keyframes for `.dot-connecting` (with an explicit `prefers-reduced-motion` override, mirroring
+      `.hero-terminal-cursor`'s existing one). Extended the existing `.feature-card` cursor-spotlight mechanism
+      (`--spot-x`/`--spot-y`, `::before` radial-gradient, `pointer: fine` gate, `> *` z-index companion rule) to
+      `.dashboard-continue-live` and the new `.progress-summary-card`. Added the `@property --ring-pct` donut-ring
+      rule (`.progress-ring`, `--sm`/`--lg` sizes) as a direct extension of the hero's `--border-angle` technique.
+      Added `.category-tile` modeled on `.challenge-card` (not `.card`) and deliberately left out of the
+      `--texture-grain` selector list, same reasoning that already excludes the challenge grid. Left the old,
+      now-unused `.category-row` rule in place (grep confirms nothing references it, but deleting wasn't required).
+- [x] Verified: `npx tsc --noEmit` and `npm run build` both clean — no CSS-minifier warnings (checked every new
+      multi-line comment for an accidental `*/` sequence given a prior pass's exact bug of this shape). Grepped the
+      built `dist/assets/index-*.css` directly and confirmed `.progress-ring`, `.category-tile`, `--ring-pct`,
+      `.dashboard-continue-card-link`, `.badge-status-complete`, `.badge-status-progress`, `.kicker-line`, and
+      `dot-pulse-ring` all landed in the real bundle. Brought the real stack up via `docker compose up --build -d`;
+      `postgres` healthy, `GET /health` OK. Signed up a throwaway account and fetched `GET /api/progress` for real:
+      50 challenges across the real 10 categories in the real fixed order — every category currently has
+      `total > 0` in this seed data, so the `total === 0` empty-tile copy couldn't be exercised against a live
+      response this time (verified by code reading instead; it's the path that renders if a category is ever added
+      ahead of its challenges being seeded). Started a real session against `perm-config-blocks-service`, applied
+      the actual fix (`chmod 755`/`644` to undo the seeded-broken permissions, then `service nginx start`) inside
+      the live container as the unprivileged `trainee` user via `sudo`, and `POST /api/sessions/:id/check` passed
+      for real. After stopping the session, re-fetched `GET /api/progress` and `GET /api/challenges`: both agree
+      (`solved: 1`, `permissions-ownership` at `1/6`, the challenge itself `solved: true`) — confirming Dashboard
+      and Progress still can't drift apart, since nothing in this pass touched the query layer. Deleted the
+      throwaway account's row from `users` afterward; `docker ps -a --filter label=app=devops-trainer` was empty
+      immediately after, confirming no orphaned session container. **No headless browser was available in this
+      environment**, so the actual rendered feel (the ring fill-in animation, the spotlight glow on the two new
+      dashboard cards, the category grid's small-multiples layout) was verified by reasoning through the CSS and
+      confirming every new class/custom-property reached the real built bundle, not a screenshot — a real look in
+      a browser is still worth the user doing, same caveat as every design pass before this one. Dev-override stack
+      left running as the steady state.
+
+## 2026-07-26 — Marketing page split, Dashboard/Challenges/Progress background washes, submission-only help feature
+Three pieces of work in one pass, see `decisions/0022-*.md` for full rationale. Zero new npm dependencies; every
+visual effect is hand-built CSS custom properties + inline SVG, same convention as every prior pass.
+- [x] **Marketing page split.** `frontend/src/components/MarketingLayout.tsx` (new): `LandingNav` (its anchor links
+      now real `<Link>`s to real routes, `scrollToId` removed) and `LandingFooter` promoted out of
+      `LandingPage.tsx` verbatim into a shared wrapper. Four new pages under `frontend/src/pages/`:
+      `FeaturesPage.tsx`, `HowItWorksPage.tsx`, `SelfHostingPage.tsx`, `FaqPage.tsx` — each lifts its section
+      function + data array + only-used icons verbatim from the old `LandingPage.tsx`, wrapped in
+      `MarketingLayout`, at new routes `/features`, `/how-it-works`, `/self-hosting`, `/faq` (`frontend/src/App.tsx`,
+      same tier as the existing `/about` — outside `RequireAuth`, no auth-redirect logic). `LandingPage.tsx` itself
+      now composes `<MarketingLayout><Hero /><StatsSection /><AboutNavCards /><FinalCta /></MarketingLayout>` — a
+      new `AboutNavCards` section replaces the old in-page anchor sections with four `Link` cards
+      (`.marketing-nav-card`) out to the split pages. `Hero`'s own separate `scrollToWalkthrough` anchor-scroll copy
+      (distinct from `LandingNav`'s, easy to miss) was also replaced with a real `<Link to="/how-it-works">`.
+- [x] **Background washes.** `styles.css`: new `.marketing-page-header` (+ 4 per-page modifier classes) gives the
+      four split pages a static, low-alpha double-radial-gradient echo of the hero mesh where they now open
+      straight into their heading with no hero above them. New `.dashboard-page`/`.challenges-page`/
+      `.progress-page` `::before` washes (even quieter, also static, `z-index: -1` behind each page's own cards)
+      give Dashboard/Challenges/Progress a shared quiet backdrop — `ChallengeListPage.tsx`/
+      `ProgressDashboardPage.tsx` gained the `challenges-page`/`progress-page` classes (`DashboardPage.tsx` already
+      had `dashboard-page`). `.marketing-nav-card` extends the existing `.feature-card` cursor-spotlight mechanism
+      as its third instance. No per-category icon mapping anywhere, per `decisions/0021`.
+- [x] **Help feature.** `backend/migrations/0003_help_requests.sql` (`help_requests`: id/user_id/subject/message/
+      created_at, no status/role/admin column anywhere). `backend/src/services/help.service.ts` +
+      `backend/src/routes/help.routes.ts` (rate-limited POST, keyed per-user, default 5/hour; GET returns only the
+      caller's own rows), wired into `backend/src/index.ts` at `/api/help`. Frontend: `HelpRequest` type + two
+      methods on `frontend/src/api/client.ts`'s `api` object, `useHelpRequests()`/`useSubmitHelpRequest()` in
+      `frontend/src/api/queries.ts`, new `frontend/src/pages/HelpPage.tsx` (modeled on `ProfilePage.tsx`'s
+      `ChangePasswordCard` pattern) at `/help` (inside `RequireAuth`, unlike the four marketing pages — this page
+      shows the caller's own submissions). `DashboardPage.tsx` gained a `HelpIcon` and a 4th
+      `dashboard-links-card` row linking to it. `styles.css`'s `.field input, .field select` rule (and its
+      `:focus`/`.field-invalid` variants) extended to include `textarea`; new `.help-request-item` card style.
+- [x] Verified: `npx tsc --noEmit` clean on both `frontend` and `backend`. `npm run build` clean, no CSS-minifier
+      warnings; confirmed separate lazy chunks for `FeaturesPage`/`HowItWorksPage`/`SelfHostingPage`/`FaqPage`/
+      `HelpPage` in `dist/assets/`. Grepped the built CSS and confirmed `.marketing-page-header`,
+      `.marketing-nav-card`, `.help-request-item`, and the three pages' `:before` washes all landed in the real
+      bundle. Grepped all of `frontend/src` for `scrollIntoView`/`getElementById` (zero matches outside `main.tsx`'s
+      unrelated root-mount call) and for every old `href="#..."` anchor (zero matches) — both anchor-scroll copies
+      confirmed gone, not just one. `git diff frontend/src/components/NavBar.tsx` does show a diff, but it's
+      pre-existing uncommitted work from `decisions/0019`/`0020` (confirmed via the diff's content and the file's
+      mtime, which predates this pass) — `NavBar.tsx` was never opened or edited in this pass. Full stack brought
+      up via `docker compose up --build -d`; confirmed `0003_help_requests.sql` applied via `schema_migrations`.
+      Signed up a throwaway account: `POST /api/help` returned `201` with a real row confirmed directly in Postgres
+      via `psql`; `GET /api/help` listed it; a 5th/6th submission within the rate-limit window returned `429`. The
+      four new marketing routes plus `/help`/`/about` were curled through the real production nginx path (a
+      temporary `docker compose -f docker-compose.yml up --build -d`, excluding the dev override, to exercise the
+      actual built `dist` + nginx image rather than the `:5173` dev server) and all returned `200` via the existing
+      SPA fallback with zero nginx config changes — the dev-override stack was then restored as the steady state.
+      Deleted the throwaway account afterward; its `help_requests` row count went 5 → 0, confirming `ON DELETE
+      CASCADE`; `docker ps -a --filter label=app=devops-trainer` was empty throughout. **No headless browser was
+      available in this environment**, so the actual rendered feel (the two new background washes, the marketing
+      nav cards' spotlight glow, the textarea styling) was verified by reasoning through the CSS and confirming
+      every new class/custom-property reached the real built bundle, not a screenshot — same caveat as every
+      design pass before this one. Dev-override stack left running as the steady state.

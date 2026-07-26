@@ -9,6 +9,7 @@ export const queryKeys = {
   hints: (sessionId: string) => ["hints", sessionId] as const,
   progress: ["progress"] as const,
   publicStats: ["publicStats"] as const,
+  helpRequests: ["helpRequests"] as const,
 };
 
 export function useChallenges() {
@@ -117,8 +118,39 @@ export function useSolution() {
   });
 }
 
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
+      api.changePassword(currentPassword, newPassword),
+  });
+}
+
+export function useUpdateDisplayName() {
+  return useMutation({
+    mutationFn: (displayName: string | null) => api.updateDisplayName(displayName),
+  });
+}
+
 export function useRefreshWsTicket() {
   return useMutation({
     mutationFn: (sessionId: string) => api.refreshWsTicket(sessionId),
+  });
+}
+
+export function useHelpRequests() {
+  return useQuery({
+    queryKey: queryKeys.helpRequests,
+    queryFn: () => api.listHelpRequests().then((r) => r.helpRequests),
+  });
+}
+
+export function useSubmitHelpRequest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ subject, message }: { subject: string; message: string }) =>
+      api.submitHelpRequest(subject, message),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.helpRequests });
+    },
   });
 }

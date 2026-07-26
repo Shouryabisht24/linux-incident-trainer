@@ -14,7 +14,7 @@ export function RootRoute() {
   const { user, loading } = useAuth();
 
   if (loading) return <PageLoading />;
-  if (user) return <Navigate to="/challenges" replace />;
+  if (user) return <Navigate to="/dashboard" replace />;
 
   return (
     <Suspense fallback={<PageLoading />}>
