@@ -280,7 +280,7 @@ export function DashboardPage() {
     <div className="page dashboard-page">
       <Reveal as="div" className="dashboard-header">
         <span className="eyebrow">Dashboard</span>
-        <h1>
+        <h1 className="gradient-heading">
           Welcome back, {name}
           <span className="dashboard-header-cursor" aria-hidden="true" />
         </h1>

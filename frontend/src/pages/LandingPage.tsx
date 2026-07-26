@@ -266,7 +266,9 @@ function Hero() {
       <div className="hero">
         <div className="hero-copy">
           <span className="eyebrow">Not a quiz. Not a video course.</span>
-          <h1>Practice production incidents on a Linux box that's actually broken.</h1>
+          <h1 className="gradient-heading">
+            Practice production incidents on a Linux box that's actually broken.
+          </h1>
           <p className="hero-sub">
             Linux Incident Trainer drops you into a live terminal inside a genuinely broken Docker container —
             misconfigured services, full disks, masked units, bad sudoers — and checks whether you actually fixed

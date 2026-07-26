@@ -110,7 +110,7 @@ export function ProgressDashboardPage() {
     <div className="page progress-page">
       <Reveal as="div" className="progress-page-header">
         <span className="eyebrow">Progress</span>
-        <h1>Your solve record</h1>
+        <h1 className="gradient-heading">Your solve record</h1>
         <span className="kicker-line">$ progress --by-category</span>
       </Reveal>
 

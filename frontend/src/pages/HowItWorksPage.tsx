@@ -43,7 +43,9 @@ function WalkthroughSection() {
             <span className="section-kicker">
               <span className="kicker-prompt">~/</span>how-it-works
             </span>
-            <h2 id="walkthrough-heading">What solving one incident actually looks like</h2>
+            <h2 id="walkthrough-heading" className="gradient-heading">
+              What solving one incident actually looks like
+            </h2>
             <p className="muted section-sub">The same five steps, every time — no two challenges break the same way.</p>
           </div>
         </Reveal>

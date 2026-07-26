@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type SVGProps } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import {
   useChallenge,
   useCheckSession,
   useHints,
+  useProgress,
   useRevealHint,
   useSolution,
   useStartSession,
@@ -12,6 +13,7 @@ import {
   useActiveSession,
   useRefreshWsTicket,
 } from "../api/queries";
+import { Celebration, type CelebrationKind } from "../components/Celebration";
 import { Markdown } from "../components/Markdown";
 import { TerminalPane, type TerminalStatus } from "../components/TerminalPane";
 import { DifficultyBadge, ErrorBanner, PageLoading, Spinner } from "../components/ui";
@@ -24,12 +26,107 @@ interface LocalSession {
 
 const HEARTBEAT_INTERVAL_MS = 20_000;
 
+// ---------------------------------------------------------------------------
+// Icons — same hand-authored 22x22 stroke-glyph convention as
+// DashboardPage/ChallengeListPage (no icon package, no emoji). Replaces the
+// plain ✅/❌ emoji the check-result banner used to render.
+// ---------------------------------------------------------------------------
+
+function iconProps(props: SVGProps<SVGSVGElement>): SVGProps<SVGSVGElement> {
+  return {
+    width: 20,
+    height: 20,
+    viewBox: "0 0 22 22",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.7,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": true,
+    ...props,
+  };
+}
+
+function CheckCircleIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="11" cy="11" r="8.5" />
+      <path d="M7 11.3l2.8 2.8 5.2-5.6" />
+    </svg>
+  );
+}
+
+function XCircleIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...iconProps(props)}>
+      <circle cx="11" cy="11" r="8.5" />
+      <path d="M8.2 8.2l5.6 5.6M13.8 8.2l-5.6 5.6" />
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Milestone-celebration detection — purely a client-side before/after
+// comparison of `useProgress()` data around a "Check my fix" call, no new
+// backend endpoint or column. `snapshotProgress` is captured right before the
+// check mutation fires; `detectCelebration` compares it against the freshly
+// refetched progress once the check comes back solved. Naturally satisfies
+// "don't fire on a re-check of an already-solved challenge": if the challenge
+// was already solved, `before` already reflects that (its own solved count/
+// category-complete state is unchanged by a repeat check), so neither
+// condition newly becomes true.
+// ---------------------------------------------------------------------------
+
+interface ProgressSnapshot {
+  totalSolved: number;
+  categorySlug: string;
+  categorySolved: number;
+  categoryTotal: number;
+}
+
+function snapshotProgress(
+  progress: { solved: number; categories: { slug: string; solved: number; total: number }[] } | undefined,
+  categorySlug: string,
+): ProgressSnapshot | null {
+  const cat = progress?.categories.find((c) => c.slug === categorySlug);
+  if (!progress || !cat) return null;
+  return { totalSolved: progress.solved, categorySlug: cat.slug, categorySolved: cat.solved, categoryTotal: cat.total };
+}
+
+function detectCelebration(
+  before: ProgressSnapshot | null,
+  after: { solved: number; categories: { slug: string; name: string; solved: number; total: number }[] } | undefined,
+): { kind: CelebrationKind; categoryName?: string } | null {
+  if (!before || !after) return null;
+
+  // First-ever solve takes priority — a user's very first check is very
+  // likely also their first-ever category completion if that category only
+  // has one challenge, and "you solved your first incident" is the more
+  // meaningful message to lead with in that overlap.
+  if (before.totalSolved === 0 && after.solved === 1) {
+    return { kind: "first-solve" };
+  }
+
+  const afterCat = after.categories.find((c) => c.slug === before.categorySlug);
+  if (
+    afterCat &&
+    before.categoryTotal > 0 &&
+    before.categorySolved < before.categoryTotal &&
+    afterCat.solved === afterCat.total
+  ) {
+    return { kind: "category-complete", categoryName: afterCat.name };
+  }
+
+  return null;
+}
+
 export function ChallengeDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const toast = useToast();
 
   const challengeQuery = useChallenge(slug);
   const activeSessionQuery = useActiveSession();
+  const progressQuery = useProgress();
 
   const startMutation = useStartSession();
   const stopMutation = useStopSession();
@@ -43,6 +140,7 @@ export function ChallengeDetailPage() {
   const [terminalStatus, setTerminalStatus] = useState<TerminalStatus>("connecting");
   const [checkResult, setCheckResult] = useState<{ passed: boolean; output: string } | null>(null);
   const [solutionMd, setSolutionMd] = useState<string | null>(null);
+  const [celebration, setCelebration] = useState<{ kind: CelebrationKind; categoryName?: string } | null>(null);
 
   // Set true right before the stop mutation fires, cleared on error (a failed
   // stop leaves the session/terminal alive, so a later real disconnect should
@@ -150,17 +248,35 @@ export function ChallengeDetailPage() {
 
   const handleCheck = useCallback(() => {
     if (!session) return;
+    // Snapshot progress *before* the check fires — this is the "before" side
+    // of the client-only first-solve/category-complete detection (see
+    // detectCelebration above). Taken here rather than inside onSuccess since
+    // by then useCheckSession's own onSuccess has already invalidated (and
+    // possibly begun refetching) the progress query.
+    const categorySlug = challengeQuery.data?.category;
+    const before = categorySlug ? snapshotProgress(progressQuery.data, categorySlug) : null;
+
     checkMutation.mutate(session.id, {
-      onSuccess: (result) => {
+      onSuccess: async (result) => {
         setCheckResult(result);
-        if (result.passed) toast.success("Check passed — challenge solved!");
-        else toast.error("Not solved yet — see the output below.");
+        if (result.passed) {
+          toast.success("Check passed — challenge solved!");
+          // Pull the post-invalidation progress fresh (rather than trusting
+          // whatever's already cached, which may still be the pre-check
+          // value depending on refetch timing) and compare against the
+          // snapshot taken above.
+          const fresh = await progressQuery.refetch();
+          const outcome = detectCelebration(before, fresh.data);
+          if (outcome) setCelebration(outcome);
+        } else {
+          toast.error("Not solved yet — see the output below.");
+        }
       },
       onError: (err) => {
         toast.error(err instanceof Error ? err.message : "check failed");
       },
     });
-  }, [session, checkMutation, toast]);
+  }, [session, checkMutation, toast, challengeQuery.data, progressQuery]);
 
   const handleRevealHint = useCallback(() => {
     if (!session) return;
@@ -240,18 +356,30 @@ export function ChallengeDetailPage() {
   const checkingForSession = activeSessionQuery.isLoading || resuming;
 
   return (
-    <div className="page">
+    <div className="page challenge-detail-page">
+      {celebration && (
+        <Celebration
+          kind={celebration.kind}
+          categoryName={celebration.categoryName}
+          onDismiss={() => setCelebration(null)}
+        />
+      )}
+
       <p>
         <Link to="/challenges">&larr; Back to challenges</Link>
       </p>
-      <h1>{challenge.title}</h1>
-      <div className="row row-wrap" style={{ marginBottom: "1.25rem" }}>
-        <DifficultyBadge difficulty={challenge.difficulty} />
-        <span className="badge badge-neutral">{challenge.categoryName}</span>
-        {challenge.timeLimitMinutes ? <span className="faint">~{challenge.timeLimitMinutes} min</span> : null}
-      </div>
 
-      <Markdown>{challenge.descriptionMd}</Markdown>
+      <div className="challenge-panel challenge-detail-card">
+        <span className="kicker-line">$ challenges/{challenge.slug}/challenge.json</span>
+        <h1>{challenge.title}</h1>
+        <div className="row row-wrap challenge-detail-meta">
+          <DifficultyBadge difficulty={challenge.difficulty} />
+          <span className="badge badge-neutral">{challenge.categoryName}</span>
+          {challenge.timeLimitMinutes ? <span className="faint">~{challenge.timeLimitMinutes} min</span> : null}
+        </div>
+
+        <Markdown>{challenge.descriptionMd}</Markdown>
+      </div>
 
       {otherActive && !session && (
         <div className="alert alert-info" style={{ marginBottom: "1rem" }}>
@@ -288,13 +416,15 @@ export function ChallengeDetailPage() {
             )}
           </div>
 
-          <div className="terminal-wrap">
-            <TerminalPane
-              key={session.id}
-              wsTicket={session.wsTicket}
-              onExit={handleUnexpectedExit}
-              onStatusChange={handleTerminalStatusChange}
-            />
+          <div className="terminal-frame">
+            <div className="terminal-wrap">
+              <TerminalPane
+                key={session.id}
+                wsTicket={session.wsTicket}
+                onExit={handleUnexpectedExit}
+                onStatusChange={handleTerminalStatusChange}
+              />
+            </div>
           </div>
 
           <div className="row row-wrap">
@@ -323,14 +453,23 @@ export function ChallengeDetailPage() {
           </div>
 
           {checkResult && (
-            <div className={`alert ${checkResult.passed ? "alert-success" : "alert-error"}`}>
-              {checkResult.passed ? "✅ Solved! " : "❌ Not solved yet. "}
-              <code>{checkResult.output}</code>
+            <div
+              className={`alert challenge-check-alert ${checkResult.passed ? "alert-success" : "alert-error"}`}
+              role="alert"
+            >
+              <span className="challenge-check-alert-icon">
+                {checkResult.passed ? <CheckCircleIcon /> : <XCircleIcon />}
+              </span>
+              <div>
+                <strong>{checkResult.passed ? "Solved" : "Not solved yet"}</strong>
+                <code>{checkResult.output}</code>
+              </div>
             </div>
           )}
 
           {revealed.length > 0 && (
-            <div>
+            <div className="hint-card">
+              <span className="kicker-line">$ hints --revealed</span>
               <h3>Hints</h3>
               <ol className="hint-list">
                 {revealed.map((hint, i) => (
@@ -341,7 +480,7 @@ export function ChallengeDetailPage() {
           )}
 
           {solutionMd && (
-            <div className="card">
+            <div className="card challenge-panel">
               <h3>Solution</h3>
               <Markdown>{solutionMd}</Markdown>
             </div>

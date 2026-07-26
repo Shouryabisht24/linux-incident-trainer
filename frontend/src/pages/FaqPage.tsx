@@ -63,7 +63,9 @@ function FaqSection() {
             <span className="section-kicker">
               <span className="kicker-prompt">~/</span>faq
             </span>
-            <h2 id="faq-heading">Frequently asked questions</h2>
+            <h2 id="faq-heading" className="gradient-heading">
+              Frequently asked questions
+            </h2>
           </div>
         </Reveal>
       </div>

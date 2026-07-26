@@ -276,7 +276,7 @@ export function ChallengeListPage() {
       <div className="challenges-header">
         <div>
           <span className="eyebrow">Practice queue</span>
-          <h1>Challenges</h1>
+          <h1 className="gradient-heading">Challenges</h1>
           <p className="muted challenges-header-sub">
             Browse every incident, filter by category or difficulty, and jump back into one you haven't cracked yet.
           </p>

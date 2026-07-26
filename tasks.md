@@ -756,3 +756,231 @@ visual effect is hand-built CSS custom properties + inline SVG, same convention 
       nav cards' spotlight glow, the textarea styling) was verified by reasoning through the CSS and confirming
       every new class/custom-property reached the real built bundle, not a screenshot — same caveat as every
       design pass before this one. Dev-override stack left running as the steady state.
+
+## 2026-07-26 — Signature-device visual pass on the four split marketing pages
+See `decisions/0023-*.md` for full rationale. Zero new npm dependencies, no new `:root` tokens — same
+hand-built CSS/inline-SVG convention as every prior pass. Audited all four pages against the "one template
+stretched four ways" problem first: How It Works (`.walkthrough-terminal*`) and FAQ (`.faq-item*`,
+`<details>` + `kicker-prompt`) already had a real per-page signature device from an earlier pass and were left
+untouched; Features and Self-hosting did not and are the actual work here.
+- [x] **Features: colorized `ls -l` permission prefix.** `FeaturesPage.tsx`'s `FEATURES` array gained a `perm`
+      field per card (`-rwxr-xr-x` for the two real executable scripts, `seed.sh`/`check.sh`; `-rw-r--r--` for
+      the rest — TS source and JSON data files). Rendered character-by-character before the existing file-tab
+      dot+filename so only the `x` bits pick up `--color-success` (new `.feature-card-tab-perm`/
+      `-perm-x` in `styles.css`) — the same thing a colorized real `ls -l` does for executables. `aria-hidden`
+      on the whole perm span; `flex-wrap` added to `.feature-card-tab` as a defensive mobile safety net.
+- [x] **Self-hosting: real annotated `docker-compose.yml` excerpt.** `SelfHostingPage.tsx` gained a
+      `ComposePanel` component replacing the old two-line `.code-block` setup-commands snippet. Shows a
+      verified, verbatim excerpt of the real repo-root `docker-compose.yml` (postgres/backend/frontend
+      services, `MAX_CONCURRENT_SESSIONS`, the `docker.sock`/`./challenges` mounts, `depends_on: condition:
+      service_healthy`, the top-level `networks:`), explicitly labeled "excerpt" in its header badge rather
+      than implying completeness. Four real `#` annotation comments explain the healthcheck/depends_on
+      pairing, the docker-outside-of-docker socket mount, `MAX_CONCURRENT_SESSIONS` as the one real
+      resource-guard value actually in this file, and a shortened copy of the real comment already in the file
+      about the `devops-trainer-challenges` network. New `styles.css` classes: `.compose-panel`,
+      `.compose-panel-badge`, `.compose-body`, `.compose-line`, `.compose-indent-1..4`, `.compose-key`,
+      `.compose-value`, `.compose-comment`, `.compose-blank`, `.compose-panel-footer` (the latter reuses
+      `.walkthrough-cmd` for the surviving setup commands). Reuses `.walkthrough-terminal-bar`/`-dot`/`-title`
+      for the panel header instead of a fourth parallel chrome implementation; deliberately a light surface
+      (unlike the dark `.hero-terminal`/old `.code-block`, which represent a live terminal session, not a
+      source-file read) per `decisions/0017`'s existing dark-vs-light distinction. The now-unused `.code-block`
+      rule was removed. `.self-host-card`'s two-column grid changed `align-items: center` → `start` to suit the
+      much taller right column.
+- [x] Verified: `npx tsc --noEmit` clean. `npm run build` clean, no CSS-minifier warnings. Grepped the built
+      `dist/assets/index-*.css` and confirmed every new class above landed in the real bundle, and that
+      `.code-block` is gone from it. Grepped the built `SelfHostingPage-*.js` chunk for `MAX_CONCURRENT_SESSIONS`,
+      `/var/run/docker.sock`, and `service_healthy`, then re-grepped the real root `docker-compose.yml` for the
+      same three strings one more time to confirm nothing drifted from the real file. Dev-override stack was
+      already up from a prior pass (`docker compose ps` showed all three services `Up`/`Up (healthy)`);
+      confirmed `GET /health` on :4000 and `GET /features`/`GET /self-hosting` on the :5173 dev server all
+      returned `200` — no rebuild needed since the dev override bind-mounts `frontend/src` and Vite hot-reloads
+      source edits directly. Left running as the steady state. **No headless browser was available in this
+      environment**, so the actual rendered look (the permission-string color accent, the compose panel's line
+      coloring/indentation/wrapping at narrow widths) was verified by reasoning through the exact CSS/markup and
+      confirming every new class reached the real built bundle, not a screenshot — same caveat as every design
+      pass before this one.
+
+## 2026-07-26 — Arc.net-inspired craft-upgrade pass on the marketing/landing page family
+See `decisions/0024-*.md` for full rationale. Scoped to the six marketing routes (`/`, `/about`,
+`/features`, `/how-it-works`, `/self-hosting`, `/faq`) plus `MarketingLayout.tsx`; the authenticated
+app (dashboard/challenges/progress) is an explicit follow-up pass, not touched here. Zero new npm
+dependencies, zero new accent hues or typefaces — every existing `--color-*`/`--font-*` token kept
+verbatim; every technique below is plain CSS reusing values already in `:root`.
+- [x] **Gradient confidence.** `.hero-bg`'s three radial washes bumped 0.12/0.08/0.07 → 0.18/0.13/0.11;
+      the four `.marketing-page-header--*` modifiers bumped ~0.05–0.09 → ~0.09–0.15 — both land in the
+      requested 0.10–0.20 band, still ambient background atmosphere, not foreground. New
+      `.gradient-heading` utility (two-tone `--color-text` → `--color-accent-hover`, clipped to text,
+      `@supports`-gated with a plain-color fallback) applied to exactly one headline per page: the Hero
+      H1 (`/`, `/about`) and each of `/features`/`/how-it-works`/`/self-hosting`/`/faq`'s own defining
+      `<h2>` — never the secondary headings on the same pages (`AboutNavCards`/`FinalCta`). The
+      `--border-angle` conic-gradient hover-ring was deliberately **not** extended to
+      `.feature-card`/`.marketing-nav-card` — they already carry their own animated-pattern borrow (the
+      spotlight glow), and a second one would give cards two animated affordances against the hero's
+      one, inverting the intended "one signature moment" hierarchy.
+- [x] **Modern cards.** `.marketing-nav-card` and `.self-host-card` gained the same genuine two-layer
+      resting shadow `.feature-card`/`.compose-panel` already had (tight contact layer + soft ambient
+      layer, reusing `--color-shadow-rgb`). Hover states on `.feature-card`/`.marketing-nav-card` (the
+      only two cards with a hover interaction) unified onto one identical recipe — `translateY(-6px)
+      scale(1.015)` + a shadow "bloom" — replacing `.marketing-nav-card`'s previously lighter,
+      single-layer, translateY(-4px)-only hover. `prefers-reduced-motion`'s existing hover
+      `transform: none` override list extended to include `.marketing-nav-card:hover`. Glassmorphism
+      (`rgba(255, 255, 255, .78)` + `backdrop-filter: blur(16px) saturate(140%)`, the exact recipe
+      `.auth-card`/`.landing-nav.condensed` already use) applied to exactly one card, `.self-host-card`
+      — the only card that actually sits directly over a page's gradient-mesh wash
+      (`.marketing-page-header--self-hosting`); every other card candidate sits on flat `--color-bg`
+      and was deliberately left opaque, per the brief's own "skip it where there's nothing to show
+      through" caveat. `.compose-panel` nested inside `.self-host-card` stays opaque too — different,
+      non-glass register (reading a source file, not a floating surface).
+- [x] **Typographic/rhythm confidence.** Hero H1's `clamp()` ceiling raised `3.75rem` → `4rem` (low end
+      and `3.2vw` slope untouched). Vertical-rhythm audit found a real bug, not just a gap:
+      `.final-cta-section`'s `padding-top: var(--space-7)` (specificity 0,1,0) had never actually
+      applied at any viewport — `.landing .section` (0,2,0) always won that property outright. Fixed by
+      renaming the selector to `.landing .final-cta-section` (matches the winning specificity) and
+      standardizing its value on `--space-8` (the file's largest spacing token) at every breakpoint,
+      not just >=860px. `.stats-grid`'s own tighter `--space-6` rhythm was deliberately left alone — a
+      compact stat-band by design, not a "major section."
+- [x] Verified: `npx tsc --noEmit` clean. `npm run build` clean, no CSS-minifier warnings. Grepped the
+      built `dist/assets/index-*.css` and confirmed `.gradient-heading` (both rules), the bumped gradient
+      alphas, the `4rem` clamp ceiling, `.marketing-nav-card`'s new resting shadow and unified `:hover`
+      block (byte-identical to `.feature-card:hover`'s), `.self-host-card`'s glass properties, and
+      `.landing .final-cta-section{padding-top:var(--space-8)}` all landed in the real bundle. Grepped
+      the CSS diff for any hex/rgb literal not already an existing token — none found; `rgba(255, 255,
+      255, 0.78)` is a byte-for-byte reuse of the value already used twice elsewhere in the file, not a
+      new color. Dev-override stack was already up from a prior pass (`docker compose ps` showed all
+      three services `Up`/`Up (healthy)`); `curl`/`wget` were unavailable in this environment, so
+      confirmed `GET /`, `/about`, `/features`, `/how-it-works`, `/self-hosting`, `/faq` on the :5173 dev
+      server and `GET /health` on :4000 all returned `200` via `node --eval` with `fetch` instead — no
+      rebuild needed since the dev override bind-mounts `frontend/src` and Vite hot-reloads source edits
+      directly. Left running as the steady state. **No headless browser was available in this
+      environment**, so the actual rendered feel (gradient-text headlines, deepened ambient washes, card
+      shadow bloom + slight scale on hover, the self-host card's glass effect against its page's
+      gradient) was verified by reasoning through the exact CSS/markup and confirming every
+      new/changed rule reached the real built bundle, not a screenshot — same caveat as every design
+      pass before this one.
+
+## Follow-up — gradient-heading contrast fix + self-hosting install panel (post-Phase 7)
+- [x] **Gradient-heading fix**: the two-tone headline gradient used `--color-accent-hover` (#0b5d74),
+      too close in luminance to near-black body text (~2.3:1 measured ratio) to read as a visible
+      gradient at all — the actual cause behind "I can't see any changes," not browser caching. Switched
+      to `--color-accent` (#0e7490, ~3.2:1 against text) — still zero new colors. `npm run build` clean.
+- [x] **Self-hosting page — install panel replaces the docker-compose.yml excerpt**: per direct user
+      request, swapped the annotated compose-file excerpt (`decisions/0023`) for a literal install
+      script (`InstallPanel`) — clone the real repo (`github.com/Shouryabisht24/linux-incident-trainer`,
+      confirmed via `git remote -v`, not guessed), `cd`, `.env` setup, `docker compose up --build`, plus
+      a "View source on GitHub" button. Reused the existing terminal-chrome header and
+      `.walkthrough-cmd` inline-command styling rather than a third parallel visual language; deleted
+      the now-fully-unreferenced YAML-specific CSS classes rather than leaving them dead. See
+      `decisions/0025-*.md`.
+- [x] Verified: `npx tsc --noEmit`/`npm run build` clean; grepped built CSS for the new `.install-*`
+      classes present and the old `.compose-key`/`.compose-line`/`.compose-indent-*` classes fully gone;
+      grepped the built JS chunk for the literal GitHub URL; confirmed live via the dev server's HMR log
+      and a `200` on `/self-hosting`.
+
+## 2026-07-26 — Bold multi-hue gradient palette on the marketing pages (post-decisions/0024)
+The prior Arc.net-inspired pass (`decisions/0024`) deliberately stayed teal-only per the user's own
+instruction at the time; the user then reported "I can't see this" twice, and it was independently
+confirmed this wasn't a caching/delivery bug — a single muted hue at low opacity against this app's
+neutral light palette just doesn't register as an Arc-style change at a glance. Asked directly, the
+user explicitly authorized new hues for gradient/glow purposes only: "Go bolder — real color, real
+vividness... a real departure from the current restrained identity, not a tuning pass." See
+`decisions/0026-*.md` for the full writeup.
+- [x] **New decorative-only palette.** Two new tokens added to `:root` (plus paired `-rgb` channels):
+      `--color-gradient-violet: #6d4aff` and `--color-gradient-rose: #c22a80`. Grounded in the same
+      teal+violet+pink triad found in popular developer terminal/editor themes (Dracula, Tokyo Night,
+      Catppuccin all pair a cyan/teal with a violet and a rose/magenta) — a genuine, subject-appropriate
+      reference for a dev-tool audience, not arbitrary decoration. Both computed via the WCAG
+      relative-luminance formula: violet is 5.15:1 against white / 3.37:1 against `--color-text`; rose
+      is 5.33:1 against white / 3.26:1 against `--color-text` — both clear AA as real gradient-clipped
+      text (not pastel), and both sit in the same ~3.2–3.4:1 band from `--color-text` that
+      `--color-accent` itself does, deliberately avoiding the exact "too little luminance separation to
+      read as a gradient" failure the prior pass's own contrast fix diagnosed. Explicitly scoped as
+      decorative/gradient-only: buttons, links, nav, badges, and all existing semantic-color usage
+      (`--color-accent`/`--color-success`/`--color-danger`/`--color-warning`) are untouched.
+- [x] **Bolder, genuinely multi-hue washes.** `.hero-bg` reworked from an accent/success/warning triad
+      at 0.11–0.18 alpha to a teal/violet/rose triad at 0.22–0.30 alpha. All four
+      `.marketing-page-header--*` modifiers (`/features`, `/how-it-works`, `/self-hosting`, `/faq`) got
+      their own 3-stop teal/violet/rose weighting and focal-point arrangement (features: teal-led;
+      how-it-works: violet-led; self-hosting: rose-led; faq: violet-led/mirrored) so the four read as a
+      cohesive but individually distinct family. `.gradient-heading` upgraded from a 2-stop
+      text→accent gradient to a real 3-stop text→violet→rose progression. `.hero-terminal-frame`'s
+      conic-gradient moving-border ring enriched from a two-hue accent/success sweep to
+      teal→violet→rose (same single animation mechanism, no new technique added).
+- [x] **Richer card hover glow.** `.feature-card`/`.marketing-nav-card`'s hover shadow-bloom now blends
+      two of the three hues instead of accent-only, rotating by grid position
+      (`:nth-child(3n+1)`=teal+violet, `:nth-child(3n+2)`=violet+rose, `:nth-child(3n)`=rose+teal) so a
+      full card grid cycles through the whole triad on hover. `.marketing-nav-card` needed a
+      `.marketing-nav-grid > *:nth-child(...) .marketing-nav-card:hover` selector form rather than a
+      plain `:nth-child` on the card itself, since its `Reveal` wrapper sits between it and the grid
+      (unlike `.feature-card`, whose `Reveal` renders the card element directly).
+- [x] **Typography pushed further.** Hero H1 clamp ceiling `4rem`→`4.5rem` (slope `3.2vw`→`3.6vw`,
+      floor untouched), tracking `-0.025em`→`-0.03em`. `.landing .section-head h2` (every
+      page-defining gradient-heading `<h2>`) ceiling `2rem`→`2.35rem`, weight `700`→`800`. Computed
+      sizes at 320/360/400px to confirm no mobile regression — new values land within ~1px of the old
+      ones at those widths; all the real growth happens at >=768px.
+- [x] Verified: `npx tsc --noEmit`/`npm run build` clean. Grepped `dist/assets/index-*.css` for both
+      new hex values, both `-rgb` tokens, the 3-stop `.gradient-heading` gradient, the enriched
+      `.hero-bg`/`.marketing-page-header--*` rules, and the `:nth-child` hover-glow overrides — all
+      present verbatim. **Critical, given the repeated "I can't see it" reports**: curled the live
+      `:5173` dev server's `/src/styles.css` directly (not just `dist/`) — `200`, `Cache-Control:
+      no-cache`, fresh `Etag`/`Date` — and grepped that live response for the same tokens/rules,
+      confirming the running dev-override stack is actually serving every change. Computed all
+      contrast ratios via the WCAG relative-luminance formula (script, not eyeballed). `docker compose
+      ps` showed all three services `Up`/`Up (healthy)`; curled all six marketing routes plus
+      `:4000/health` — all `200`. No rebuild/restart needed (dev override bind-mounts `frontend/src`).
+      Left running as the steady state. **No headless browser available in this environment** — same
+      caveat as every prior visual pass — but given the magnitude of this change (a structurally
+      different multi-hue palette at meaningfully higher alpha, not a tuning delta), this should read
+      as unmistakable at a glance rather than needing the same "trust the reasoning" caveat as the more
+      marginal prior pass.
+
+## 2026-07-26 — Challenge-detail polish, authenticated gradient extension, milestone celebrations, real 404 (decisions/0027)
+Four bundled frontend improvements. No backend changes, no new npm dependencies.
+- [x] **Challenge-detail page visual polish.** `ChallengeDetailPage.tsx`/`TerminalPane.tsx` had zero
+      design-pass attention while the marketing pages went through five rounds of it. New
+      `.challenge-panel`/`.hint-card` classes bring the header/description, hint reveal, and solution
+      card up to the same two-layer-shadow "modern card" language already used elsewhere
+      (`.feature-card`/`.marketing-nav-card`/`.self-host-card`). A new `.challenge-detail-page::before`
+      wash matches the mechanic used on Dashboard/Challenges/Progress but stays at the original,
+      pre-boost alpha — deliberately the one restrained authenticated page, since it's a working tool a
+      user stares at for 10-20 minutes, not a page to compete for attention. `.terminal-frame` wraps
+      the chrome around `TerminalPane` (not xterm's own dark theme, which is untouched) in a slow,
+      mostly-transparent conic-gradient ring reusing the hero terminal's `--border-angle` mechanism,
+      toned way down (42s spin vs. the hero's 7s). The check-result banner's `✅`/`❌` emoji were
+      replaced with hand-drawn stroke-glyph icons, matching every other icon in the app.
+- [x] **Bold gradient palette extended to Dashboard/Challenges/Progress.** decisions/0026's
+      violet/rose palette had only reached the six marketing routes; `.dashboard-page`/
+      `.challenges-page`/`.progress-page::before` were still on the original decisions/0021 restrained
+      single-hue pairing. Bumped all three to the same ~0.10-0.22 alpha band the marketing pages use,
+      keeping each page's existing semantic lead hue (accent/warning/success) and layering in a
+      distinct violet/rose focal-point arrangement per page so the three stay distinguishable from each
+      other and from the marketing family. Added `.gradient-heading` to exactly one heading per page
+      (Dashboard's "Welcome back", Challenges' "Challenges", Progress's "Your solve record"), matching
+      the marketing pages' "one gradient headline per page" rule.
+- [x] **Milestone celebrations — first solve, category complete.** Purely client-side detection off
+      existing `useProgress()` data, no new backend endpoint/column: a progress snapshot is taken right
+      before "Check my fix" fires, compared against a freshly `refetch()`'d snapshot once a check
+      passes. New `components/Celebration.tsx` — a dismissible, non-blocking, fixed-top banner (not a
+      toast, not a modal) with a hand-drawn icon, an animated ring reusing the `--border-angle`
+      mechanism, and plain-voice copy distinct per trigger. Auto-dismisses after 6s or on manual close.
+      Kept deliberately separate from `ToastContext` rather than added as a new toast kind — see
+      decisions/0027 for the full reasoning.
+- [x] **Real 404 page.** Replaced the silent `<Navigate to="/" replace />` catch-all with
+      `pages/NotFoundPage.tsx` — a `systemctl status`/`curl` transcript joke reusing the existing dark
+      `.hero-terminal` chrome, sitting outside `<RequireAuth>` (same tier as `/about`), with a CTA that
+      branches on `useAuth()` exactly like the marketing pages' own auth-branched CTAs.
+- [x] Verified: `npx tsc --noEmit`/`npm run build` clean, no CSS-minifier warnings. Grepped both the
+      built CSS and a live `curl` of the running `:5173` dev server for every new class/component name —
+      present in both. Curled `/some-nonexistent-route` — `200`, SPA shell served correctly.
+      **Functionally exercised the celebration logic against the real API and real challenge
+      containers**: signed up a throwaway account, solved `perm-config-unreadable-by-app` via a real
+      `docker exec` fix and confirmed `GET /api/progress` went `0 -> 1` solved (first-solve condition),
+      confirmed a recheck did not re-trigger, then solved the remaining five
+      `permissions-ownership` challenges one at a time via real fixes and confirmed the sixth's
+      before/after (`5/6 -> 6/6`) correctly identifies as category-complete and is distinguishable from
+      first-solve, and confirmed a fresh recheck of the now-complete category does not re-fire. Cleaned
+      up every test session/container and deleted the throwaway account row via `psql` (no self-service
+      delete-account endpoint exists). `docker compose ps` showed all three services running throughout,
+      left as the steady state, no rebuild needed (dev-override bind-mounts `frontend/src`). **No
+      headless browser available in this environment** — leaned on live dev-server response grepping and
+      driving the real API/containers for the one part (celebrations) with actual conditional logic,
+      rather than relying on code-reading alone.
