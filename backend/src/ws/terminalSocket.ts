@@ -3,13 +3,35 @@ import type { Duplex } from "node:stream";
 import { URL } from "node:url";
 import { WebSocketServer, type RawData, type WebSocket } from "ws";
 import { logger } from "../lib/logger.js";
-import { execShell, isContainerAlive } from "../services/docker.service.js";
+import { attachOrCreateShell, endShellSession, isContainerAlive, releaseSocket } from "../services/docker.service.js";
 import { getSessionForUser, heartbeat, verifyWsTicket } from "../services/session.service.js";
 
-const wss = new WebSocketServer({ noServer: true });
+const wss = new WebSocketServer({ noServer: true, maxPayload: 1 * 1024 * 1024 });
+
+// Heartbeat: detects dead peers (e.g. a laptop that went to sleep without a
+// clean TCP close) so they don't linger as phantom entries in wss.clients.
+// `ws.terminate()` still fires the socket's normal "close" event, so
+// `releaseSocket` cleanup below runs unchanged for a terminated client.
+const PING_INTERVAL_MS = 30_000;
+
+function heartbeatSweep(): void {
+  for (const raw of wss.clients) {
+    const client = raw as WebSocket & { isAlive?: boolean };
+    if (client.isAlive === false) {
+      client.terminate();
+      continue;
+    }
+    client.isAlive = false;
+    client.ping();
+  }
+}
+
+const pingTimer = setInterval(heartbeatSweep, PING_INTERVAL_MS);
+pingTimer.unref();
 
 /** Cleanly close all live terminal sockets (used during graceful shutdown). */
 export function closeAllTerminals(): void {
+  clearInterval(pingTimer);
   for (const client of wss.clients) {
     try {
       client.close(1001, "server shutting down");
@@ -57,17 +79,27 @@ async function bridge(ws: WebSocket, sessionId: string, userId: string): Promise
     return;
   }
   if (!(await isContainerAlive(session.container_id))) {
+    endShellSession(session.container_id);
     ws.close(1011, "container not running");
     return;
   }
 
-  const { stream, resize } = await execShell(session.container_id);
-
-  stream.on("data", (chunk: Buffer) => {
-    if (ws.readyState === ws.OPEN) ws.send(chunk);
+  const client = ws as WebSocket & { isAlive?: boolean };
+  client.isAlive = true;
+  ws.on("pong", () => {
+    client.isAlive = true;
   });
-  stream.on("end", () => ws.close());
-  stream.on("error", () => ws.close());
+
+  const { session: term, resumed } = await attachOrCreateShell(session.container_id);
+  term.sockets.add(ws);
+
+  if (resumed) {
+    ws.send("\r\n\x1b[2m[reconnected — shell session resumed]\x1b[0m\r\n");
+  }
+
+  ws.on("error", (err) => {
+    logger.warn("terminal ws error", { sessionId, containerId: session.container_id, err });
+  });
 
   ws.on("message", (data, isBinary) => {
     const buf = toBuffer(data);
@@ -77,7 +109,7 @@ async function bridge(ws: WebSocket, sessionId: string, userId: string): Promise
         try {
           const msg = JSON.parse(text);
           if (msg.type === "resize" && typeof msg.cols === "number" && typeof msg.rows === "number") {
-            resize({ h: msg.rows, w: msg.cols }).catch(() => {});
+            term.resize({ h: msg.rows, w: msg.cols }).catch(() => {});
             return;
           }
         } catch {
@@ -86,11 +118,11 @@ async function bridge(ws: WebSocket, sessionId: string, userId: string): Promise
       }
     }
     heartbeat(sessionId, userId).catch(() => {});
-    stream.write(buf);
+    term.stream.write(buf);
   });
 
   ws.on("close", () => {
-    stream.end();
+    releaseSocket(session.container_id!, ws);
   });
 }
 

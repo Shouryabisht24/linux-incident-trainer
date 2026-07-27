@@ -984,3 +984,57 @@ Four bundled frontend improvements. No backend changes, no new npm dependencies.
       headless browser available in this environment** — leaned on live dev-server response grepping and
       driving the real API/containers for the one part (celebrations) with actual conditional logic,
       rather than relying on code-reading alone.
+
+## 2026-07-27 — Terminal reliability pass: exec persistence, backpressure, ping/pong, auto-reconnect (decisions/0028)
+The core reliability gap in the app's core feature: every WebSocket (re)connect spun up a brand-new `bash -l`
+exec, losing cwd/env/history on any reconnect even though the container itself never stopped. Fixed end to end,
+backend and frontend. See decisions/0028 for full numeric reasoning.
+- [x] **Exec-session registry, keyed by `containerId`** (`docker.service.ts`): `attachOrCreateShell`/
+      `releaseSocket`/`endShellSession` + an `execRegistry` map. A reconnect now attaches to the *same* exec
+      instead of creating a new one — `data`/`end`/`error` are wired exactly once per exec (moved out of
+      `terminalSocket.ts`'s per-connection wiring) and fan out to a `Set<WebSocket>` of attached sockets
+      (mirrored-terminal policy for concurrent connections — decisions/0028). A 120s grace timer tears down the
+      exec only if every socket detaches and none reconnects in time. `endShellSession` is now the literal first
+      line of `destroyContainer`, so all five existing container-teardown call sites
+      (`stopSession`/idle-reaper's two branches/`drainAllActiveSessions`/`reconcileOrphans`) get correct exec
+      cleanup for free.
+- [x] **Backpressure** in the exec registry's `data` handler: pauses the dockerode exec stream once any attached
+      socket's `bufferedAmount` exceeds 4 MiB, resumes only once all attached sockets drain below 1 MiB.
+- [x] **WS heartbeat** (`terminalSocket.ts`): 30s ping/pong sweep, `terminate()`s unresponsive peers;
+      `maxPayload: 1 MiB` on the WS server; per-connection `ws.on("error", ...)` logging (previously silent);
+      exec stream errors now logged via `logger.error` (previously silently swallowed).
+  and defensive `endShellSession` call added where `bridge()`'s existing `isContainerAlive` check fails.
+- [x] **Frontend structural split** (`TerminalPane.tsx`): the old single `[wsTicket]`-keyed effect (which
+      recreated the `Terminal` object itself on every reconnect) is now two effects — a mount-once effect owning
+      `Terminal`/`FitAddon`/`ResizeObserver`, and a `[wsTicket]`-keyed effect owning only the `WebSocket`. A
+      reconnect now preserves scrollback and the on-screen buffer instead of throwing them away, matching the
+      real continuity the backend now offers.
+- [x] **Bounded auto-reconnect** (`ChallengeDetailPage.tsx`): 5 attempts / ~23s total budget
+      (`[1s, 2s, 4s, 8s, 8s]`) on an unexpected disconnect, re-checking `stoppingRef` both before scheduling and
+      inside the retry callback so a stop landing mid-backoff can never race it. Falls back to the existing
+      "Terminal connection lost" toast + manual Reconnect button, unchanged, once exhausted. Resets the attempt
+      counter on a successful reconnect.
+- [x] **Polish**: xterm theme now built from this app's own `--term-mock-*` tokens (previously xterm's own
+      generic default palette); `scrollback: 10000` (was xterm's default 1000); a coarse-pointer-only touch key
+      row (Esc/Tab/Ctrl+C/D/Z/L/arrows + a one-shot Ctrl-arm-next-letter modifier) wired through `term.input()` —
+      the same pipeline real keystrokes already use, so it can never drift from actual input handling.
+- [x] Verified against the real running stack, both transport paths (dev-override `:4000`/`:5173` and the
+      production nginx path via `docker compose -f docker-compose.yml up --build -d` on `:3000`) — see
+      decisions/0028 for full detail. Highlights: a real non-graceful drop (`ws.terminate()`, confirmed close
+      code `1006`, not a clean `1000`) followed by a real reconnect preserved `pwd`, an exported env var, and
+      shell history, with the `[reconnected — shell session resumed]` banner, on **both** paths. Backpressure:
+      backend container RSS stayed flat (~68-76 MiB) while a client paused its own socket read for ~15s during a
+      75MB burst, then received the full burst once resumed. Ping/pong: 3 pings at ~30.0s spacing over a 90s idle
+      connection, no spurious disconnect. Idle reaper and graceful shutdown (production image) both regression-
+      checked live — no crash, no hang, correct container/session cleanup in both cases. Encountered and worked
+      around a pre-existing, unrelated, uncommitted WIP password-reset feature in the working tree that was
+      missing its `nodemailer` dependency and crash-looping the backend regardless of this pass's changes —
+      `git stash`'d it (untracked files included) for the duration of verification, confirmed `backend`'s own
+      `npx tsc --noEmit` was clean once set aside, then `git stash pop`'d it back exactly as found afterward; it
+      was already broken before this pass started and is unrelated to the terminal work, so left untouched
+      rather than fixed (installing the missing dependency was attempted and declined by the permission system).
+      **No headless browser available in this environment** — the frontend auto-reconnect state machine's exact
+      timing, the toast-fallback-after-5-attempts behavior, and stop-suppression were verified by careful code
+      reading only, not a live browser session; everything they depend on backend-side (ticket issuance, WS
+      reconnect, shell resumption) was verified live. Cleaned up every throwaway account/session/container.
+      Left the dev-override stack running as the steady state.

@@ -1,5 +1,6 @@
 import path from "node:path";
 import Docker from "dockerode";
+import type { WebSocket } from "ws";
 import { logger } from "../lib/logger.js";
 import type { Challenge } from "./challenge.service.js";
 
@@ -8,6 +9,147 @@ const docker = new Docker({ socketPath: "/var/run/docker.sock" });
 const CHALLENGES_DIR = path.join(process.cwd(), "challenges");
 const CHALLENGE_NETWORK = process.env.CHALLENGE_CONTAINER_NETWORK ?? "devops-trainer-challenges";
 const APP_LABEL = "app=devops-trainer";
+
+// ---------------------------------------------------------------------------
+// Terminal exec-session registry — keyed by containerId (not by WS connection
+// or sessionId). This is what makes a WebSocket reconnect resume the *same*
+// bash process (same cwd/env/history) instead of spinning up a fresh
+// `execShell()` every time. Every container-teardown path already funnels
+// through `destroyContainer(containerId)` below, so hooking cleanup in there
+// covers stopSession/reapIdleSessions/drainAllActiveSessions/reconcileOrphans
+// for free — see decisions/0028.
+// ---------------------------------------------------------------------------
+
+export interface TerminalSession {
+  stream: NodeJS.ReadWriteStream;
+  resize: (opts: { h: number; w: number }) => Promise<void>;
+  sockets: Set<WebSocket>;
+  graceTimer: NodeJS.Timeout | null;
+  paused: boolean;
+  resumeCheckTimer: NodeJS.Timeout | null;
+}
+
+const RECONNECT_GRACE_MS = 120_000; // 2 minutes
+const BACKPRESSURE_PAUSE_BYTES = 4 * 1024 * 1024; // 4 MiB
+const BACKPRESSURE_RESUME_BYTES = 1 * 1024 * 1024; // 1 MiB
+const BACKPRESSURE_CHECK_MS = 250;
+
+const execRegistry = new Map<string, TerminalSession>(); // key: containerId
+
+/**
+ * Attach a WebSocket to the shell exec for `containerId`, creating one if it
+ * doesn't exist yet. Reconnecting clients get `resumed: true` and the exact
+ * same bash process — its data/end/error listeners are wired exactly once,
+ * here, and fan out to whatever's currently in `session.sockets`.
+ */
+export async function attachOrCreateShell(
+  containerId: string,
+): Promise<{ session: TerminalSession; resumed: boolean }> {
+  const existing = execRegistry.get(containerId);
+  if (existing) {
+    if (existing.graceTimer) {
+      clearTimeout(existing.graceTimer);
+      existing.graceTimer = null;
+    }
+    return { session: existing, resumed: true };
+  }
+
+  const { stream, resize } = await execShell(containerId);
+  const session: TerminalSession = {
+    stream,
+    resize,
+    sockets: new Set(),
+    graceTimer: null,
+    paused: false,
+    resumeCheckTimer: null,
+  };
+
+  stream.on("data", (chunk: Buffer) => {
+    for (const ws of session.sockets) {
+      if (ws.readyState === ws.OPEN) ws.send(chunk);
+    }
+    maybeApplyBackpressure(session);
+  });
+
+  stream.on("end", () => {
+    for (const ws of session.sockets) ws.close(1000);
+    execRegistry.delete(containerId);
+  });
+
+  stream.on("error", (err) => {
+    logger.error("terminal exec stream error", { containerId, err });
+    for (const ws of session.sockets) ws.close(1011);
+    execRegistry.delete(containerId);
+  });
+
+  execRegistry.set(containerId, session);
+  return { session, resumed: false };
+}
+
+function maybeApplyBackpressure(session: TerminalSession): void {
+  if (session.paused) return;
+  let overLimit = false;
+  for (const ws of session.sockets) {
+    if (ws.bufferedAmount > BACKPRESSURE_PAUSE_BYTES) {
+      overLimit = true;
+      break;
+    }
+  }
+  if (!overLimit) return;
+
+  session.paused = true;
+  session.stream.pause();
+
+  session.resumeCheckTimer = setInterval(() => {
+    let allDrained = true;
+    for (const ws of session.sockets) {
+      if (ws.bufferedAmount >= BACKPRESSURE_RESUME_BYTES) {
+        allDrained = false;
+        break;
+      }
+    }
+    if (allDrained) {
+      session.stream.resume();
+      session.paused = false;
+      if (session.resumeCheckTimer) {
+        clearInterval(session.resumeCheckTimer);
+        session.resumeCheckTimer = null;
+      }
+    }
+  }, BACKPRESSURE_CHECK_MS);
+}
+
+/** Detach one socket from a shell session; starts the reconnect-grace teardown timer once no sockets remain attached. */
+export function releaseSocket(containerId: string, ws: WebSocket): void {
+  const session = execRegistry.get(containerId);
+  if (!session) return;
+
+  session.sockets.delete(ws);
+  if (session.sockets.size > 0 || session.graceTimer) return;
+
+  session.graceTimer = setTimeout(() => {
+    const current = execRegistry.get(containerId);
+    if (!current || current.sockets.size > 0) return;
+    if (current.resumeCheckTimer) {
+      clearInterval(current.resumeCheckTimer);
+      current.resumeCheckTimer = null;
+    }
+    current.stream.end();
+    execRegistry.delete(containerId);
+  }, RECONNECT_GRACE_MS);
+}
+
+/** Immediately tears down the shell exec session for a container, e.g. as part of destroying the container itself. */
+export function endShellSession(containerId: string): void {
+  const session = execRegistry.get(containerId);
+  if (!session) return;
+
+  if (session.graceTimer) clearTimeout(session.graceTimer);
+  if (session.resumeCheckTimer) clearInterval(session.resumeCheckTimer);
+  for (const ws of session.sockets) ws.close(4000, "session ended");
+  session.stream.end();
+  execRegistry.delete(containerId);
+}
 
 function imageTag(challenge: Challenge): string {
   return `devops-trainer/${challenge.slug}:${challenge.content_version}`;
@@ -117,6 +259,7 @@ export async function createSessionContainer(
 }
 
 export async function destroyContainer(containerId: string): Promise<void> {
+  endShellSession(containerId);
   const container = docker.getContainer(containerId);
   // No graceful container.stop() here on purpose (see decisions/0015): these are
   // disposable, single-use training containers with nothing worth flushing at

@@ -833,6 +833,43 @@ select.filter-select {
   padding: var(--space-2);
 }
 
+/* Mobile/touch key row (coarse-pointer only, TerminalPane.tsx) — sits inside the same always-dark
+   .terminal-wrap chrome as the terminal itself, so it reads as part of the terminal rather than a
+   separate app control. Pinned to --term-mock-* tokens for the same reason the terminal itself is:
+   this strip never follows the app's light-theme --color-* tokens. Buttons are deliberately smaller
+   and lower-contrast than .btn-sm — favor real terminal, not a light-theme UI chrome. */
+.terminal-touch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: var(--term-mock-bar-bg);
+  border-top: 1px solid var(--term-mock-border);
+}
+
+.terminal-touch-key {
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--term-mock-border);
+  background: var(--term-mock-bg);
+  color: var(--term-mock-text);
+  cursor: pointer;
+  min-width: 2.25em;
+}
+
+.terminal-touch-key:active {
+  background: var(--term-mock-border);
+}
+
+.terminal-touch-key-armed {
+  color: var(--term-mock-bg);
+  background: var(--term-mock-prompt);
+  border-color: var(--term-mock-prompt);
+}
+
 .terminal-status {
   font-size: 0.8rem;
   color: var(--color-text-faint);

@@ -26,6 +26,11 @@ interface LocalSession {
 
 const HEARTBEAT_INTERVAL_MS = 20_000;
 
+// Auto-reconnect backoff after an unexpected terminal disconnect — 5 attempts,
+// capped at 8s apart, ~23s total budget before falling back to the existing
+// manual "Reconnect" button + "Terminal connection lost" toast.
+const RECONNECT_DELAYS_MS = [1000, 2000, 4000, 8000, 8000];
+
 // ---------------------------------------------------------------------------
 // Icons — same hand-authored 22x22 stroke-glyph convention as
 // DashboardPage/ChallengeListPage (no icon package, no emoji). Replaces the
@@ -160,6 +165,15 @@ export function ChallengeDetailPage() {
   // genuinely new one that shows up later for the same slug.
   const stoppedSessionIdsRef = useRef<Set<string>>(new Set());
 
+  // Auto-reconnect budget: how many backoff attempts have fired since the last
+  // successful connect, and the pending window.setTimeout (if any) for the
+  // next one. Reset on a successful reconnect (handleTerminalStatusChange) and
+  // cleared on slug change / stop, same places stoppingRef/stoppedSessionIdsRef
+  // already get reset — a stop or navigation must never leave a stray attempt
+  // pending against a session that's gone.
+  const reconnectAttemptsRef = useRef(0);
+  const reconnectTimerRef = useRef<number | null>(null);
+
   const hintsQuery = useHints(session?.id);
 
   // A session belongs to a single challenge — reset local UI state whenever the
@@ -170,6 +184,11 @@ export function ChallengeDetailPage() {
     setSolutionMd(null);
     stoppingRef.current = false;
     stoppedSessionIdsRef.current.clear();
+    reconnectAttemptsRef.current = 0;
+    if (reconnectTimerRef.current !== null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
   }, [slug]);
 
   // Resume-on-refresh: if the backend reports an active session for *this*
@@ -231,6 +250,11 @@ export function ChallengeDetailPage() {
     // bridge closing as a result must not be reported as a surprise disconnect.
     stoppingRef.current = true;
     stoppedSessionIdsRef.current.add(session.id);
+    if (reconnectTimerRef.current !== null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+    reconnectAttemptsRef.current = 0;
     stopMutation.mutate(session.id, {
       onSuccess: () => {
         setSession(null);
@@ -313,15 +337,38 @@ export function ChallengeDetailPage() {
 
   const handleUnexpectedExit = useCallback(() => {
     // A stop we ourselves initiated closing the socket is expected, not a
-    // surprise — don't alarm the user over something they just clicked.
+    // surprise — don't alarm the user over something they just clicked, and
+    // never race the stop-suppression mechanism with an auto-reconnect.
     if (stoppingRef.current) return;
-    toast.error("Terminal connection lost.");
-  }, [toast]);
+
+    if (reconnectAttemptsRef.current >= RECONNECT_DELAYS_MS.length) {
+      // Budget exhausted — fall back to exactly today's behavior: the toast,
+      // plus the manual "Reconnect" button (driven by terminalStatus below).
+      reconnectAttemptsRef.current = 0;
+      toast.error("Terminal connection lost.");
+      return;
+    }
+
+    const attempt = reconnectAttemptsRef.current;
+    reconnectAttemptsRef.current += 1;
+    const sessionId = session?.id;
+    reconnectTimerRef.current = window.setTimeout(() => {
+      reconnectTimerRef.current = null;
+      // A stop can land mid-backoff — bail rather than reconnecting a session
+      // the user (or we) just tore down.
+      if (stoppingRef.current || !sessionId) return;
+      refreshTicketMutation.mutate(sessionId, {
+        onSuccess: (res) => setSession((prev) => (prev ? { ...prev, wsTicket: res.wsTicket } : prev)),
+      });
+    }, RECONNECT_DELAYS_MS[attempt]);
+  }, [toast, refreshTicketMutation, session]);
 
   const handleTerminalStatusChange = useCallback((status: TerminalStatus) => {
     // Same suppression as handleUnexpectedExit, applied to the disconnected/
     // "Reconnect" UI: don't flash it for a disconnect caused by our own stop.
     if (stoppingRef.current && status === "disconnected") return;
+    // A successful (re)connect resets the backoff budget for any future drop.
+    if (status === "connected") reconnectAttemptsRef.current = 0;
     setTerminalStatus(status);
   }, []);
 
