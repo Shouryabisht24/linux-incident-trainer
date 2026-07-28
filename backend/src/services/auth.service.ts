@@ -1,6 +1,9 @@
 import bcrypt from "bcryptjs";
+import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import { pool } from "../db/pool.js";
+import { sendPasswordResetEmail } from "./mail.service.js";
+import { getActiveSessionForUser, stopSession } from "./session.service.js";
 
 export interface User {
   id: string;
@@ -108,4 +111,114 @@ export async function updateDisplayName(userId: string, displayName: string | nu
 
 function toUser(row: UserRow): User {
   return { id: row.id, email: row.email, display_name: row.display_name, created_at: row.created_at };
+}
+
+// ---------------------------------------------------------------------------
+// Password reset (forgot-password flow)
+// ---------------------------------------------------------------------------
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
+const FRONTEND_URL = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
+
+function hashResetToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+/**
+ * Looks up the account by email and, if found, issues a single-use password-reset token and
+ * emails a reset link. **Critical security property**: this must never let a caller distinguish
+ * "no such account" from "email sent" — the calling route always returns the same 200 regardless
+ * of what happens in here. To keep the control flow (and rough timing) as similar as possible
+ * between the two branches, we always generate the token/hash/URL first and only branch on
+ * whether to persist+send; a nonexistent-account call still performs an equivalent DB round trip
+ * rather than returning immediately. We deliberately don't fake an outbound SMTP send in the
+ * no-such-account branch — a real network call there would be wasted work with its own timing
+ * variance, and cryptographic random-token generation, not a slow legitimate email round trip, is
+ * the operation that actually matters to keep symmetric here.
+ */
+export async function requestPasswordReset(email: string): Promise<void> {
+  const result = await pool.query<{ id: string }>("SELECT id FROM users WHERE email = $1", [email]);
+  const user = result.rows[0];
+
+  const token = crypto.randomBytes(32).toString("hex");
+  const tokenHash = hashResetToken(token);
+  const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+  const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}`;
+
+  if (user) {
+    await pool.query(`INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`, [
+      user.id,
+      tokenHash,
+      expiresAt,
+    ]);
+    await sendPasswordResetEmail(email, resetUrl);
+  } else {
+    // Equivalent-cost no-op DB round trip so this branch doesn't resolve conspicuously faster
+    // than the real-user branch above.
+    await pool.query("SELECT 1");
+  }
+}
+
+/**
+ * Consumes a password-reset token: hashes the provided plaintext token, finds a matching
+ * not-yet-used, not-yet-expired row, and — in the same transaction — updates the user's password
+ * and marks the token used (`used_at = now()`), so it can never be replayed. Throws a single
+ * generic "invalid or expired reset link" error for every failure mode (no matching row, already
+ * used, expired) — a legitimate user just needs to know to request a new link, and an attacker
+ * gains nothing by which failure they hit.
+ */
+export async function resetPasswordWithToken(token: string, newPassword: string): Promise<void> {
+  const tokenHash = hashResetToken(token);
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const result = await client.query<{ id: string; user_id: string }>(
+      `SELECT id, user_id FROM password_reset_tokens
+       WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()
+       FOR UPDATE`,
+      [tokenHash],
+    );
+    const row = result.rows[0];
+    if (!row) throw new Error("invalid or expired reset link");
+
+    const newHash = await bcrypt.hash(newPassword, 10);
+    await client.query("UPDATE users SET password_hash = $1 WHERE id = $2", [newHash, row.user_id]);
+    await client.query("UPDATE password_reset_tokens SET used_at = now() WHERE id = $1", [row.id]);
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Account deletion
+// ---------------------------------------------------------------------------
+
+/**
+ * Permanently deletes the caller's own account. Requires re-proving the current password first
+ * (same non-negotiable pattern as `changePassword` — no destructive action without it), then tears
+ * down any live challenge container/session before the row goes away (the DB cascade alone would
+ * orphan a running Docker container — deleting the `sessions` row doesn't stop the container
+ * behind it), then deletes the user row. Every other user-owned row (`sessions`, `progress`,
+ * `check_attempts` via `sessions`, `help_requests`, `password_reset_tokens`) cascades via each
+ * table's `ON DELETE CASCADE user_id`/`session_id` FK — see 0001_init.sql, 0003_help_requests.sql,
+ * and this feature's own 0004_password_reset_tokens.sql.
+ */
+export async function deleteOwnAccount(userId: string, currentPassword: string): Promise<void> {
+  const result = await pool.query<UserRow>("SELECT password_hash FROM users WHERE id = $1", [userId]);
+  const row = result.rows[0];
+  if (!row) throw new Error("user not found");
+
+  const valid = await bcrypt.compare(currentPassword, row.password_hash);
+  if (!valid) throw new Error("current password is incorrect");
+
+  const activeSession = await getActiveSessionForUser(userId);
+  if (activeSession) {
+    await stopSession(activeSession.id, userId, "abandoned").catch(() => {});
+  }
+
+  await pool.query("DELETE FROM users WHERE id = $1", [userId]);
 }

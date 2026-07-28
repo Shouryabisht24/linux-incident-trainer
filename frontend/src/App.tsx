@@ -37,11 +37,22 @@ const HowItWorksPage = lazy(() => import("./pages/HowItWorksPage").then((m) => (
 const SelfHostingPage = lazy(() => import("./pages/SelfHostingPage").then((m) => ({ default: m.SelfHostingPage })));
 const FaqPage = lazy(() => import("./pages/FaqPage").then((m) => ({ default: m.FaqPage })));
 
+// Forgot/reset-password: public, unauthenticated, same tier as /about — reached from a link on
+// the login form or a password-reset email, never from within the authenticated app itself.
+const ForgotPasswordPage = lazy(() =>
+  import("./pages/ForgotPasswordPage").then((m) => ({ default: m.ForgotPasswordPage })),
+);
+const ResetPasswordPage = lazy(() =>
+  import("./pages/ResetPasswordPage").then((m) => ({ default: m.ResetPasswordPage })),
+);
+
 export default function App() {
   return (
     <Suspense fallback={<PageLoading />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/" element={<RootRoute />} />
         <Route path="/about" element={<LandingPage />} />
         <Route path="/features" element={<FeaturesPage />} />

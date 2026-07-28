@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useRef, useState, type ReactNode, type SVGProps } from "react";
 
 type ToastKind = "success" | "error" | "info";
 
@@ -6,6 +6,51 @@ interface Toast {
   id: number;
   kind: ToastKind;
   message: string;
+}
+
+// ---------------------------------------------------------------------------
+// Icon chip — same hand-authored stroke-glyph convention as DashboardPage's/
+// ChallengeListPage's `iconProps()` (no icon package, no emoji), kept local since nothing else
+// needs a per-toast-kind glyph.
+// ---------------------------------------------------------------------------
+
+function iconProps(props: SVGProps<SVGSVGElement>): SVGProps<SVGSVGElement> {
+  return {
+    width: 13,
+    height: 13,
+    viewBox: "0 0 22 22",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": true,
+    ...props,
+  };
+}
+
+function ToastIcon({ kind }: { kind: ToastKind }) {
+  if (kind === "success") {
+    return (
+      <svg {...iconProps({})}>
+        <path d="M4.5 11.3l3.6 3.6 9.4-9.8" />
+      </svg>
+    );
+  }
+  if (kind === "error") {
+    return (
+      <svg {...iconProps({})}>
+        <path d="M11 6.5v6" />
+        <circle cx="11" cy="16" r="0.6" fill="currentColor" stroke="none" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...iconProps({})}>
+      <path d="M11 9.5v6" />
+      <circle cx="11" cy="6.3" r="0.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
 }
 
 interface ToastContextValue {
@@ -49,7 +94,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div className="toast-viewport" aria-live="polite" aria-atomic="true">
         {toasts.map((t) => (
           <div key={t.id} className={`toast toast-${t.kind}`} role="status" onClick={() => dismiss(t.id)}>
-            {t.message}
+            <span className={`toast-icon-chip toast-icon-chip-${t.kind}`}>
+              <ToastIcon kind={t.kind} />
+            </span>
+            <span className="toast-message">{t.message}</span>
           </div>
         ))}
       </div>

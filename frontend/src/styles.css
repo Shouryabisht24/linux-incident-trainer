@@ -1062,20 +1062,26 @@ select.filter-select {
   right: var(--space-5);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
   z-index: 1000;
   max-width: 360px;
 }
 
 .toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
   border-radius: var(--radius-sm);
   padding: var(--space-3) var(--space-4);
+  /* Same two-layer recipe as `.feature-card`, scaled down slightly (toasts sit closer to the
+     viewport edge than a card, so the ambient layer doesn't need as much spread). */
   box-shadow:
-    0 2px 6px rgba(var(--color-shadow-rgb), 0.08),
-    0 14px 32px -10px rgba(var(--color-shadow-rgb), 0.22);
+    0 1px 2px rgba(var(--color-shadow-rgb), 0.05),
+    0 14px 32px -12px rgba(var(--color-shadow-rgb), 0.24);
   font-size: 0.9rem;
   border: 1px solid var(--color-border);
   background: var(--color-bg-elevated);
+  /* Timing/easing left exactly as before — only the static shadow/border/icon/spacing changed. */
   animation: toast-in 160ms ease-out;
 }
 
@@ -1090,16 +1096,48 @@ select.filter-select {
   }
 }
 
+.toast-message {
+  padding-top: 2px;
+}
+
+.toast-icon-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+
+/* Colored left-border accent per kind, layered on the shared neutral border above, plus a tinted
+   icon chip using the same semantic tokens — success/danger get their real signal color, info
+   (neutral/no strong signal) uses the accent hue rather than a semantic one. */
 .toast-success {
-  border-color: rgba(var(--color-success-rgb), 0.4);
+  border-left: 3px solid var(--color-success);
+}
+
+.toast-success .toast-icon-chip {
+  color: var(--color-success);
+  background: var(--color-success-bg);
 }
 
 .toast-error {
-  border-color: rgba(var(--color-danger-rgb), 0.4);
+  border-left: 3px solid var(--color-danger);
+}
+
+.toast-error .toast-icon-chip {
+  color: var(--color-danger);
+  background: var(--color-danger-bg);
 }
 
 .toast-info {
-  border-color: var(--color-border);
+  border-left: 3px solid var(--color-accent);
+}
+
+.toast-info .toast-icon-chip {
+  color: var(--color-accent);
+  background: rgba(var(--color-accent-rgb), 0.12);
 }
 
 /* ---- misc ---- */
@@ -2488,9 +2526,15 @@ html {
   align-items: center;
   justify-content: center;
   padding: var(--space-6) var(--space-4);
+  /* Third violet/rose focal point extends the original two-stop wash to match the multi-stop
+     radial-gradient technique used by `.dashboard-page::before` etc. — but this is a functional
+     form, not a marketing moment, so it's kept restrained (0.08-0.11 alpha, the
+     `.challenge-detail-page::before` band) rather than the bolder 0.12-0.22 dashboard/challenges/
+     progress band. */
   background:
     radial-gradient(560px circle at 12% -10%, rgba(var(--color-accent-rgb), 0.1), transparent 60%),
-    radial-gradient(420px circle at 100% 30%, rgba(var(--color-success-rgb), 0.06), transparent 55%);
+    radial-gradient(420px circle at 100% 30%, rgba(var(--color-success-rgb), 0.06), transparent 55%),
+    radial-gradient(460px circle at 50% 112%, rgba(var(--color-gradient-violet-rgb), 0.09), transparent 62%);
 }
 
 .auth-shell {
@@ -2541,9 +2585,11 @@ html {
   background: rgba(255, 255, 255, 0.78);
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
+  /* Same two-layer recipe as `.feature-card` — this is a static form card, not a hover-lift
+     surface, so only the resting shadow is upgraded; no hover state is added. */
   box-shadow:
-    0 4px 12px rgba(var(--color-shadow-rgb), 0.08),
-    0 24px 48px -20px rgba(var(--color-shadow-rgb), 0.18);
+    0 1px 2px rgba(var(--color-shadow-rgb), 0.04),
+    0 20px 40px -28px rgba(var(--color-shadow-rgb), 0.18);
   padding: var(--space-6);
   display: flex;
   flex-direction: column;
@@ -2562,6 +2608,36 @@ html {
 
 .auth-eyebrow {
   margin-bottom: var(--space-3);
+}
+
+/* Small muted inline links used across the auth family — the login form's "Forgot password?" and
+   the forgot/reset-password pages' "Back to log in" footnotes. */
+.auth-link {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.auth-link:hover {
+  color: var(--color-accent-hover);
+}
+
+.auth-password-label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.auth-forgot-link {
+  font-weight: 500;
+}
+
+.auth-form-footnote {
+  text-align: center;
+  margin-top: calc(-1 * var(--space-2));
+  margin-bottom: 0;
 }
 
 /* ---- mode toggle ---- */
@@ -3049,6 +3125,28 @@ html {
    Profile / account settings (/profile)
    ========================================================================= */
 
+/* Ambient wash — same mechanism as the dashboard/challenges/progress trio (see that block further
+   down: `position: relative; isolation: isolate` + a `::before`), joining that selector group
+   below. Own focal-point/hue arrangement (violet leading top-left, rose low-right, a faint accent
+   whisper bottom-center) so Profile reads as part of the family without repeating any of the other
+   three pages' exact placements. */
+.profile-page {
+  position: relative;
+  isolation: isolate;
+}
+
+.profile-page::before {
+  content: "";
+  position: absolute;
+  inset: -6% -6% 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(600px circle at 4% -8%, rgba(var(--color-gradient-violet-rgb), 0.18), transparent 60%),
+    radial-gradient(560px circle at 100% 60%, rgba(var(--color-gradient-rose-rgb), 0.14), transparent 60%),
+    radial-gradient(480px circle at 45% 106%, rgba(var(--color-accent-rgb), 0.1), transparent 62%);
+}
+
 .profile-email {
   font-family: var(--font-mono);
   font-size: 0.88rem;
@@ -3066,6 +3164,22 @@ html {
 
 .profile-card > p {
   margin-bottom: var(--space-4);
+}
+
+/* Scoped to `.profile-card` specifically, not the base `.card` (used broadly across the app —
+   giving every plain `.card` a shadow would be an unintended, unrelated visual change elsewhere).
+   Same two-layer recipe as `.feature-card`/`.challenge-panel`. */
+.profile-card {
+  box-shadow:
+    0 1px 2px rgba(var(--color-shadow-rgb), 0.04),
+    0 20px 40px -28px rgba(var(--color-shadow-rgb), 0.18);
+}
+
+/* Danger-zone card (account deletion) — same card shape/radius/padding/shadow family as
+   `.profile-card`, with a danger-toned border so it visually reads as distinct/serious, matching
+   `.btn-danger`'s existing border tint rather than inventing a new one. */
+.profile-danger-card {
+  border-color: rgba(var(--color-danger-rgb), 0.35);
 }
 
 /* =========================================================================
@@ -3492,6 +3606,108 @@ html {
 
 .notfound-copy {
   margin-bottom: var(--space-5);
+}
+
+/* =========================================================================
+   Command palette (Cmd+K) — mounted once inside RequireAuth. Backdrop closes on click; panel
+   reuses the shared elevated-surface recipe (border/radius/`.feature-card`'s two-layer shadow)
+   rather than inventing a new one.
+   ========================================================================= */
+
+.cmdk-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh var(--space-4) var(--space-4);
+  background: rgba(var(--color-shadow-rgb), 0.32);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  animation: cmdk-backdrop-in 120ms ease-out;
+}
+
+@keyframes cmdk-backdrop-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.cmdk-panel {
+  width: 100%;
+  max-width: 560px;
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-elevated);
+  overflow: hidden;
+  box-shadow:
+    0 1px 2px rgba(var(--color-shadow-rgb), 0.04),
+    0 20px 40px -28px rgba(var(--color-shadow-rgb), 0.18);
+  animation: cmdk-panel-in 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes cmdk-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.cmdk-input {
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  padding: var(--space-4) var(--space-5);
+  font-size: 1rem;
+  background: transparent;
+  color: var(--color-text);
+}
+
+.cmdk-input:focus {
+  outline: none;
+}
+
+.cmdk-list {
+  overflow-y: auto;
+  padding: var(--space-2);
+}
+
+.cmdk-empty {
+  padding: var(--space-4) var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.cmdk-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.cmdk-option-active {
+  background: var(--color-bg-elevated-2);
+}
+
+.cmdk-option-hint {
+  color: var(--color-text-faint);
+  font-size: 0.78rem;
 }
 
 /* ---- reduced motion ---- */

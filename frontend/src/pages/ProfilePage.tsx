@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { useChangePassword, useUpdateDisplayName } from "../api/queries";
+import { useNavigate } from "react-router-dom";
+import { useChangePassword, useDeleteAccount, useUpdateDisplayName } from "../api/queries";
 import { ErrorBanner, Spinner } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
@@ -203,6 +204,92 @@ function ChangePasswordCard() {
 }
 
 // ---------------------------------------------------------------------------
+// Danger zone — self-service account deletion
+// ---------------------------------------------------------------------------
+
+const DELETE_CONFIRM_WORD = "DELETE";
+
+function DeleteAccountCard() {
+  const { logout } = useAuth();
+  const toast = useToast();
+  const navigate = useNavigate();
+  const deleteAccount = useDeleteAccount();
+
+  const currentPassword = useNoSpaceField();
+  const [confirmText, setConfirmText] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const canDelete = confirmText === DELETE_CONFIRM_WORD && currentPassword.value.length > 0;
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!canDelete) return;
+
+    deleteAccount.mutate(currentPassword.value, {
+      onSuccess: () => {
+        logout();
+        toast.success("Your account has been deleted.");
+        navigate("/", { replace: true });
+      },
+      onError: (err) => {
+        setError(err instanceof Error ? err.message : "current password is incorrect");
+      },
+    });
+  }
+
+  return (
+    <div className="card profile-card profile-danger-card">
+      <span className="dashboard-card-kicker">$ rm -rf ~/account</span>
+      <h2>Danger zone</h2>
+      <p className="muted">
+        Permanently deletes your account: your login, progress, session history, and any check attempts. Any
+        currently running challenge session is stopped and its container destroyed first. This action cannot be
+        undone.
+      </p>
+      <form onSubmit={handleSubmit} className="stack" noValidate>
+        <label className="field" htmlFor="profile-delete-confirm">
+          Type <strong>{DELETE_CONFIRM_WORD}</strong> to confirm
+          <input
+            id="profile-delete-confirm"
+            type="text"
+            autoComplete="off"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+          />
+        </label>
+        <label className="field" htmlFor="profile-delete-password">
+          Current password
+          <input
+            id="profile-delete-password"
+            type="password"
+            autoComplete="current-password"
+            value={currentPassword.value}
+            onChange={currentPassword.onChange}
+            onKeyDown={currentPassword.onKeyDown}
+            onPaste={currentPassword.onPaste}
+          />
+        </label>
+
+        {error && <ErrorBanner message={error} />}
+
+        <div>
+          <button type="submit" className="btn btn-danger" disabled={!canDelete || deleteAccount.isPending}>
+            {deleteAccount.isPending ? (
+              <>
+                <Spinner /> Deleting…
+              </>
+            ) : (
+              "Permanently delete my account"
+            )}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 
 export function ProfilePage() {
   const { user } = useAuth();
@@ -210,12 +297,13 @@ export function ProfilePage() {
   return (
     <div className="page page-narrow profile-page">
       <span className="eyebrow">Account</span>
-      <h1>Profile & settings</h1>
+      <h1 className="gradient-heading">Profile & settings</h1>
       <p className="muted profile-email">{user?.email}</p>
 
       <div className="stack profile-stack">
         <DisplayNameCard />
         <ChangePasswordCard />
+        <DeleteAccountCard />
       </div>
     </div>
   );

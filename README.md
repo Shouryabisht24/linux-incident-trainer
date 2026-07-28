@@ -58,7 +58,10 @@ Set via `.env` (see `.env.example`) or the environment directly. All have sensib
 | `SOLVED_GRACE_MINUTES` | `5` | Shorter grace period for already-solved sessions before teardown |
 | `CHALLENGE_CONTAINER_NETWORK` | `devops-trainer-challenges` | Bridge network name for challenges that opt into `requires_network` |
 | `AUTH_LOGIN_MAX` / `AUTH_SIGNUP_MAX` | `10` / `5` | Rate-limit thresholds per window |
+| `AUTH_CHANGE_PASSWORD_MAX` / `AUTH_FORGOT_PASSWORD_MAX` / `AUTH_RESET_PASSWORD_MAX` / `AUTH_DELETE_ACCOUNT_MAX` | `5` / `5` / `10` / `5` | Rate-limit thresholds per window for the other sensitive account endpoints |
 | `AUTH_RATE_WINDOW_MS` | `900000` (15 min) | Rate-limit window |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | unset | Outbound mail for password-reset links; unset logs the link instead of emailing it |
+| `FRONTEND_URL` | `http://localhost:5173` | Base URL used to build password-reset email links |
 | `LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error` |
 
 ## Security notes

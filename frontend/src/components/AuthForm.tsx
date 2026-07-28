@@ -100,7 +100,7 @@ export function AuthForm() {
 
           <div className="auth-card-head">
             <span className="eyebrow auth-eyebrow">{mode === "login" ? "Welcome back" : "New here"}</span>
-            <h1>{mode === "login" ? "Log in to your account" : "Create your account"}</h1>
+            <h1 className="gradient-heading">{mode === "login" ? "Log in to your account" : "Create your account"}</h1>
             <p className="muted">
               {mode === "login"
                 ? "Pick up where you left off — your progress and any active session are waiting."
@@ -134,7 +134,14 @@ export function AuthForm() {
             </label>
 
             <label className="field" htmlFor="auth-password">
-              Password
+              <span className="auth-password-label-row">
+                Password
+                {mode === "login" && (
+                  <Link to="/forgot-password" className="auth-link auth-forgot-link">
+                    Forgot password?
+                  </Link>
+                )}
+              </span>
               <input
                 id="auth-password"
                 type="password"

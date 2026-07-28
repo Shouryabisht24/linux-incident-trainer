@@ -125,6 +125,25 @@ export function useChangePassword() {
   });
 }
 
+export function useRequestPasswordReset() {
+  return useMutation({
+    mutationFn: (email: string) => api.requestPasswordReset(email),
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: ({ token, newPassword }: { token: string; newPassword: string }) =>
+      api.resetPassword(token, newPassword),
+  });
+}
+
+export function useDeleteAccount() {
+  return useMutation({
+    mutationFn: (currentPassword: string) => api.deleteAccount(currentPassword),
+  });
+}
+
 export function useUpdateDisplayName() {
   return useMutation({
     mutationFn: (displayName: string | null) => api.updateDisplayName(displayName),

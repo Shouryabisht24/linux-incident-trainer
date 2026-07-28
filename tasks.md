@@ -1038,3 +1038,60 @@ backend and frontend. See decisions/0028 for full numeric reasoning.
       reading only, not a live browser session; everything they depend on backend-side (ticket issuance, WS
       reconnect, shell resumption) was verified live. Cleaned up every throwaway account/session/container.
       Left the dev-override stack running as the steady state.
+
+## 2026-07-27 — Forgot/reset-password, self-service account deletion, command palette, visual refresh (decisions/0029)
+Wired up the previously-scoped-but-unwired password-reset service functions and mail service, added
+self-service account deletion, a Cmd+K command palette, and a visual-consistency pass over the auth/profile/
+toast surfaces. See decisions/0029 for full reasoning.
+- [x] **Forgot/reset-password** (`auth.routes.ts`): `POST /forgot-password` (always `200 {ok:true}`, no
+      enumeration regardless of internal outcome) and `POST /reset-password` (one generic 400 for every
+      failure mode — no match, already used, expired), each behind its own rate limiter
+      (`forgotPasswordLimiter` keyed `ip:email`, `resetPasswordLimiter` keyed by IP alone). Root `.env.example`,
+      `docker-compose.yml`'s `backend` env allowlist, and the README config table all updated for
+      `SMTP_*`/`FRONTEND_URL`. Frontend: `client.ts`/`queries.ts` gained `requestPasswordReset`/`resetPassword`;
+      new `ForgotPasswordPage.tsx`/`ResetPasswordPage.tsx` (public routes, same tier as `/about`, lazy-loaded in
+      `App.tsx`); `AuthForm.tsx` gained a "Forgot password?" link (login view only).
+- [x] **Self-service account deletion**: `DELETE /api/auth/me` (`requireAuth` + `deleteAccountLimiter` keyed by
+      `req.userId`, body `{currentPassword}`, generic 400 on mismatch, `200 {ok:true}` on success — calls the
+      already-existing `deleteOwnAccount`, which stops any active session/container first so the DB cascade
+      alone can't orphan a running container). Frontend: `useDeleteAccount()` hook; `ProfilePage.tsx` gained a
+      new `DeleteAccountCard` — disabled until both the literal word `DELETE` is typed and the current password
+      is entered, `.btn-danger` (existing class, not reinvented), unambiguous irreversibility copy.
+- [x] **Command palette** (Cmd+K, zero new dependencies): new `CommandPalette.tsx`, mounted once inside
+      `RequireAuth.tsx` (single global keydown listener there, no new Context). ARIA combobox-listbox pattern —
+      DOM focus stays on the text input, `aria-activedescendant` tracks the highlighted `role="option"` row —
+      deliberately distinct from `ChallengeListPage`'s `ChipGroup` roving-tabindex pattern, which fits a small
+      fixed option set rather than a live-filtered search list. Filters static nav actions, every real challenge
+      (via `useChallenges()`), and "Log out" by plain substring match, same idiom as the existing challenge
+      search. New `.cmdk-*` CSS reusing the `.feature-card` shadow recipe.
+- [x] **Visual refresh**: `.auth-card`/`.profile-card` (newly shadowed, scoped — not the shared `.card` base)
+      and the command palette panel all reuse `.feature-card`'s exact two-layer shadow. `.auth-page` gained a
+      third, restrained violet wash stop; new `.profile-page::before` ambient wash (violet-leading, a hue none
+      of the dashboard/challenges/progress trio led with yet) plus `.profile-danger-card` (danger-bordered
+      variant of `.profile-card`). `.gradient-heading` applied to the `AuthForm`/`ProfilePage` headings. Toast
+      system: `.feature-card`-style shadow, a per-kind colored left-border accent, and a small stroke-glyph icon
+      chip (same `iconProps()` convention as `DashboardPage.tsx`) — `.toast-in`'s `160ms ease-out` timing left
+      untouched, only static treatment changed.
+- [x] Verified: `backend`/`frontend` `npx tsc --noEmit` and `npm run build` both clean, no CSS-minifier warnings.
+      Curled the live `:5173` dev server directly for new files (`ForgotPasswordPage.tsx`, `CommandPalette.tsx`)
+      and confirmed it serves the actual new source via Vite HMR, not a stale build. `docker compose up --build
+      -d` (rebuild needed — the backend's compose env allowlist changed); all three services healthy; backend
+      boot log shows the expected `SMTP_HOST is not set` warning with no crash. **Forgot/reset-password, fully
+      exercised against the real API + real `psql`**: signed up a throwaway account, confirmed identical
+      `200 {ok:true}` for both its real email and a nonexistent one, pulled the real plaintext token from the
+      backend's log line (SMTP unset in this environment), confirmed the DB stores only a SHA-256 hash,
+      completed a real reset, confirmed the old password now fails login and the new one works, confirmed
+      replaying the same token fails (single-use), confirmed a `psql`-back-dated-`expires_at` token also fails.
+      Confirmed both `forgotPasswordLimiter` (5/window) and `resetPasswordLimiter` (10/window) trip correctly.
+      **Account deletion, fully exercised**: created a throwaway account with a real session, check attempt,
+      revealed hint, help request, and reset-token row each; confirmed a wrong-password delete is rejected;
+      deleted with the correct password; confirmed every related row count (`sessions`/`progress`/
+      `check_attempts`/`help_requests`/`password_reset_tokens`) went from 1 to 0 in one query; confirmed the
+      session's actual Docker container (not just its DB row) was destroyed; confirmed login afterward fails;
+      confirmed `deleteAccountLimiter` (5/window) trips correctly. Cleaned up every throwaway account/session/
+      container created during verification — confirmed zero `throwaway-%` users and zero orphan
+      `app=devops-trainer` containers remain. **No headless browser available in this environment** — the
+      command palette's actual keyboard interaction (focus trap, `aria-activedescendant` wiring, arrow-key
+      wraparound) and all six visual-redesign pieces were verified by careful code reading only, stated here
+      honestly rather than implied as browser-verified. Left the dev-override stack running as the steady
+      state.
