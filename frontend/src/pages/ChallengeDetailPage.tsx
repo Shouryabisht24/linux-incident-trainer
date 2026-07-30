@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type SVGProps } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent, type PointerEvent, type SVGProps } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import {
@@ -18,6 +18,69 @@ import { Markdown } from "../components/Markdown";
 import { TerminalPane, type TerminalStatus } from "../components/TerminalPane";
 import { DifficultyBadge, ErrorBanner, PageLoading, Spinner } from "../components/ui";
 import { useToast } from "../context/ToastContext";
+import { useReducedMotion } from "../hooks/useReducedMotion";
+
+// ---------------------------------------------------------------------------
+// Magnetic-pull hover for this page's primary buttons — same plain
+// DOM-style-mutation pattern as DashboardPage.tsx's `handleSpotlightMove` (no
+// React state, no new dependency). Skipped for non-mouse/pen pointers: touch
+// has no real hover state for the CSS side to visually engage with, matching
+// this app's existing `pointer: fine` gate on the cursor-tracked spotlight
+// glow, just enforced in JS here since the effect lives inside an existing,
+// otherwise-ungated `.btn-primary:hover:not(:disabled)` rule rather than its
+// own separate pseudo-element layer.
+// ---------------------------------------------------------------------------
+
+function handleMagnetMove(e: PointerEvent<HTMLButtonElement>) {
+  if (e.pointerType !== "mouse" && e.pointerType !== "pen") return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = e.clientX - rect.left - rect.width / 2;
+  const y = e.clientY - rect.top - rect.height / 2;
+  const maxPull = 6;
+  e.currentTarget.style.setProperty("--magnet-x", `${Math.max(-maxPull, Math.min(maxPull, x * 0.25)).toFixed(1)}px`);
+  e.currentTarget.style.setProperty("--magnet-y", `${Math.max(-maxPull, Math.min(maxPull, y * 0.25)).toFixed(1)}px`);
+}
+
+function handleMagnetLeave(e: PointerEvent<HTMLButtonElement>) {
+  e.currentTarget.style.setProperty("--magnet-x", "0px");
+  e.currentTarget.style.setProperty("--magnet-y", "0px");
+}
+
+// ---------------------------------------------------------------------------
+// Click-spark — a small hand-built (no canvas, no animation library) burst of
+// dots radiating from the click point, applied only to "Start Challenge" and
+// "Check My Fix" (this app's actual core interaction loop, per the deliberate
+// "precision over quantity" restraint this project has applied to every prior
+// micro-interaction pass). Plain DOM nodes appended directly to the button
+// (`e.currentTarget`, given `position: relative` via `.btn-spark-host` so the
+// absolutely-positioned spans land relative to it) and removed via
+// `setTimeout` once their CSS animation finishes — not modeled as React state
+// since there's nothing to render from it beyond the transient animation
+// itself. Respects `prefers-reduced-motion` directly (via `useReducedMotion`)
+// rather than relying solely on the blanket CSS override, same
+// belt-and-suspenders approach `HeroTerminal`'s reveal loop already uses.
+// ---------------------------------------------------------------------------
+
+function spark(e: MouseEvent<HTMLButtonElement>, reducedMotion: boolean) {
+  if (reducedMotion) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const originX = e.clientX - rect.left;
+  const originY = e.clientY - rect.top;
+  const container = e.currentTarget;
+  const count = 7;
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2 + Math.random() * 0.4;
+    const distance = 18 + Math.random() * 10;
+    const el = document.createElement("span");
+    el.className = "click-spark";
+    el.style.setProperty("--spark-x", `${Math.cos(angle) * distance}px`);
+    el.style.setProperty("--spark-y", `${Math.sin(angle) * distance}px`);
+    el.style.left = `${originX}px`;
+    el.style.top = `${originY}px`;
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 550);
+  }
+}
 
 interface LocalSession {
   id: string;
@@ -128,6 +191,7 @@ function detectCelebration(
 export function ChallengeDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const toast = useToast();
+  const reducedMotion = useReducedMotion();
 
   const challengeQuery = useChallenge(slug);
   const activeSessionQuery = useActiveSession();
@@ -438,7 +502,16 @@ export function ChallengeDetailPage() {
       {checkingForSession ? (
         <PageLoading label={resuming ? "Resuming your session…" : "Checking for an active session…"} />
       ) : !session ? (
-        <button className="btn btn-primary" onClick={handleStart} disabled={startMutation.isPending}>
+        <button
+          className="btn btn-primary btn-spark-host"
+          onClick={(e) => {
+            spark(e, reducedMotion);
+            handleStart();
+          }}
+          onPointerMove={handleMagnetMove}
+          onPointerLeave={handleMagnetLeave}
+          disabled={startMutation.isPending}
+        >
           {startMutation.isPending ? (
             <>
               <Spinner /> Starting…
@@ -475,7 +548,16 @@ export function ChallengeDetailPage() {
           </div>
 
           <div className="row row-wrap">
-            <button className="btn btn-primary" onClick={handleCheck} disabled={checkMutation.isPending}>
+            <button
+              className="btn btn-primary btn-spark-host"
+              onClick={(e) => {
+                spark(e, reducedMotion);
+                handleCheck();
+              }}
+              onPointerMove={handleMagnetMove}
+              onPointerLeave={handleMagnetLeave}
+              disabled={checkMutation.isPending}
+            >
               {checkMutation.isPending ? (
                 <>
                   <Spinner /> Checking…

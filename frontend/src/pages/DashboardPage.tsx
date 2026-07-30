@@ -74,12 +74,32 @@ function HelpIcon(props: SVGProps<SVGSVGElement>) {
 // style mutation, not React state — same pattern as LandingPage.tsx's
 // `handleSpotlightMove` (duplicated here rather than extracted to a hook, per
 // this codebase's existing convention for this bare pure function).
+//
+// `.dashboard-continue-live`/`.dashboard-progress-card` also get a restrained
+// tilt-on-hover (see `styles.css`'s `--tilt-x`/`--tilt-y` consumers on their
+// `:hover` rules) — combined into this single handler rather than stacking a
+// second `onPointerMove` prop, since React only keeps the last one assigned
+// to a given element anyway. Tilt is skipped for non-mouse/pen pointers (the
+// touch-equivalent of this file's existing `pointer: fine` CSS gate on the
+// spotlight glow itself — touch has no real hover, so there's nothing for a
+// stale tilt value to visually engage with, but skipping it in JS avoids ever
+// setting one in the first place).
 // ---------------------------------------------------------------------------
 
 function handleSpotlightMove(e: PointerEvent<HTMLDivElement>) {
   const rect = e.currentTarget.getBoundingClientRect();
   e.currentTarget.style.setProperty("--spot-x", `${e.clientX - rect.left}px`);
   e.currentTarget.style.setProperty("--spot-y", `${e.clientY - rect.top}px`);
+  if (e.pointerType !== "mouse" && e.pointerType !== "pen") return;
+  const px = (e.clientX - rect.left) / rect.width - 0.5;
+  const py = (e.clientY - rect.top) / rect.height - 0.5;
+  e.currentTarget.style.setProperty("--tilt-x", `${(-py * 16).toFixed(2)}deg`);
+  e.currentTarget.style.setProperty("--tilt-y", `${(px * 16).toFixed(2)}deg`);
+}
+
+function handleTiltLeave(e: PointerEvent<HTMLDivElement>) {
+  e.currentTarget.style.setProperty("--tilt-x", "0deg");
+  e.currentTarget.style.setProperty("--tilt-y", "0deg");
 }
 
 // ---------------------------------------------------------------------------
@@ -122,6 +142,7 @@ function ContinueSessionCard() {
     <Reveal
       className="card dashboard-continue-card dashboard-continue-live"
       onPointerMove={handleSpotlightMove}
+      onPointerLeave={handleTiltLeave}
     >
       <Link to={`/challenges/${session.challenge_slug}`} className="dashboard-continue-card-link">
         <span className="kicker-line">$ session --active</span>
@@ -179,11 +200,15 @@ function ProgressSnapshotCard() {
     .slice(0, 3);
 
   return (
-    <Reveal className="card dashboard-progress-card" onPointerMove={handleSpotlightMove}>
+    <Reveal
+      className="card dashboard-progress-card"
+      onPointerMove={handleSpotlightMove}
+      onPointerLeave={handleTiltLeave}
+    >
       <div ref={ref}>
         <span className="kicker-line">$ progress --summary</span>
         <div className="dashboard-progress-count">
-          <span className="tabular">{count}</span>
+          <span className="tabular count-shine">{count}</span>
           <span className="muted"> / {data.total} solved</span>
         </div>
         <div className="progress-bar-track" style={{ marginBottom: "1.25rem" }}>

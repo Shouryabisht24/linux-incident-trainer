@@ -92,7 +92,7 @@ export function Celebration({ kind, categoryName, onDismiss }: CelebrationProps)
           {kind === "first-solve" ? <CheckBadgeIcon /> : <StarBadgeIcon />}
         </span>
         <div className="celebration-copy">
-          <div className="celebration-title">{title}</div>
+          <div className="celebration-title text-shine">{title}</div>
           <p className="celebration-body">{body}</p>
         </div>
         <button className="celebration-close" onClick={onDismiss} aria-label="Dismiss">

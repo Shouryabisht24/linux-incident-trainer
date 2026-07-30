@@ -125,7 +125,7 @@ export function ProgressDashboardPage() {
                 <ProgressRing pct={overallPct} size="lg" visible={summaryVisible} />
                 <div>
                   <div className="dashboard-progress-count">
-                    <span className="tabular">{solvedCount}</span>
+                    <span className="tabular count-shine">{solvedCount}</span>
                     <span className="muted"> / {data.total} solved</span>
                   </div>
                   <span className="faint">Across every category</span>

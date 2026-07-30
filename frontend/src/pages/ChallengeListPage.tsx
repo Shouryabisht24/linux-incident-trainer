@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type KeyboardEvent, type SVGProps } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent, type PointerEvent, type SVGProps } from "react";
 import { Link } from "react-router-dom";
 import type { ChallengeSummary } from "../api/client";
 import { useCategories, useChallenges } from "../api/queries";
@@ -197,6 +197,29 @@ function EmptyState({ hasActiveFilters, onClear }: { hasActiveFilters: boolean; 
 }
 
 // ---------------------------------------------------------------------------
+// Tilt-on-hover — same plain DOM-style-mutation pattern as DashboardPage.tsx/
+// ProgressDashboardPage.tsx's `handleSpotlightMove` (no React state, no new
+// dependency). Skipped for non-mouse/pen pointers: touch has no real hover
+// state for the CSS side (`.challenge-card:hover`) to visually engage with,
+// so there's nothing to gain from ever setting a tilt value from a touch
+// event, same reasoning as the spotlight glow's `pointer: fine` CSS gate.
+// ---------------------------------------------------------------------------
+
+function handleTiltMove(e: PointerEvent<HTMLAnchorElement>) {
+  if (e.pointerType !== "mouse" && e.pointerType !== "pen") return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const px = (e.clientX - rect.left) / rect.width - 0.5;
+  const py = (e.clientY - rect.top) / rect.height - 0.5;
+  e.currentTarget.style.setProperty("--tilt-x", `${(-py * 16).toFixed(2)}deg`);
+  e.currentTarget.style.setProperty("--tilt-y", `${(px * 16).toFixed(2)}deg`);
+}
+
+function handleTiltLeave(e: PointerEvent<HTMLAnchorElement>) {
+  e.currentTarget.style.setProperty("--tilt-x", "0deg");
+  e.currentTarget.style.setProperty("--tilt-y", "0deg");
+}
+
+// ---------------------------------------------------------------------------
 // Grid — a single shared scroll-reveal trigger for the whole grid (one
 // IntersectionObserver, not one per card), with each card's entrance staggered
 // by index via a capped transition-delay. Reuses the exact `.reveal`/
@@ -215,6 +238,8 @@ function ChallengeGrid({ challenges }: { challenges: ChallengeSummary[] }) {
           to={`/challenges/${c.slug}`}
           className={`challenge-card reveal${visible ? " is-visible" : ""}${c.solved ? " solved" : ""}`}
           style={{ transitionDelay: visible ? `${Math.min(i, 12) * 35}ms` : "0ms" }}
+          onPointerMove={handleTiltMove}
+          onPointerLeave={handleTiltLeave}
         >
           {c.solved && (
             <span className="challenge-card-solved-pill">

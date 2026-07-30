@@ -62,8 +62,11 @@ interface StatDef {
 
 function StatTile({ stat, start, staggerMs }: { stat: StatDef; start: boolean; staggerMs: number }) {
   // Each tile counts up over a slightly longer duration than the last, so they finish in a gentle
-  // cascade rather than all landing on their final value in the same instant.
-  const count = useCountUp(stat.value, start, 1200 + staggerMs);
+  // cascade rather than all landing on their final value in the same instant. Base duration bumped
+  // 1200ms -> 2200ms (decisions/0031) — at 1200ms, easeOutQuint's front-loaded curve meant most of
+  // the visible motion was over within a few hundred ms, reading more as a jump-cut than a climb
+  // you can actually watch.
+  const count = useCountUp(stat.value, start, 2200 + staggerMs);
   return (
     <div className="stat-tile">
       <div className="stat-tile-value">
@@ -158,7 +161,12 @@ const HERO_CHARS: TranscriptChar[] = HERO_TRANSCRIPT.flatMap((seg) =>
   Array.from(seg.text, (ch) => ({ ch, cls: seg.cls })),
 );
 
-const HERO_REVEAL_MS_PER_CHAR = 6;
+// 6ms/char (decisions/0018) meant ~166 chars/sec — at that rate ~18 characters are mid-fade at any
+// instant (110ms fade / 6ms cadence), which reads as a soft blurred wipe sweeping across the block
+// rather than a perceivable "typing" cadence. Slowed to 14ms/char (~2.8s -> ~6.6s total for this
+// transcript's 470 chars, decisions/0031) so the per-character reveal is obviously a progressive
+// type-out rather than technically one.
+const HERO_REVEAL_MS_PER_CHAR = 14;
 
 // The signature element: the hero terminal plays back its transcript character-by-character on
 // scroll-into-view rather than appearing instantly, ending on the real `active` success line, with

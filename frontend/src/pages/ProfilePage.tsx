@@ -1,10 +1,51 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type PointerEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useChangePassword, useDeleteAccount, useUpdateDisplayName } from "../api/queries";
 import { ErrorBanner, Spinner } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useNoSpaceField } from "../hooks/useNoSpaceField";
+
+// ---------------------------------------------------------------------------
+// Tilt-on-hover for `.profile-card`/`.profile-danger-card` and magnetic-pull
+// hover for this page's `.btn-primary`/`.btn-danger` buttons — same plain
+// DOM-style-mutation pattern as DashboardPage.tsx's `handleSpotlightMove` (no
+// React state, no new dependency). Both skip non-mouse/pen pointers: touch
+// has no real hover state for the CSS side to visually engage with, matching
+// this app's existing `pointer: fine` gate on the cursor-tracked spotlight
+// glow, just enforced in JS here since the effect lives inside an existing,
+// otherwise-ungated `:hover`/`:hover:not(:disabled)` rule rather than its own
+// separate pseudo-element layer.
+// ---------------------------------------------------------------------------
+
+function handleTiltMove(e: PointerEvent<HTMLDivElement>) {
+  if (e.pointerType !== "mouse" && e.pointerType !== "pen") return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const px = (e.clientX - rect.left) / rect.width - 0.5;
+  const py = (e.clientY - rect.top) / rect.height - 0.5;
+  e.currentTarget.style.setProperty("--tilt-x", `${(-py * 16).toFixed(2)}deg`);
+  e.currentTarget.style.setProperty("--tilt-y", `${(px * 16).toFixed(2)}deg`);
+}
+
+function handleTiltLeave(e: PointerEvent<HTMLDivElement>) {
+  e.currentTarget.style.setProperty("--tilt-x", "0deg");
+  e.currentTarget.style.setProperty("--tilt-y", "0deg");
+}
+
+function handleMagnetMove(e: PointerEvent<HTMLButtonElement>) {
+  if (e.pointerType !== "mouse" && e.pointerType !== "pen") return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const x = e.clientX - rect.left - rect.width / 2;
+  const y = e.clientY - rect.top - rect.height / 2;
+  const maxPull = 6;
+  e.currentTarget.style.setProperty("--magnet-x", `${Math.max(-maxPull, Math.min(maxPull, x * 0.25)).toFixed(1)}px`);
+  e.currentTarget.style.setProperty("--magnet-y", `${Math.max(-maxPull, Math.min(maxPull, y * 0.25)).toFixed(1)}px`);
+}
+
+function handleMagnetLeave(e: PointerEvent<HTMLButtonElement>) {
+  e.currentTarget.style.setProperty("--magnet-x", "0px");
+  e.currentTarget.style.setProperty("--magnet-y", "0px");
+}
 
 // ---------------------------------------------------------------------------
 // Display name
@@ -33,7 +74,7 @@ function DisplayNameCard() {
   }
 
   return (
-    <div className="card profile-card">
+    <div className="card profile-card" onPointerMove={handleTiltMove} onPointerLeave={handleTiltLeave}>
       <span className="dashboard-card-kicker">$ whoami --edit</span>
       <h2>Display name</h2>
       <p className="muted">Shown in the navbar and on your dashboard greeting. Optional — leave blank to use your email.</p>
@@ -50,7 +91,13 @@ function DisplayNameCard() {
           />
         </label>
         <div>
-          <button type="submit" className="btn btn-primary" disabled={!dirty || updateDisplayName.isPending}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={!dirty || updateDisplayName.isPending}
+            onPointerMove={handleMagnetMove}
+            onPointerLeave={handleMagnetLeave}
+          >
             {updateDisplayName.isPending ? (
               <>
                 <Spinner /> Saving…
@@ -123,7 +170,7 @@ function ChangePasswordCard() {
   }
 
   return (
-    <div className="card profile-card">
+    <div className="card profile-card" onPointerMove={handleTiltMove} onPointerLeave={handleTiltLeave}>
       <span className="dashboard-card-kicker">$ passwd</span>
       <h2>Change password</h2>
       <p className="muted">Requires your current password. Spaces aren't allowed, same as at signup.</p>
@@ -188,7 +235,13 @@ function ChangePasswordCard() {
         {error && <ErrorBanner message={error} />}
 
         <div>
-          <button type="submit" className="btn btn-primary" disabled={changePassword.isPending}>
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={changePassword.isPending}
+            onPointerMove={handleMagnetMove}
+            onPointerLeave={handleMagnetLeave}
+          >
             {changePassword.isPending ? (
               <>
                 <Spinner /> Changing…
@@ -239,7 +292,11 @@ function DeleteAccountCard() {
   }
 
   return (
-    <div className="card profile-card profile-danger-card">
+    <div
+      className="card profile-card profile-danger-card"
+      onPointerMove={handleTiltMove}
+      onPointerLeave={handleTiltLeave}
+    >
       <span className="dashboard-card-kicker">$ rm -rf ~/account</span>
       <h2>Danger zone</h2>
       <p className="muted">
@@ -274,7 +331,13 @@ function DeleteAccountCard() {
         {error && <ErrorBanner message={error} />}
 
         <div>
-          <button type="submit" className="btn btn-danger" disabled={!canDelete || deleteAccount.isPending}>
+          <button
+            type="submit"
+            className="btn btn-danger"
+            disabled={!canDelete || deleteAccount.isPending}
+            onPointerMove={handleMagnetMove}
+            onPointerLeave={handleMagnetLeave}
+          >
             {deleteAccount.isPending ? (
               <>
                 <Spinner /> Deleting…

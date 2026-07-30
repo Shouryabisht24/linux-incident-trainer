@@ -1095,3 +1095,71 @@ toast surfaces. See decisions/0029 for full reasoning.
       wraparound) and all six visual-redesign pieces were verified by careful code reading only, stated here
       honestly rather than implied as browser-verified. Left the dev-override stack running as the steady
       state.
+
+## 2026-07-28 — Hand-built micro-interactions on authenticated pages: tilt, magnetic buttons, shiny-text, click-spark (decisions/0030)
+React Bits-inspired ("UI Elements": tilt cards, magnetic buttons, shiny text, click sparks), translated entirely
+into hand-built CSS/JS — zero new npm dependencies. See decisions/0030 for full reasoning, especially the
+transform-collision-avoidance technique this pass depended on.
+- [x] **Tilt-on-hover** (`--tilt-x`/`--tilt-y`, set from a `pointermove` handler, consumed only inside each
+      element's *existing* `:hover`/`:focus-visible` transform — never a new resting-state rule, to avoid
+      colliding with `.reveal`'s own mount-time transform): `.challenge-card` (`ChallengeListPage.tsx`, also
+      covers `DashboardPage.tsx`'s `RecommendedSection` by class reuse), `.dashboard-continue-live` /
+      `.dashboard-progress-card` (`DashboardPage.tsx`, combined into the existing `handleSpotlightMove` rather
+      than a second `onPointerMove`), `.profile-card`/`.profile-danger-card` (`ProfilePage.tsx`, all three
+      cards). `.category-tile` deliberately left untouched (decisions/0021 — non-interactive by design).
+- [x] **Magnetic-pull hover** (`--magnet-x`/`--magnet-y`, capped ±6px, same in-place-extension technique):
+      `.btn-primary` on Save display name / Change password (`ProfilePage.tsx`) and Start Challenge / Check My
+      Fix (`ChallengeDetailPage.tsx`); `.btn-danger` on the delete-account button (`ProfilePage.tsx`).
+- [x] **Shiny-text sweep** (`.count-shine`/`.text-shine`, `@supports`-gated background-clip trick, same
+      fallback-safety pattern as `.gradient-heading`): the solved-count span in `DashboardPage.tsx`'s
+      `ProgressSnapshotCard` and `ProgressDashboardPage.tsx`'s summary card, plus `Celebration.tsx`'s milestone
+      title. Deliberately scoped to just these — not every `.tabular` number in the app.
+- [x] **Click-spark** (hand-built DOM+CSS burst, no canvas): only `ChallengeDetailPage.tsx`'s "Start Challenge"
+      and "Check My Fix" buttons, gated by `useReducedMotion()` directly in JS before any DOM node is created.
+- [x] Verified: `npx tsc --noEmit` and `npm run build` both clean, no CSS-minifier warnings. Grepped the built
+      `dist/assets/index-*.css` for `.count-shine`, `@keyframes count-shine`, `.click-spark`,
+      `@keyframes click-spark-burst`, `.btn-spark-host`, and every extended hover transform — all present.
+      Curled the live `:5173` dev server for every changed file and grepped the response bodies for the new
+      identifiers, confirming Vite serves the real edits. Specifically re-grepped every `transform:` line in
+      `styles.css` afterward and traced each to its enclosing selector — confirmed none is a new bare
+      resting-state rule; every one sits inside an existing `:hover`/`:hover:not(:disabled)` rule. Confirmed
+      `.category-tile` and the Dashboard/Challenges/Progress ambient `::before` washes were not touched.
+      `docker compose ps` — all three services healthy; no backend changes, no rebuild needed. **No headless
+      browser available in this environment** — the actual rendered feel (tilt angle, magnet responsiveness,
+      the shiny-text sweep's timing, the click-spark burst) was verified by careful reading of the exact
+      CSS/JS, not a visual check. Left the dev-override stack running as the steady state.
+
+## 2026-07-28 — About page animation-intensity pass: same techniques, made unmistakably more present (decisions/0031)
+User asked for "cool animations" on the About page again despite the existing hero reveal/mesh drift/border ring/
+spotlight cards/count-up all already being real work; explicitly chose "bolder version of existing techniques" over
+something new. Same restraint-then-escalate pattern this project has hit repeatedly (decisions/0024, 0026) — every
+change below is a numeric bump on a rule that already existed, zero new animation mechanisms. See decisions/0031 for
+full before/after numbers and reasoning.
+- [x] `.hero-bg` mesh drift: `28s` → `12s` cycle; keyframe movement `translate3d(-1.5%, 1%, 0) scale(1.02)` →
+      `translate3d(-4%, 2.5%, 0) scale(1.06)`; gradient-stop alphas `0.3/0.26/0.22/0.05` → `0.44/0.4/0.36/0.09`.
+- [x] `.hero-terminal-frame`'s `--border-angle` ring: `7s` → `3.5s` spin; transparent gap narrowed `50%-60%` →
+      `52%-56%`; stop opacities `0.75/0.6/0.5` → `0.92/0.78/0.68`.
+- [x] `AboutNavCards`' spotlight glow (`.marketing-nav-card::before`): `360px`/`0.13` → `520px`/`0.24`, added as a
+      scoped override rule (not an in-place edit) so the shared `.feature-card`/`.dashboard-*` selectors this rule
+      is also declared on stay at their original values — `/features` and the authenticated Dashboard are out of
+      scope for this pass.
+- [x] Hero character-by-character reveal (`HERO_REVEAL_MS_PER_CHAR`, `LandingPage.tsx`): `6ms` → `14ms` per char
+      (~2.8s → ~6.6s total for the 470-character transcript) — at 6ms/char ~18 characters were mid-fade at once,
+      reading as a blurred wipe rather than a perceivable typing cadence.
+- [x] Stat tile count-up (`StatTile`, `LandingPage.tsx`): base duration `1200ms` → `2200ms` (stagger offset
+      unchanged) — `easeOutQuint`'s front-loaded curve meant 1200ms mostly finished within a few hundred ms.
+- [x] Verified: `npx tsc --noEmit` and `npm run build` both clean, no CSS-minifier warnings. Curled the live
+      `:5173` dev server for `styles.css` and `LandingPage.tsx` and grepped for every new numeric value — confirms
+      Vite serves the real edits. Grepped the built `dist/assets/index-*.css`/`LandingPage-*.js` and confirmed every
+      value landed in the production bundle, including the minified count-up literal `2200+r` and the ring/mesh
+      timing values. Confirmed the shared spotlight-glow rule still shows `.feature-card`/`.dashboard-*` at their
+      original `360px`/`0.13`, immediately followed by the new `.marketing-nav-card`-only `520px`/`0.24` override —
+      the scoping held rather than silently overwriting the shared rule. Re-read the reduced-motion block at the
+      end of `styles.css` line by line and confirmed every touched effect is still frozen (`.hero-bg`'s explicit
+      `animation: none`, `.hero-char`'s forced opacity/no-transition, and the blanket
+      `animation-duration: .001ms !important` catch-all covering the now-faster ring spin) — no new gap introduced.
+      `docker compose ps` — all three services healthy; no backend changes, no rebuild needed. **No headless
+      browser available in this environment** — the actual rendered feel of the faster drift/ring, the wider/
+      brighter spotlight, and the retimed typing/count-up effects was verified by careful reading of the exact
+      CSS/JS values and the arithmetic behind them, not a visual check. Left the dev-override stack running as the
+      steady state.

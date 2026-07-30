@@ -230,8 +230,10 @@ pre code {
 }
 
 .navbar-brand {
-  font-weight: 700;
-  font-size: 1.05rem;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.4rem;
+  letter-spacing: -0.01em;
   color: var(--color-text);
   text-decoration: none;
 }
@@ -330,8 +332,14 @@ pre code {
   border-color: var(--color-accent-hover);
   /* Primary actions (Start Challenge, Check My Fix, auth submit, hero/final CTAs) get a
      lift + tinted glow on hover — secondary/ghost buttons intentionally don't, so this reads
-     as "the one thing to click" rather than every button shifting at once. */
-  transform: translateY(-2px);
+     as "the one thing to click" rather than every button shifting at once.
+     Magnetic-pull (`--magnet-x`/`--magnet-y`, set from a pointermove handler on the specific
+     buttons that opt in — Save display name, Change password, Start Challenge, Check My Fix)
+     is layered onto this same translate rather than declared as a second transform rule, same
+     collision-avoidance reasoning as the card tilt rules above. `calc(-2px + var(--magnet-y, 0px))`
+     keeps the existing -2px lift as the vertical baseline the magnet nudges around, rather than
+     replacing it. */
+  transform: translate(var(--magnet-x, 0px), calc(-2px + var(--magnet-y, 0px)));
   box-shadow: 0 8px 20px -4px rgba(var(--color-accent-rgb), 0.5);
 }
 
@@ -347,6 +355,42 @@ pre code {
 
 .btn-danger:hover:not(:disabled) {
   background: var(--color-danger-bg);
+  /* `.btn-danger` had no hover transform before this pass — added to match `.btn-primary`'s small
+     lift + magnet treatment, restricted to the one `.btn-danger` instance that actually gets a
+     magnet handler wired up (ProfilePage.tsx's delete-account button). */
+  transform: translate(var(--magnet-x, 0px), calc(-2px + var(--magnet-y, 0px)));
+}
+
+/* Click-spark host — `.click-spark` dots (see below) are appended as real DOM children of
+   whichever button carries this class (ChallengeDetailPage.tsx's "Start Challenge"/"Check My
+   Fix" only), so they need a positioned ancestor to be absolutely placed relative to. `.btn`'s
+   default `overflow` is already `visible` (browser initial value) so the explicit declaration here
+   is just documentation of intent, not a behavior change. */
+.btn-spark-host {
+  position: relative;
+  overflow: visible;
+}
+
+.click-spark {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--color-accent-contrast);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  animation: click-spark-burst 500ms ease-out forwards;
+}
+
+@keyframes click-spark-burst {
+  from {
+    transform: translate(-50%, -50%) translate(0, 0);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, -50%) translate(var(--spark-x), var(--spark-y));
+    opacity: 0;
+  }
 }
 
 .btn-ghost {
@@ -688,7 +732,17 @@ select.filter-select {
 .challenge-card:focus-visible {
   border-color: var(--color-accent);
   background: var(--color-bg-elevated);
-  transform: translateY(-5px);
+  /* Tilt-on-hover (`--tilt-x`/`--tilt-y`, set from a pointermove handler in
+     ChallengeListPage.tsx/DashboardPage.tsx) is layered onto this *existing*
+     hover transform rather than declared as a second, separate resting-state
+     transform rule — a bare new `transform:` on `.challenge-card` at rest
+     would silently collide with `.reveal.is-visible`'s own mount-time
+     transform (see decisions/0024's `.final-cta-section` padding bug for the
+     same class of mistake). Defaults to 0deg via the `var(..., 0deg)`
+     fallback, so cards that never get a tilt handler (this class is reused
+     verbatim by `DashboardPage.tsx`'s `RecommendedSection`) just keep today's
+     plain lift. */
+  transform: perspective(500px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateY(-5px);
   box-shadow:
     0 3px 8px rgba(var(--color-shadow-rgb), 0.08),
     0 26px 44px -18px rgba(var(--color-accent-rgb), 0.36);
@@ -1197,6 +1251,43 @@ select.filter-select {
   font-variant-numeric: tabular-nums;
 }
 
+/* Shiny-text sweep — scoped to exactly two solved-count numbers
+   (`DashboardPage.tsx`'s `ProgressSnapshotCard`, `ProgressDashboardPage.tsx`'s summary card) plus
+   `Celebration.tsx`'s milestone title (`.text-shine`, same mechanism under a name that reads better
+   on non-numeric copy). Deliberately not applied to every `.tabular` number in the app — there are
+   many, and sweeping all of them would be noise rather than a considered accent. Same
+   fallback-safety pattern as `.gradient-heading` below: the plain color applies unconditionally,
+   the `@supports` block only ever *adds* the clip-to-text treatment on top, so a browser without
+   `background-clip: text` support just keeps solid, legible text. */
+.count-shine,
+.text-shine {
+  color: var(--color-text);
+}
+
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .count-shine,
+  .text-shine {
+    background: linear-gradient(100deg, var(--color-text) 40%, var(--color-gradient-violet) 50%, var(--color-text) 60%);
+    background-size: 250% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: count-shine 5s ease-in-out infinite;
+  }
+}
+
+/* `0%, 85%` holds the sweep at its start position for most of the cycle, so this reads as an
+   occasional sweep rather than a constant shimmer. */
+@keyframes count-shine {
+  0%,
+  85% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 .skip-link {
   position: absolute;
   left: var(--space-3);
@@ -1486,23 +1577,26 @@ select.filter-select {
    page gets the full terminal-theme triad (teal/violet/rose — see the --color-gradient-* tokens in
    :root) at genuinely bold presence, not the single-hue-at-low-opacity treatment a prior restrained
    pass shipped (decisions/0024) — which the user twice reported as reading like no change at all.
-   The dot-grid stays ink-toned/low-alpha (a texture accent, not one of the color washes). Animates
-   as a slow, near-imperceptible drift; fully frozen under prefers-reduced-motion (see the
-   reduced-motion block at the end of this file). */
+   The dot-grid stays ink-toned/low-alpha (a texture accent, not one of the color washes).
+   decisions/0024's fix bumped the alphas but left the drift itself at a 28s cycle over a ±1.5%/1%
+   translate + 1.02 scale — still read as "alive only if you stare at it" (this pass,
+   decisions/0031). Duration cut to 12s and the movement/scale range roughly tripled so the ambient
+   drift is perceptible at a glance instead of requiring several seconds of attention; fully frozen
+   under prefers-reduced-motion (see the reduced-motion block at the end of this file). */
 .hero-bg {
   position: absolute;
   inset: -10% -10% 0;
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(640px circle at 82% -8%, rgba(var(--color-accent-rgb), 0.3), transparent 60%),
-    radial-gradient(560px circle at 6% 14%, rgba(var(--color-gradient-violet-rgb), 0.26), transparent 58%),
-    radial-gradient(500px circle at 48% 96%, rgba(var(--color-gradient-rose-rgb), 0.22), transparent 62%),
-    radial-gradient(rgba(var(--color-shadow-rgb), 0.05) 1px, transparent 1.6px);
+    radial-gradient(640px circle at 82% -8%, rgba(var(--color-accent-rgb), 0.44), transparent 60%),
+    radial-gradient(560px circle at 6% 14%, rgba(var(--color-gradient-violet-rgb), 0.4), transparent 58%),
+    radial-gradient(500px circle at 48% 96%, rgba(var(--color-gradient-rose-rgb), 0.36), transparent 62%),
+    radial-gradient(rgba(var(--color-shadow-rgb), 0.09) 1px, transparent 1.6px);
   background-repeat: no-repeat, no-repeat, no-repeat, repeat;
   background-size: auto, auto, auto, 28px 28px;
   background-position: 0 0, 0 0, 0 0, 0 0;
-  animation: hero-mesh-drift 28s ease-in-out infinite;
+  animation: hero-mesh-drift 12s ease-in-out infinite;
   will-change: transform;
 }
 
@@ -1512,7 +1606,7 @@ select.filter-select {
     transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
-    transform: translate3d(-1.5%, 1%, 0) scale(1.02);
+    transform: translate3d(-4%, 2.5%, 0) scale(1.06);
   }
 }
 
@@ -1642,21 +1736,26 @@ select.filter-select {
 /* Ring upgraded from a two-hue accent/success mix to the full terminal-theme triad — teal into
    violet into rose and back — now that new hues are authorized for gradient/glow purposes. Still
    the same single hand-implemented "moving border" mechanism (no new animation technique), just a
-   richer color sweep through it. */
+   richer color sweep through it.
+   decisions/0024 shipped this at a 7s spin with a wide 10%-of-the-circle fully-transparent gap
+   (50%-60%) and stops capped at 0.75/0.6/0.5 opacity — still read as a barely-perceptible ring
+   rather than the "signature element" it's meant to be (this pass, decisions/0031). Spin halved to
+   3.5s, the transparent gap narrowed to 4% of the circle (52%-56%) so more of the ring reads as
+   visibly lit at any instant, and every stop's opacity pushed up. */
 .hero-terminal-frame {
   position: relative;
   border-radius: calc(var(--radius-lg) + 3px);
   padding: 2px;
   background: conic-gradient(
     from var(--border-angle),
-    rgba(var(--color-accent-rgb), 0.75),
-    rgba(var(--color-gradient-violet-rgb), 0.6) 22%,
-    rgba(var(--color-gradient-rose-rgb), 0.5) 38%,
-    transparent 50%,
-    transparent 60%,
-    rgba(var(--color-accent-rgb), 0.75) 100%
+    rgba(var(--color-accent-rgb), 0.92),
+    rgba(var(--color-gradient-violet-rgb), 0.78) 22%,
+    rgba(var(--color-gradient-rose-rgb), 0.68) 38%,
+    transparent 52%,
+    transparent 56%,
+    rgba(var(--color-accent-rgb), 0.92) 100%
   );
-  animation: hero-frame-spin 7s linear infinite;
+  animation: hero-frame-spin 3.5s linear infinite;
 }
 
 @keyframes hero-frame-spin {
@@ -1748,7 +1847,8 @@ select.filter-select {
    (`opacity: 0`, no layout shift since the full block occupies its final height immediately), and
    HeroTerminal flips `.is-revealed` on them directly via refs as it plays, bypassing React state
    entirely for the per-frame work (see the component for why). A quick opacity fade rather than a
-   hard cut so it doesn't strobe at the ~6ms/char pace it runs at. */
+   hard cut so it doesn't strobe at the ~14ms/char pace it runs at (bumped from ~6ms/char —
+   decisions/0031 — see HERO_REVEAL_MS_PER_CHAR in LandingPage.tsx). */
 .hero-char {
   opacity: 0;
   transition: opacity 110ms linear;
@@ -1936,10 +2036,11 @@ select.filter-select {
    set from a `pointermove` handler rather than a dependency. `--spot-x`/`--spot-y` default to the
    card's center so there's a sane fallback before the first pointermove fires. Restricted to
    `pointer: fine` (a real mouse) — on touch, hover has no meaning and the effect would either never
-   fire or stick at a stale position, so it's simply absent there rather than faked. This is the
-   pass's one deliberately "crafted" micro-interaction, kept to a single low-opacity radial tint
-   rather than a heavier glow/border/scale combination — precision over quantity, per the direction
-   that past animation passes on this project ran either too gimmicky or too subtle. */
+   fire or stick at a stale position, so it's simply absent there rather than faked.
+   decisions/0024 shipped this at a 360px radius / 0.13 alpha — "precision over quantity" at the
+   time, but landed as too faint to register (this pass, decisions/0031): radius widened to 520px
+   and alpha nearly doubled to 0.24 so the glow is unmistakable under the cursor instead of a
+   barely-there tint. */
 .feature-card,
 .dashboard-continue-live,
 .dashboard-progress-card,
@@ -1987,6 +2088,18 @@ select.filter-select {
   .dashboard-progress-card:hover::before,
   .marketing-nav-card:hover::before {
     opacity: 1;
+  }
+}
+
+/* AboutNavCards' spotlight glow, bumped beyond the shared 360px-radius/0.13-alpha baseline above —
+   decisions/0024 shipped that as deliberate restraint ("precision over quantity"), which is exactly
+   the "tuned conservative, didn't land" pattern this pass (decisions/0031) exists to fix. Scoped to
+   `.marketing-nav-card::before` specifically (source order wins the tie over the shared rule above,
+   same specificity) so `.feature-card`/the two `.dashboard-*` cards — out of scope for this
+   About-page-only pass — are left at their original values. */
+@media (pointer: fine) {
+  .marketing-nav-card::before {
+    background: radial-gradient(520px circle at var(--spot-x) var(--spot-y), rgba(var(--color-accent-rgb), 0.24), transparent 70%);
   }
 }
 
@@ -2826,7 +2939,10 @@ html {
 
 .dashboard-continue-live:hover {
   border-color: var(--color-accent);
-  transform: translateY(-3px);
+  /* Tilt extends this existing hover transform in place — see the identical
+     comment on `.challenge-card:hover` above for why it's never a separate
+     resting-state rule. */
+  transform: perspective(500px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateY(-3px);
   box-shadow:
     0 6px 14px rgba(var(--color-shadow-rgb), 0.08),
     0 26px 44px -20px rgba(var(--color-accent-rgb), 0.3);
@@ -2868,6 +2984,20 @@ html {
 .dashboard-progress-card {
   position: relative;
   overflow: hidden;
+  transition: border-color 180ms ease, transform 180ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Same hover-lift recipe as its sibling `.dashboard-continue-live` above (this
+   card had no hover state of its own before this pass — only the spotlight
+   glow), for visual consistency between the two dashboard-side cards. Tilt is
+   layered onto the transform in place, same collision-avoidance reasoning as
+   `.challenge-card:hover`. */
+.dashboard-progress-card:hover {
+  border-color: var(--color-accent);
+  transform: perspective(500px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateY(-3px);
+  box-shadow:
+    0 6px 14px rgba(var(--color-shadow-rgb), 0.08),
+    0 26px 44px -20px rgba(var(--color-accent-rgb), 0.3);
 }
 
 .dashboard-progress-count {
@@ -3173,6 +3303,22 @@ html {
   box-shadow:
     0 1px 2px rgba(var(--color-shadow-rgb), 0.04),
     0 20px 40px -28px rgba(var(--color-shadow-rgb), 0.18);
+  transition: border-color 180ms cubic-bezier(0.16, 1, 0.3, 1), transform 180ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Restrained new hover-lift — `.profile-card` had no hover state at all before this pass. Modeled
+   on `.feature-card:hover`'s two-layer-shadow-plus-lift recipe (see above), scaled down to match
+   this page's quieter register rather than the marketing pages' bigger lift. Tilt (`--tilt-x`/
+   `--tilt-y`, set from ProfilePage.tsx's pointermove handler) is layered onto this transform in
+   place, never as a separate resting-state rule — same collision-avoidance reasoning as
+   `.challenge-card:hover` above. */
+.profile-card:hover {
+  border-color: rgba(var(--color-accent-rgb), 0.4);
+  transform: perspective(500px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateY(-4px);
+  box-shadow:
+    0 4px 10px rgba(var(--color-shadow-rgb), 0.07),
+    0 26px 48px -26px rgba(var(--color-accent-rgb), 0.24);
 }
 
 /* Danger-zone card (account deletion) — same card shape/radius/padding/shadow family as
@@ -3180,6 +3326,15 @@ html {
    `.btn-danger`'s existing border tint rather than inventing a new one. */
 .profile-danger-card {
   border-color: rgba(var(--color-danger-rgb), 0.35);
+}
+
+/* On hover, this card intensifies its own danger-red border rather than switching to
+   `.profile-card:hover`'s accent-teal one above — same specificity (one class + `:hover`), so
+   source order alone decides the winner; placed after `.profile-card:hover` so this one wins for
+   just this property. The lift/tilt/shadow-bloom itself still comes from `.profile-card:hover`
+   above (untouched here), since `.profile-danger-card` also carries the `.profile-card` class. */
+.profile-danger-card:hover {
+  border-color: rgba(var(--color-danger-rgb), 0.55);
 }
 
 /* =========================================================================
@@ -3752,12 +3907,29 @@ html {
   .feature-card:hover,
   .marketing-nav-card:hover,
   .challenge-card:hover,
-  .btn-primary:hover:not(:disabled) {
+  .dashboard-continue-live:hover,
+  .dashboard-progress-card:hover,
+  .profile-card:hover,
+  .btn-primary:hover:not(:disabled),
+  .btn-danger:hover:not(:disabled) {
     transform: none;
   }
 
   .btn:hover:not(:disabled) .btn-arrow {
     transform: none;
+  }
+
+  /* Tilt/shiny-text/click-spark micro-interactions (this pass) — belt-and-suspenders alongside
+     the blanket `animation-duration: 0.001ms !important` below and each effect's own JS-side
+     guard (`spark()` checks `useReducedMotion()` directly before creating any DOM nodes). */
+  .count-shine,
+  .text-shine {
+    animation: none;
+  }
+
+  .click-spark {
+    animation: none;
+    opacity: 0;
   }
 
   * {

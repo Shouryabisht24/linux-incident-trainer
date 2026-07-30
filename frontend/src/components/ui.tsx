@@ -40,12 +40,14 @@ export function Reveal({
   className = "",
   as = "div",
   onPointerMove,
+  onPointerLeave,
 }: {
   children: ReactNode;
   delayMs?: number;
   className?: string;
   as?: "div" | "li" | "details";
   onPointerMove?: (e: PointerEvent<HTMLDivElement>) => void;
+  onPointerLeave?: (e: PointerEvent<HTMLDivElement>) => void;
 }) {
   const [ref, visible] = useScrollReveal<HTMLElement>();
   const Tag = as as "div";
@@ -55,6 +57,7 @@ export function Reveal({
       className={`reveal${visible ? " is-visible" : ""}${className ? ` ${className}` : ""}`}
       style={{ transitionDelay: visible ? `${delayMs}ms` : "0ms" }}
       onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
     >
       {children}
     </Tag>
