@@ -18,16 +18,52 @@ interface UserRow extends User {
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 const AUTH_TOKEN_EXPIRY = "7d";
+const BCRYPT_ROUNDS = 10;
+
+/** Thin, testable wrapper around bcrypt's hash — the one place a new password hash is minted. */
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, BCRYPT_ROUNDS);
+}
+
+/** Thin, testable wrapper around bcrypt's compare — the one place a password is checked against a hash. */
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
+}
 
 export function signAuthToken(userId: string): string {
   return jwt.sign({ sub: userId, type: "auth" }, JWT_SECRET, { expiresIn: AUTH_TOKEN_EXPIRY });
 }
 
-export function verifyAuthToken(token: string): { userId: string } {
+/**
+ * Verifies an auth JWT's signature/expiry/shape, then enforces server-side invalidation: a token
+ * whose `iat` (issued-at, seconds since epoch, set automatically by jsonwebtoken) predates the
+ * user's `password_changed_at` is rejected even though the JWT itself is still cryptographically
+ * valid and unexpired. This is what makes "change your password because you suspect your session
+ * was compromised" actually do something — without it, a stolen-but-not-yet-expired token would
+ * keep working for up to 7 days after the legitimate user "secured" their account. `NULL`
+ * `password_changed_at` (never changed since signup) means every token for that user is accepted
+ * on its signature/expiry alone, same as before this check existed.
+ */
+export async function verifyAuthToken(token: string): Promise<{ userId: string }> {
   const payload = jwt.verify(token, JWT_SECRET) as jwt.JwtPayload;
-  if (payload.type !== "auth" || typeof payload.sub !== "string") {
+  if (payload.type !== "auth" || typeof payload.sub !== "string" || typeof payload.iat !== "number") {
     throw new Error("invalid token type");
   }
+
+  const result = await pool.query<{ password_changed_at: string | null }>(
+    "SELECT password_changed_at FROM users WHERE id = $1",
+    [payload.sub],
+  );
+  const row = result.rows[0];
+  if (!row) throw new Error("user not found");
+
+  if (row.password_changed_at) {
+    const changedAtSeconds = Math.floor(new Date(row.password_changed_at).getTime() / 1000);
+    if (payload.iat < changedAtSeconds) {
+      throw new Error("token issued before most recent password change");
+    }
+  }
+
   return { userId: payload.sub };
 }
 
@@ -41,7 +77,7 @@ export async function signup(
     throw new Error("email already registered");
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await hashPassword(password);
   const result = await pool.query<UserRow>(
     `INSERT INTO users (email, password_hash, display_name)
      VALUES ($1, $2, $3)
@@ -60,7 +96,7 @@ export async function login(email: string, password: string): Promise<{ user: Us
   const row = result.rows[0];
   if (!row) throw new Error("invalid email or password");
 
-  const valid = await bcrypt.compare(password, row.password_hash);
+  const valid = await verifyPassword(password, row.password_hash);
   if (!valid) throw new Error("invalid email or password");
 
   return { user: toUser(row), token: signAuthToken(row.id) };
@@ -76,21 +112,26 @@ export async function getUserById(userId: string): Promise<User | null> {
 }
 
 /**
- * Changes a user's password. Requires the current password and verifies it via `bcrypt.compare`
+ * Changes a user's password. Requires the current password and verifies it via `verifyPassword`
  * against the stored hash first — there is no path to change a password without proving the
  * current one. Throws a generic "current password is incorrect" error on mismatch (never reveals
- * whether the account itself exists or anything about the stored hash).
+ * whether the account itself exists or anything about the stored hash). Also stamps
+ * `password_changed_at = now()` in the same statement, which `verifyAuthToken` uses to reject any
+ * already-issued JWT older than this change — see that function's docstring.
  */
 export async function changePassword(userId: string, currentPassword: string, newPassword: string): Promise<void> {
   const result = await pool.query<UserRow>("SELECT password_hash FROM users WHERE id = $1", [userId]);
   const row = result.rows[0];
   if (!row) throw new Error("user not found");
 
-  const valid = await bcrypt.compare(currentPassword, row.password_hash);
+  const valid = await verifyPassword(currentPassword, row.password_hash);
   if (!valid) throw new Error("current password is incorrect");
 
-  const newHash = await bcrypt.hash(newPassword, 10);
-  await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [newHash, userId]);
+  const newHash = await hashPassword(newPassword);
+  await pool.query("UPDATE users SET password_hash = $1, password_changed_at = now() WHERE id = $2", [
+    newHash,
+    userId,
+  ]);
 }
 
 /**
@@ -120,7 +161,7 @@ function toUser(row: UserRow): User {
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const FRONTEND_URL = (process.env.FRONTEND_URL || "http://localhost:5173").replace(/\/$/, "");
 
-function hashResetToken(token: string): string {
+export function hashResetToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
@@ -165,7 +206,9 @@ export async function requestPasswordReset(email: string): Promise<void> {
  * and marks the token used (`used_at = now()`), so it can never be replayed. Throws a single
  * generic "invalid or expired reset link" error for every failure mode (no matching row, already
  * used, expired) — a legitimate user just needs to know to request a new link, and an attacker
- * gains nothing by which failure they hit.
+ * gains nothing by which failure they hit. Also stamps `password_changed_at = now()` (same
+ * reasoning as `changePassword`) so a reset — exactly the flow used when an account is suspected
+ * compromised — actually invalidates any already-issued JWT rather than leaving it valid.
  */
 export async function resetPasswordWithToken(token: string, newPassword: string): Promise<void> {
   const tokenHash = hashResetToken(token);
@@ -181,8 +224,11 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
     const row = result.rows[0];
     if (!row) throw new Error("invalid or expired reset link");
 
-    const newHash = await bcrypt.hash(newPassword, 10);
-    await client.query("UPDATE users SET password_hash = $1 WHERE id = $2", [newHash, row.user_id]);
+    const newHash = await hashPassword(newPassword);
+    await client.query("UPDATE users SET password_hash = $1, password_changed_at = now() WHERE id = $2", [
+      newHash,
+      row.user_id,
+    ]);
     await client.query("UPDATE password_reset_tokens SET used_at = now() WHERE id = $1", [row.id]);
     await client.query("COMMIT");
   } catch (err) {
@@ -206,18 +252,27 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
  * `check_attempts` via `sessions`, `help_requests`, `password_reset_tokens`) cascades via each
  * table's `ON DELETE CASCADE user_id`/`session_id` FK — see 0001_init.sql, 0003_help_requests.sql,
  * and this feature's own 0004_password_reset_tokens.sql.
+ *
+ * The container-teardown call below is deliberately NOT wrapped in `.catch(() => {})`: if it
+ * throws, this function throws too and the user row is never deleted. Swallowing that error would
+ * let `DELETE FROM users` proceed anyway; the `sessions` row's `ON DELETE CASCADE user_id` would
+ * then vanish along with the only DB record pointing at that container, silently turning a
+ * transient Docker failure into a container that's orphaned (running, but matching no session row
+ * at all) until the next backend-boot `reconcileOrphans` pass finds it by label instead of by
+ * session. Aborting the whole deletion on teardown failure means the account, session, and
+ * container all stay consistent with each other, and the caller gets a real error to retry.
  */
 export async function deleteOwnAccount(userId: string, currentPassword: string): Promise<void> {
   const result = await pool.query<UserRow>("SELECT password_hash FROM users WHERE id = $1", [userId]);
   const row = result.rows[0];
   if (!row) throw new Error("user not found");
 
-  const valid = await bcrypt.compare(currentPassword, row.password_hash);
+  const valid = await verifyPassword(currentPassword, row.password_hash);
   if (!valid) throw new Error("current password is incorrect");
 
   const activeSession = await getActiveSessionForUser(userId);
   if (activeSession) {
-    await stopSession(activeSession.id, userId, "abandoned").catch(() => {});
+    await stopSession(activeSession.id, userId, "abandoned");
   }
 
   await pool.query("DELETE FROM users WHERE id = $1", [userId]);

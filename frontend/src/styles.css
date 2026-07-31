@@ -881,12 +881,6 @@ select.filter-select {
   min-height: 240px;
 }
 
-.terminal-wrap-inner {
-  height: 100%;
-  width: 100%;
-  padding: var(--space-2);
-}
-
 /* Mobile/touch key row (coarse-pointer only, TerminalPane.tsx) — sits inside the same always-dark
    .terminal-wrap chrome as the terminal itself, so it reads as part of the terminal rather than a
    separate app control. Pinned to --term-mock-* tokens for the same reason the terminal itself is:
@@ -1054,18 +1048,6 @@ select.filter-select {
 
 /* ---- progress dashboard ---- */
 
-.progress-summary {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
-  margin-bottom: var(--space-5);
-}
-
-.progress-summary .big {
-  font-size: 2.5rem;
-  font-weight: 700;
-}
-
 .progress-bar-track {
   height: 8px;
   border-radius: 999px;
@@ -1078,19 +1060,6 @@ select.filter-select {
   background: var(--color-success);
   border-radius: 999px;
   transition: width 300ms ease;
-}
-
-.category-row {
-  display: grid;
-  grid-template-columns: 200px 1fr 80px;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-3) 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.category-row:last-child {
-  border-bottom: none;
 }
 
 /* ---- hints ---- */
@@ -1230,13 +1199,6 @@ select.filter-select {
 @keyframes spin {
   to {
     transform: rotate(360deg);
-  }
-}
-
-@media (max-width: 640px) {
-  .category-row {
-    grid-template-columns: 1fr;
-    gap: var(--space-1);
   }
 }
 
@@ -3661,14 +3623,16 @@ html {
 
 .dashboard-page,
 .challenges-page,
-.progress-page {
+.progress-page,
+.help-page {
   position: relative;
   isolation: isolate;
 }
 
 .dashboard-page::before,
 .challenges-page::before,
-.progress-page::before {
+.progress-page::before,
+.help-page::before {
   content: "";
   position: absolute;
   inset: -6% -6% 0;
@@ -3703,6 +3667,17 @@ html {
     radial-gradient(660px circle at 96% -6%, rgba(var(--color-success-rgb), 0.2), transparent 60%),
     radial-gradient(580px circle at 2% 66%, rgba(var(--color-gradient-violet-rgb), 0.16), transparent 60%),
     radial-gradient(500px circle at 55% 104%, rgba(var(--color-warning-rgb), 0.1), transparent 62%);
+}
+
+/* Help — rose leads top-right (the one page on this list not already using
+   rose as its lead hue), accent grounds it low-left, a faint warning glow
+   bottom-center. Brings /help in line with every other authenticated page
+   now having its own ambient wash; previously the only one left flat. */
+.help-page::before {
+  background:
+    radial-gradient(600px circle at 96% -8%, rgba(var(--color-gradient-rose-rgb), 0.18), transparent 60%),
+    radial-gradient(560px circle at 0% 55%, rgba(var(--color-accent-rgb), 0.14), transparent 60%),
+    radial-gradient(480px circle at 50% 108%, rgba(var(--color-warning-rgb), 0.1), transparent 62%);
 }
 
 /* =========================================================================

@@ -1163,3 +1163,173 @@ full before/after numbers and reasoning.
       brighter spotlight, and the retimed typing/count-up effects was verified by careful reading of the exact
       CSS/JS values and the arithmetic behind them, not a visual check. Left the dev-override stack running as the
       steady state.
+
+## 2026-07-30 — `styles.css` dead-code cleanup pass (decisions/0032)
+`styles.css` had grown to 3940 lines across ~15 additive design passes; several of those explicitly left old rules
+in place when a component was redesigned ("deleting isn't required, nothing else references it" — see the
+`.category-row` note earlier in this file, and `.code-block`, already removed in decisions/0025). Went through
+every selector in the file and cross-referenced it against the real `frontend/src/` tree by grepping the bare class
+name as a substring — not just exact `className="foo"` matches — since this codebase builds many class names via
+template literals (`` `dot dot-${terminalStatus}` ``, `` `toast toast-${t.kind}` ``, `` `progress-ring progress-ring--${size}` ``,
+`` `chip${checked ? " chip-active" : ""}` ``). A naive exact-string grep would have wrongly flagged several of
+those (`.dot-connected`/`.dot-connecting`/`.dot-disconnected`, `.toast-error`/`.toast-info`/`.toast-success`,
+`.progress-ring--sm`/`.progress-ring--lg`) as dead; each was individually traced to the component prop/state type
+that actually supplies the suffix (`TerminalStatus`, `ToastKind`, `size: "sm" | "lg"`) and confirmed live.
+- [x] Removed `.category-row` + `.category-row:last-child` + its `@media (max-width: 640px)` override (the
+      rule confirmed already-unused per this file's own history) — superseded by `.category-tile` from the
+      Progress dashboard's decisions/0021 restructure; zero references anywhere in `frontend/src/`.
+- [x] Removed `.progress-summary` + `.progress-summary .big` (~11 lines) — found via the systematic sweep, not on
+      the known-candidate list. This was the pre-restructure flat "one h1 + stacked rows" Progress dashboard
+      layout's own top-level rule, superseded by `.progress-summary-card`/`.progress-summary-stats`/`-primary`/
+      `-secondary` (the hero-card layout from decisions/0021's "restructured from the original flat... layout").
+      `.big` doesn't appear anywhere in any `.tsx`/`.ts` file, not even inside an unrelated word — confirmed with a
+      plain, unbounded substring grep across the whole tree, not just an exact-className check.
+- [x] Removed `.terminal-wrap-inner` (5 lines) — `TerminalPane.tsx` renders its xterm container with a plain
+      inline `style={{ height: "100%", width: "100%", ... }}` object, never this class; `.terminal-wrap` itself
+      (the outer chrome) is still very much alive and untouched.
+- [x] Confirmed `.code-block` (the other seed candidate from the task brief) is not actually present in
+      `styles.css` at all anymore — decisions/0025 already deleted it along with its YAML-specific siblings
+      (`.compose-key`/`-value`/`-line`/`-indent-*`/`-panel-badge`) when `InstallPanel` replaced `ComposePanel`.
+      Nothing left to remove there.
+- [x] Checked every `@keyframes` block (14 total) against the file's own `animation:`/`animation-name:`
+      properties — all 14 are referenced at least once, no orphans.
+- [x] Checked every `:root` custom property against `var(--x)` usage in `styles.css` and inline styles/JS in
+      `.tsx` files — all in use, including `--term-mock-warning` (zero `var()` refs inside `styles.css` itself,
+      but consumed via inline `style={{ background: "var(--term-mock-warning)" }}` in `LandingPage.tsx`/
+      `NotFoundPage.tsx` and via a `token("--term-mock-warning")` JS helper in `TerminalPane.tsx`). Per the task's
+      explicit instruction, left every `--color-*`/`--font-*`/`--space-*`/`--radius-*` design token untouched
+      regardless of how lightly any individual one is used — that token system is out of scope for a
+      dead-code-only pass.
+- [x] Kept (considered, did not remove): nothing else met the bar. Every other selector that looked like a
+      candidate at a glance (`.hero` bare, `.dashboard-continue-card` bare, `.chip` bare, `.dot` bare,
+      `.toast` bare, `.select-field` bare, `.dashboard-card-kicker` alongside `.kicker-line`) turned out to have a
+      real, direct caller once traced individually — logged here so a future pass doesn't re-litigate them from
+      scratch.
+- [x] Verified: `npx tsc --noEmit` clean. `npm run build` clean, no CSS-minifier warnings. Built CSS bundle:
+      `index-*.css` 60,710 → 60,186 bytes (−524 bytes); `ChallengeDetailPage-*.css` unchanged at 4,150 bytes (none
+      of the three removed rules lived in that split chunk). Curled the live `:5173` dev server's
+      `/src/styles.css` module and grepped it for `category-row`, `terminal-wrap-inner`, and a bare
+      `.progress-summary {` — zero matches in all three, confirming Vite serves the real edit, not just a local
+      file change — while `progress-summary-card`, `category-tile`, and `terminal-touch-row` (all still-live
+      selectors) remained present. Re-ran the substring grep for every removed selector across `frontend/src/`
+      one more time after all edits landed — still zero matches outside the git history, and re-confirmed no
+      keyframe or `:root` token was orphaned as a side effect of these three removals (none of the three used a
+      keyframe; all their custom-property references were core `--space-*`/`--color-*` tokens still used
+      everywhere else). `docker compose ps` — all three services healthy; no backend changes, no rebuild needed.
+      Left the dev-override stack running as the steady state.
+
+## 2026-07-30 — Frontend test infrastructure: Vitest + Testing Library (decisions/0033)
+First automated tests in this project's history — everything up to this point was verified manually (reading
+code, curling endpoints, "no headless browser available in this environment"). Added `vitest`,
+`@testing-library/react`, `@testing-library/jest-dom`, `jsdom` as **dev-only** dependencies (the project's
+zero-new-dependencies rule has always meant runtime deps for hand-built UI, never test tooling — confirmed via
+`npm run build` + grepping `dist/assets/` for `test`, zero matches). Config lives in a standalone
+`frontend/vitest.config.ts` (simpler than merging into the production `vite.config.ts`, whose `build`/`server`
+blocks are irrelevant to a jsdom run) plus `frontend/src/test/setup.ts` (stubs `window.matchMedia`, which jsdom
+doesn't implement at all and every `useReducedMotion`-dependent hook needs; wires `@testing-library/react`'s
+`afterEach(cleanup)` explicitly since `globals` is off). Added `"test": "vitest run"` to `package.json`.
+- [x] `useNoSpaceField` (`src/hooks/useNoSpaceField.test.tsx`) — all three whitespace-blocking paths exercised
+      via real DOM events (`fireEvent.keyDown`/`.paste`/`.change` against a rendered controlled `<input>`): typed
+      space blocked (keydown `preventDefault`), pasted text with embedded whitespace stripped in-place (caret
+      position preserved), programmatic `change` backstop. Plus `stripWhitespace` directly.
+- [x] `useCountUp` (`src/hooks/useCountUp.test.ts`) — `requestAnimationFrame`/`performance.now()` fully mocked
+      for deterministic assertions: eases (confirmed non-linear via the exact `easeOutQuint` formula) from 0 to
+      target once `start` flips true; confirmed the *actual* mount-time contract — `start` already `true` at
+      mount does **not** jump straight to target (the initial `useState` seed only checks `reducedMotion`, not
+      `start`) — and that reduced motion returns target immediately with zero frames scheduled.
+- [x] `useScrollReveal` (`src/hooks/useScrollReveal.test.tsx`) — `IntersectionObserver` mocked per-file (not
+      globally, so only this hook's test exercises it) with a class capturing the constructor callback +
+      instance/disconnect counts. `visible` starts `false`, flips `true` and disconnects (once) on a
+      manually-invoked intersecting callback, stays `false` on non-intersecting, resolves `true` immediately for
+      reduced motion without ever instantiating an observer.
+- [x] `CommandPalette`'s inline substring filter extracted to an exported pure function,
+      `filterActions(actions, query)` (`src/components/CommandPalette.tsx`) — same logic, same call site via
+      `useMemo`, a behavior-preserving extraction, not a refactor. Tested directly (`.test.ts`): empty/whitespace
+      query, case-insensitivity, trimming, no-match, order preservation.
+- [x] `ChallengeDetailPage`'s `detectCelebration`/`snapshotProgress` — already pure, just not exported; added
+      `export` (no logic change). Tested (`.test.ts`): missing/undefined progress data, first-solve detection,
+      category-complete detection, neither firing on a re-check of an already-solved challenge, category-complete
+      correctly gated on having been incomplete *before* the check, and the real tie-break (first-solve wins when
+      both conditions hold in the same check, since the implementation returns on that branch first).
+- [x] Verified: `npx tsc --noEmit` clean. `npm test` — 5 files, 28 tests, all passing. `npm run build` — deleted
+      the stale `dist/` first, fresh build clean, chunk layout/sizes unchanged from before this pass, confirmed
+      no `*.test.*` file made it into `dist/assets/`.
+- [x] **Scope note, unchanged from every prior visual pass**: this is jsdom (a simulated DOM in Node), not a real
+      browser — no Playwright/Cypress added, per the task's explicit constraint. Real click coordinates, actual
+      CSS layout/paint, and the many hand-built gradient/animation/micro-interaction passes tracked earlier in
+      this file remain unverified by automated means; "no headless browser available in this environment" still
+      holds exactly as it always has. This pass covers hook/pure-function logic, not visual correctness.
+
+## 2026-07-30 — Backend test infrastructure (Vitest) + auth security review (decisions/0034)
+First automated backend tests in this project's history — same "everything manual until now" starting point as
+the frontend test-infra pass above, but for `backend/`. Added `vitest` (`^3.0.0`, resolved `3.2.7`) as a dev-only
+dependency plus `"test"`/`"test:watch"`/`"test:integration"` scripts — same "dev tooling, not a runtime dep" carve-
+out as the frontend pass. Paired with a focused security review of the auth surface added in decisions/0029, per
+explicit request: found and fixed one real, concrete gap (password change/reset didn't invalidate already-issued
+JWTs) and one real, concrete gap in a different code path than the one initially suspected (account-deletion error
+handling could silently orphan a container on a Docker failure, rather than the ordering itself being wrong — the
+ordering was already correct). Full trace/reasoning/before-after in decisions/0034.
+- [x] `backend/test/unit/rateLimit.test.ts` — the `rateLimit()` fixed-window factory, fully in-memory/pure: allows
+      up to `max` within the window, blocks `max+1` (with `Retry-After` set), keeps blocking further requests in
+      the same window, resets after the window elapses (vitest fake timers), independent buckets per `keyFn` key.
+- [x] `backend/test/unit/auth.service.test.ts` — `hashPassword`/`verifyPassword` (new, thin bcrypt wrappers
+      extracted from three duplicated inline `bcrypt.hash`/`bcrypt.compare` call sites — behavior-preserving,
+      same rounds/algorithm, now reusable and directly testable) round-trip correctly and reject wrong passwords;
+      `hashResetToken` (newly `export`ed, no logic change) is a deterministic sha256 hex digest; `signAuthToken`/
+      `verifyAuthToken` cover signature validation, expiry, wrong token `type`, missing user, and both directions
+      of the new password-change-invalidation check (below) — `verifyAuthToken` now does one DB read, so its unit
+      tests mock `../db/pool.js` to stay fast/isolated while still exercising the real logic.
+- [x] `backend/test/unit/docker.service.test.ts` — `imageTag` (newly `export`ed, tag format incl. content-version
+      bump) and `isNotModifiedOrMissing` (newly `export`ed) — writing this test caught a real bug: the latter
+      threw a `TypeError` on a `null`/non-object input instead of returning `false`, so `destroyContainer`'s catch
+      block could throw an unrelated error instead of the real container-removal failure it was classifying. Fixed
+      with a type guard; a test now locks in `null`/`{}`/plain-`Error` all returning `false`.
+- [x] `backend/test/integration/auth.integration.test.ts` — hits the **real** Postgres this repo's docker-compose
+      stack runs (`signup`/`login`/`changePassword`/`resetPasswordWithToken`/`getUserById`), since these can't be
+      meaningfully tested without one. Postgres has no host-exposed port by design (`internal`-only network per
+      `docker-compose.yml`), so this suite runs inside the backend container instead, where `DATABASE_URL` already
+      resolves: `docker compose exec backend npm run test:integration`. `docker-compose.override.yml` now also
+      bind-mounts `./backend/test` and `./backend/vitest.config.ts` (dev-only, alongside the existing `src`/
+      `package.json`/`tsconfig.json` mounts) so these files are visible in the container without a rebuild per
+      edit. Every row created is deleted in `afterEach`/`afterAll` — verified zero leftover rows after a real run.
+- [x] **Security finding 1 (real, fixed) — password change/reset didn't invalidate already-issued JWTs.** Auth
+      tokens are stateless (`jsonwebtoken`, 7-day expiry, no revocation list); before this fix, `verifyAuthToken`
+      checked only signature/expiry/type, so a stolen-but-unexpired token kept working for up to 7 days after the
+      legitimate user changed their password specifically because they suspected compromise — a real, no-benefit
+      security gap. Fixed with the smallest reasonable shape: migration `0005_password_changed_at.sql` adds a
+      nullable `users.password_changed_at` (`NULL` = never changed, unchanged behavior); `changePassword` and
+      `resetPasswordWithToken` now stamp it to `now()` in the same `UPDATE` as the password-hash change;
+      `verifyAuthToken` (now `async`) rejects any token whose `iat` claim predates it; `requireAuth` awaits the
+      now-async call. Tradeoff noted explicitly in decisions/0034: this adds one DB read per authenticated
+      request, negligible for this project's single-node personal-tool scale, same "correctness over shaving a
+      query" tradeoff already made elsewhere in this codebase.
+- [x] **Security finding 2 (real, fixed) — account deletion could silently orphan a container on a Docker
+      failure.** Traced `deleteOwnAccount` fully: container teardown (via the existing `stopSession`, not
+      reimplemented) already ran *before* `DELETE FROM users`, so the specific "orphan via bad ordering" race
+      described going in does **not** exist — ordering was already correct. What was actually wrong: the teardown
+      call was wrapped in `.catch(() => {})`, so if `destroyContainer` ever threw, that failure was silently
+      swallowed and the user row got deleted anyway, cascading away the only DB row pointing at a container that
+      might still be running — the same orphan condition, via error-swallowing instead of ordering. Fixed by
+      letting that error propagate (deletion now aborts instead of leaving account/session/container
+      inconsistent); also fixed the route handler, which previously mapped *any* `deleteOwnAccount` failure to
+      "current password is incorrect" — a teardown failure now returns a distinct 500, so a user isn't told their
+      correct password is wrong when the real problem is an internal failure to retry.
+- [x] **Security finding 3 (reviewed, no change) — rate limit tuning.** Current values (login 10/15min keyed
+      IP+email, signup 5/15min IP, change-password 5/15min per-user, forgot-password 5/15min IP+email,
+      reset-password 10/15min IP, delete-account 5/15min per-user) judged reasonable for this project's stated
+      single-user/personal-tool scope: tight enough to matter against brute force, loose enough not to lock out a
+      legitimate user's own instance. Left unchanged.
+- [x] Verified: `npx tsc --noEmit` clean. `npm test` (unit) — 3 files, 23 tests, all passing.
+      `docker compose exec backend npm run test:integration` — 1 file, 6 tests, all passing against the real
+      Postgres container. `docker compose up --build -d` (rebuild needed for the new migration + vitest
+      devDependency) — all three services healthy afterward; `schema_migrations` confirms
+      `0005_password_changed_at.sql` applied; `\d users` confirms the new nullable column.
+- [x] Functional verification against the real running stack (throwaway accounts, all cleaned up afterward):
+      token-invalidation fix — pre-change token rejected (401) after `/change-password`, fresh post-login token
+      accepted (200); account-deletion fix — started a real session against the already-cached
+      `disk-full-var-log` challenge image, confirmed the container `Up` via `docker ps`, deleted the account
+      mid-session, confirmed via `docker ps -a` the container is fully gone (not just stopped) and the `users` row
+      is gone; also re-ran the plain signup → display-name-update → delete and forgot-password-on-unknown-email
+      flows to confirm they're unaffected. Post-hoc `docker ps -a --filter label=app=devops-trainer` and `users`/
+      `sessions` row counts confirmed nothing from this pass was left behind. Left the dev-override stack running
+      as the steady state.

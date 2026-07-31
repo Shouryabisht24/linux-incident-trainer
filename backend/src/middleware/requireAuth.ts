@@ -10,7 +10,7 @@ declare global {
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
+export async function requireAuth(req: Request, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     res.status(401).json({ error: "missing bearer token" });
@@ -18,7 +18,7 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
   }
 
   try {
-    const { userId } = verifyAuthToken(header.slice("Bearer ".length));
+    const { userId } = await verifyAuthToken(header.slice("Bearer ".length));
     req.userId = userId;
     next();
   } catch {

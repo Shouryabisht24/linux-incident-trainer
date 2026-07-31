@@ -3,11 +3,21 @@ import { useNavigate } from "react-router-dom";
 import { useChallenges } from "../api/queries";
 import { useAuth } from "../context/AuthContext";
 
-interface CommandAction {
+export interface CommandAction {
   id: string;
   label: string;
   hint?: string;
   run: () => void;
+}
+
+/** Pure substring filter over the palette's action list — case-insensitive, trims the query, and
+ * returns the unfiltered list for an empty/whitespace-only query. Extracted from the component's
+ * inline `useMemo` body so it can be unit-tested directly without mounting `CommandPalette` (which
+ * needs a router + query-client context to render). */
+export function filterActions(actions: CommandAction[], query: string): CommandAction[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return actions;
+  return actions.filter((a) => a.label.toLowerCase().includes(q));
 }
 
 /**
@@ -51,11 +61,7 @@ export function CommandPalette({ isOpen, onClose }: { isOpen: boolean; onClose: 
     return [...nav, ...challenges, ...account];
   }, [challengesQuery.data, navigate, logout]);
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return actions;
-    return actions.filter((a) => a.label.toLowerCase().includes(q));
-  }, [actions, query]);
+  const filtered = useMemo(() => filterActions(actions, query), [actions, query]);
 
   // Reset to the first result whenever the filtered set changes shape (typing, or the palette
   // reopening) so the highlight never points past the end of a shorter list.

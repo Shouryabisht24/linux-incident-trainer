@@ -21,8 +21,10 @@ services:
       CHOKIDAR_INTERVAL: "300"
     volumes:
       - ./backend/src:/app/src
+      - ./backend/test:/app/test
       - ./backend/package.json:/app/package.json
       - ./backend/tsconfig.json:/app/tsconfig.json
+      - ./backend/vitest.config.ts:/app/vitest.config.ts
       - /var/run/docker.sock:/var/run/docker.sock
       - ./challenges:/app/challenges:ro
 

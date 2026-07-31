@@ -151,7 +151,8 @@ export function endShellSession(containerId: string): void {
   execRegistry.delete(containerId);
 }
 
-function imageTag(challenge: Challenge): string {
+/** Exported for unit testing; also used internally by buildImageIfMissing/createSessionContainer callers. */
+export function imageTag(challenge: Challenge): string {
   return `devops-trainer/${challenge.slug}:${challenge.content_version}`;
 }
 
@@ -275,7 +276,9 @@ export async function destroyContainer(containerId: string): Promise<void> {
   }
 }
 
-function isNotModifiedOrMissing(err: unknown): boolean {
+/** Exported for unit testing (pure — no I/O). True for dockerode errors meaning "already gone", safe to swallow. */
+export function isNotModifiedOrMissing(err: unknown): boolean {
+  if (err === null || typeof err !== "object") return false;
   const statusCode = (err as { statusCode?: number }).statusCode;
   return statusCode === 304 || statusCode === 404;
 }

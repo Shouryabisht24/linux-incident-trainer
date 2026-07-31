@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { logger } from "../lib/logger.js";
 import { asyncRoute } from "../middleware/errorHandler.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { clientIp, rateLimit } from "../middleware/rateLimit.js";
@@ -223,10 +224,20 @@ authRouter.delete(
     }
     try {
       await deleteOwnAccount(req.userId!, currentPassword);
-    } catch {
-      // Same generic style as /change-password: never distinguish "wrong password" from any other
-      // internal failure.
-      res.status(400).json({ error: "current password is incorrect" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "";
+      if (message === "current password is incorrect" || message === "user not found") {
+        // Same generic style as /change-password: never distinguish "wrong password" from
+        // "account not found" beyond this one message.
+        res.status(400).json({ error: "current password is incorrect" });
+        return;
+      }
+      // Anything else (most likely: the user's live challenge container failed to tear down —
+      // see deleteOwnAccount's docstring) is an operational failure, not a bad password guess.
+      // Reusing the "current password is incorrect" message here would send the user to retype a
+      // password that was already correct; fail loudly instead so they know to retry.
+      logger.error("account deletion failed", { userId: req.userId, err });
+      res.status(500).json({ error: "failed to delete account, please try again" });
       return;
     }
     res.json({ ok: true });

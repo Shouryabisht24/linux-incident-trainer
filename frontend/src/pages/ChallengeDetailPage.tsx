@@ -145,14 +145,17 @@ function XCircleIcon(props: SVGProps<SVGSVGElement>) {
 // condition newly becomes true.
 // ---------------------------------------------------------------------------
 
-interface ProgressSnapshot {
+export interface ProgressSnapshot {
   totalSolved: number;
   categorySlug: string;
   categorySolved: number;
   categoryTotal: number;
 }
 
-function snapshotProgress(
+// `snapshotProgress`/`detectCelebration` are exported (only change here vs. before) so they can be
+// unit-tested directly as plain data-in/data-out functions, without mounting the page component or
+// its react-query/router/context dependencies.
+export function snapshotProgress(
   progress: { solved: number; categories: { slug: string; solved: number; total: number }[] } | undefined,
   categorySlug: string,
 ): ProgressSnapshot | null {
@@ -161,7 +164,7 @@ function snapshotProgress(
   return { totalSolved: progress.solved, categorySlug: cat.slug, categorySolved: cat.solved, categoryTotal: cat.total };
 }
 
-function detectCelebration(
+export function detectCelebration(
   before: ProgressSnapshot | null,
   after: { solved: number; categories: { slug: string; name: string; solved: number; total: number }[] } | undefined,
 ): { kind: CelebrationKind; categoryName?: string } | null {

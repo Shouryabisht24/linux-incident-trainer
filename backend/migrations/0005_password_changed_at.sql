@@ -1,0 +1,11 @@
+-- Enables server-side invalidation of already-issued auth JWTs on password change/reset.
+-- Auth tokens are stateless (jsonwebtoken, no revocation list) with a 7-day expiry, so without
+-- this column a user who changes their password because they suspect their session/token was
+-- stolen gets no actual security benefit: the old token keeps working until it naturally expires.
+--
+-- NULL means "password has never been changed since signup" (no restriction — every token for
+-- that user is accepted regardless of iat). It is only set, to `now()`, by changePassword and
+-- resetPasswordWithToken. `requireAuth`/`verifyAuthToken` reject any token whose `iat` claim
+-- (seconds since epoch, set automatically by jsonwebtoken at sign time) is earlier than this
+-- timestamp. See decisions/00NN-*.md (token-invalidation-on-password-change) for full reasoning.
+ALTER TABLE users ADD COLUMN password_changed_at TIMESTAMPTZ;
