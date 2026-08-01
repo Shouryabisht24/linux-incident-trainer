@@ -1,0 +1,37 @@
+# Companion to docker-compose.tls-example.yml — copy this to `Caddyfile` and
+# edit the two placeholders below before use:
+#
+#   cp Caddyfile.example Caddyfile
+#
+# Caddy auto-detects "this looks like a real hostname, not localhost" and
+# requests a Let's Encrypt certificate via the HTTP-01 challenge on first
+# request, then renews automatically — no cron job, no certbot, no manual
+# renewal hook. That's the entire TLS story for this file.
+
+{
+	# Optional but recommended: Let's Encrypt uses this to email you about
+	# certificate problems (e.g. renewal failures) before anything expires.
+	email you@example.com
+}
+
+# Replace with your real domain name — the one you pointed an A/AAAA record
+# at this host's public IP. Let's Encrypt's HTTP-01 challenge needs this to
+# match what a browser actually requests, and needs port 80 reachable to
+# complete it (see README's TLS section for the full requirement list).
+example.com {
+	# Routes matching frontend/nginx.conf's own /health, /api/, /ws/
+	# prefixes go to the backend directly — kept in sync with that file so
+	# behavior is identical regardless of which proxy (Caddy here, nginx in
+	# the default stack) terminates the connection. Caddy's reverse_proxy
+	# upgrades WebSocket connections automatically — no separate config
+	# needed for the /ws/ path the terminal bridge uses.
+	@backend {
+		path /health /api/* /ws/*
+	}
+	reverse_proxy @backend backend:4000
+
+	# Everything else: the built static frontend, served by the frontend
+	# service's own nginx (which still does its own SPA try_files fallback
+	# and sets its own security headers internally — see frontend/nginx.conf).
+	reverse_proxy frontend:80
+}

@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "A crash loop is systemd retrying, not systemd failing",
+    "explanation": "`systemctl status webapp` reporting `activating (auto-restart)` means `Restart=always` in the unit is silently relaunching the process after every crash. Recognizing this state up front matters: it tells you the *unit definition* is probably fine, and the real fault is something happening at the process's own startup, every single time."
+  },
+  {
+    "order_index": 2,
+    "title": "Ask the process why it's dying, not the supervisor",
+    "explanation": "systemd only knows the process exited non-zero — it has no idea why. The process's own stderr/stdout, captured by journald, usually has the actual reason spelled out in plain text. `journalctl -u webapp -n 20 --no-pager` is where that reason lives, not `systemctl status` alone."
+  },
+  {
+    "order_index": 3,
+    "title": "Trace the error to its real source before editing anything",
+    "explanation": "The log line `FATAL: LISTEN_PORT must be a number, got: 'eighty'` points at the *application's config*, not the unit file. Confirming this distinction matters because editing `webapp.service` (the wrong layer) would change nothing — the fault is a bad value in `/etc/webapp/webapp.conf`."
+  },
+  {
+    "order_index": 4,
+    "title": "Fix the value at its source, then restart",
+    "explanation": "Because only the application's own config changed — not the systemd unit file itself — a plain `systemctl restart webapp` is enough. Reaching for `daemon-reload` out of habit here would be a no-op: that command re-reads unit *definitions*, which were never the problem, and reaching for it anyway can obscure which change actually fixed things."
+  },
+  {
+    "order_index": 5,
+    "title": "Confirm the loop genuinely stopped, not just paused between crashes",
+    "explanation": "A single `active` reading taken right after a restart can catch a crash-looping service mid-cycle, between one death and the next. Checking `systemctl is-active webapp` again after a few seconds (or watching it hold steady) is how you tell \"genuinely fixed\" apart from \"currently in the up phase of the same loop.\""
+  }
+]

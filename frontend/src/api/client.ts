@@ -65,6 +65,12 @@ export interface HelpRequest {
   created_at: string;
 }
 
+export interface ExplainStep {
+  order_index: number;
+  title: string;
+  explanation: string;
+}
+
 export function getToken(): string | null {
   return localStorage.getItem("token");
 }
@@ -148,6 +154,7 @@ export const api = {
       method: "POST",
     }),
   getSolution: (id: string) => request<{ solutionMd: string }>(`/api/sessions/${id}/solution`),
+  getExplainSteps: (id: string) => request<{ steps: ExplainStep[] }>(`/api/sessions/${id}/explain`),
   getProgress: () => request<Progress>("/api/progress"),
   getPublicStats: () => request<PublicStats>("/api/public-stats"),
   submitHelpRequest: (subject: string, message: string) =>

@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
 import { logger } from "../lib/logger.js";
 import { pool } from "../db/pool.js";
-import { getChallengeBySlug } from "./challenge.service.js";
+import { getChallengeBySlug, getExplainSteps as readExplainStepsFromDisk, type ExplainStep } from "./challenge.service.js";
 import {
   buildImageIfMissing,
   createSessionContainer,
@@ -188,6 +188,23 @@ export async function getSolution(sessionId: string, userId: string): Promise<st
     session.challenge_id,
   ]);
   return result.rows[0].solution_md;
+}
+
+/**
+ * Plain, uncosted read of the challenge's "explain" walkthrough — same ownership check as
+ * getHintsState/getSolution above (a session the caller doesn't own can't be used to probe another
+ * user's challenge content), but unlike hints there's nothing to reveal-progressively or track:
+ * it's the full step array every time, and doesn't touch hints_used/scoring/session state at all.
+ * Returns [] for a challenge with no explain.json yet (most challenges, for now — see
+ * decisions/00NN-*.md) rather than erroring, so the frontend can just not render the panel.
+ */
+export async function getExplainSteps(sessionId: string, userId: string): Promise<ExplainStep[]> {
+  const session = await getOwnedSession(sessionId, userId);
+  const result = await pool.query<{ slug: string }>("SELECT slug FROM challenges WHERE id = $1", [
+    session.challenge_id,
+  ]);
+  const slug = result.rows[0]?.slug;
+  return slug ? readExplainStepsFromDisk(slug) : [];
 }
 
 export async function getSessionForUser(sessionId: string, userId: string): Promise<Session> {

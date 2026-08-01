@@ -7,6 +7,7 @@ export const queryKeys = {
   categories: ["categories"] as const,
   activeSession: ["activeSession"] as const,
   hints: (sessionId: string) => ["hints", sessionId] as const,
+  explainSteps: (sessionId: string) => ["explainSteps", sessionId] as const,
   progress: ["progress"] as const,
   publicStats: ["publicStats"] as const,
   helpRequests: ["helpRequests"] as const,
@@ -65,6 +66,21 @@ export function useHints(sessionId: string | undefined) {
     queryKey: queryKeys.hints(sessionId ?? ""),
     queryFn: () => api.getHints(sessionId!),
     enabled: !!sessionId,
+  });
+}
+
+/**
+ * The full "explain" step array for a session's challenge — a plain, always-available read (no
+ * reveal/reveal-tracking, unlike useHints/useRevealHint). Most challenges don't have explain.json
+ * yet, in which case this resolves to []; ChallengeDetailPage/ExplainPanel treat that as "don't
+ * render the toggle at all" rather than an empty/broken-looking panel.
+ */
+export function useExplainSteps(sessionId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.explainSteps(sessionId ?? ""),
+    queryFn: () => api.getExplainSteps(sessionId!).then((r) => r.steps),
+    enabled: !!sessionId,
+    staleTime: Infinity, // static per-challenge content, never mutated during a session
   });
 }
 

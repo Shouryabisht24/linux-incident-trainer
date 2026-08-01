@@ -90,3 +90,34 @@ Every challenge container gets per-container resource limits (memory, CPU, PID c
 - **Structured logging**: leveled, timestamped logs across the backend (`LOG_LEVEL=debug|info|warn|error`, default `info`).
 
 None of this turns the app into something safe to expose publicly — the docker.sock exposure above is the dominant risk and is unchanged. The hardening is about correct, debuggable operation of a local tool, not internet-facing security.
+
+### TLS / exposing beyond localhost (opt-in)
+
+The default stack above is plain HTTP on localhost and stays that way — nothing below changes it unless you
+explicitly opt in. If you do choose to expose this beyond your own machine (behind a VPN/Tailscale layer, per the
+warnings above — that requirement doesn't go away), there's an optional overlay for real TLS:
+
+```bash
+cp Caddyfile.example Caddyfile   # edit `example.com` to your real domain
+docker compose -f docker-compose.yml -f docker-compose.tls-example.yml up -d --build
+```
+
+This adds a [Caddy](https://caddyserver.com/) reverse proxy in front of the existing `frontend`/`backend` services
+(`docker-compose.tls-example.yml`, `Caddyfile.example`). Caddy was chosen specifically because it obtains and
+renews Let's Encrypt certificates itself via the HTTP-01 challenge with no manual certbot/cron/renewal-hook setup
+to get wrong — the Caddyfile is the entire TLS configuration. It routes `/health`, `/api/*`, and `/ws/*` to the
+backend and everything else to the frontend, matching `frontend/nginx.conf`'s own routing exactly, and Caddy
+upgrades WebSocket connections automatically so the terminal bridge needs no special-casing.
+
+Requirements:
+- A real domain name with an A/AAAA record pointed at this host's public IP — Let's Encrypt has no concept of
+  `localhost` or a bare IP.
+- Ports 80 and 443 reachable from the internet (typically via router/firewall port-forwarding) — 80 for the
+  HTTP-01 challenge, 443 for HTTPS itself.
+- Set `FRONTEND_URL` to `https://your-domain` so password-reset email links point at the real, TLS-terminated
+  address instead of the `localhost` default.
+
+**This does not change the docker-socket risk.** TLS termination only encrypts the transport between a browser
+and this host — it does nothing to the backend's root-equivalent access to the host via `/var/run/docker.sock`
+(`decisions/0001`). The VPN/Tailscale requirement above is not superseded by adding HTTPS; it's a separate,
+still-mandatory layer if you expose this beyond your own LAN. See `decisions/0035-*.md` for the full reasoning.

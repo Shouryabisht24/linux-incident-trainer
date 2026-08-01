@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Confirm which filesystem is actually full",
+    "explanation": "\"No space left on device\" symptoms can come from several different mounts on a real box (root, a tmpfs, an app's own log volume). `df -h /var/log/app` proves this specific mount is the one at capacity before you spend any effort investigating it."
+  },
+  {
+    "order_index": 2,
+    "title": "Find the dominant consumer, don't guess",
+    "explanation": "Knowing a filesystem is full doesn't tell you what to remove. A recursive, sorted size scan (`du -ah /var/log/app | sort -h`) surfaces the one file or directory actually responsible — here, a single runaway debug log — instead of deleting things at random and hoping."
+  },
+  {
+    "order_index": 3,
+    "title": "Truncate in place instead of deleting when a process may still hold the file open",
+    "explanation": "Deleting a file that a running process still has open doesn't reclaim its space — the kernel keeps the underlying blocks allocated until every open file descriptor referencing it is closed, so `rm` alone can leave you just as full with a mysteriously '(deleted)' entry in `lsof`. `truncate -s 0` rewrites the file's contents to empty in place, freeing the blocks immediately regardless of who still has it open, and is the safer default habit for a log file a daemon may be actively writing to."
+  },
+  {
+    "order_index": 4,
+    "title": "Verify against the same filesystem you diagnosed",
+    "explanation": "Re-running `df -h /var/log/app` (the exact command from step 1) confirms real free space came back on the mount that mattered, rather than trusting that emptying one file was necessarily enough."
+  },
+  {
+    "order_index": 5,
+    "title": "Freeing space is a bandage, not the fix",
+    "explanation": "Whatever consumed the space once will consume it again unless the underlying cause changes. The durable fix here is turning off unnecessary debug-level logging and/or adding log rotation, so the same file can't silently refill the disk overnight."
+  }
+]

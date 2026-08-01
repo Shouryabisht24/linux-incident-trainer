@@ -4,6 +4,7 @@ import { requireAuth } from "../middleware/requireAuth.js";
 import {
   checkSession,
   getActiveSessionForUser,
+  getExplainSteps,
   getHintsState,
   getSessionForUser,
   getSolution,
@@ -91,5 +92,14 @@ sessionsRouter.get(
   asyncRoute(async (req, res) => {
     const solutionMd = await getSolution(req.params.id, req.userId!);
     res.json({ solutionMd });
+  }),
+);
+
+// Plain GET, no reveal/tracking semantics (unlike /hints/reveal) — see getExplainSteps.
+sessionsRouter.get(
+  "/:id/explain",
+  asyncRoute(async (req, res) => {
+    const steps = await getExplainSteps(req.params.id, req.userId!);
+    res.json({ steps });
   }),
 );

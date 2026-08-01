@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "\"Started successfully\" only proves root's part worked",
+    "explanation": "nginx's master process runs as root, and root ignores standard file read/write permission checks entirely. So `sudo service nginx start` reporting success tells you the master could bind port 80 and parse its config — it tells you nothing about whether the unprivileged workers that actually serve files can read them."
+  },
+  {
+    "order_index": 2,
+    "title": "The status code is your first real clue",
+    "explanation": "A 403 is meaningfully different from a timeout or connection-refused: it means a live process received the request and deliberately refused it. For a plain static-file server, a 403 (as opposed to a 404 or 500) points squarely at the filesystem — the process can see the file but isn't allowed to read it."
+  },
+  {
+    "order_index": 3,
+    "title": "Root's workers deliberately aren't root",
+    "explanation": "Production daemons that bind a privileged port as root (nginx, most web/mail servers) typically drop privileges for the processes that actually touch untrusted input and user-facing files — so a compromised worker can't do root-level damage. That design choice means the permission boundary you actually have to satisfy is the worker's identity (`www-data`), not root's."
+  },
+  {
+    "order_index": 4,
+    "title": "Confirm the gap empirically before changing anything",
+    "explanation": "`ls -la /var/www/html` shows the directory at `700` and the file at `600`, both `root:root` — `www-data` has zero bits set on either, so it can't even traverse into the directory, let alone open the file. Verifying this directly matters because a 403 could in principle have other causes; seeing the exact missing bits confirms this one and tells you precisely what to grant."
+  },
+  {
+    "order_index": 5,
+    "title": "Grant the minimum the worker actually needs",
+    "explanation": "`chmod 755` on the directory (adds traverse+read for others) and `chmod 644` on the file (adds read for others) restores exactly what an unprivileged reader needs — not a blanket `777` that would loosen far more than the problem requires."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify as the actor that was failing, not as root",
+    "explanation": "Checking with `sudo cat` or as root would lie to you, since root bypasses the very check you're trying to validate. The correct verification is `curl localhost` — the same unprivileged path a real visitor's request takes — now returning a 200."
+  }
+]

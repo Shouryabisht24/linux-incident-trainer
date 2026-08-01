@@ -3425,6 +3425,136 @@ html {
   border: none;
 }
 
+/* ---- explain panel ----
+   A walkthrough of the REASONING behind a challenge's fix, attached directly to the terminal
+   rather than living in its own scrolled-to section (unlike hints/solution below, which stay in
+   the existing flat stack). `.terminal-explain-layout` wraps `.terminal-frame` and `<ExplainPanel>`
+   together: a plain flex column (terminal, then the panel as a drawer underneath) below the
+   900px breakpoint this app already uses for its dashboard/progress sidebar splits, becoming a
+   row (terminal + a fixed-width sidebar beside it) at that breakpoint and above — same idea as
+   `.dashboard-grid`'s `min-width: 900px` two-column switch, just via flex-basis instead of grid
+   since the sidebar's width shouldn't depend on the terminal's own content. `.has-explain` is only
+   applied when ExplainPanel actually renders something (a challenge with explain.json), so a
+   challenge without one never reserves layout space for an empty sidebar column. */
+.terminal-explain-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: stretch;
+}
+
+.terminal-explain-layout .terminal-frame {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+@media (min-width: 900px) {
+  .terminal-explain-layout.has-explain {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .terminal-explain-layout.has-explain .terminal-frame {
+    flex: 1 1 auto;
+  }
+
+  .terminal-explain-layout.has-explain .explain-panel {
+    flex: 0 0 300px;
+    max-width: 320px;
+  }
+}
+
+.explain-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.explain-toggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.explain-toggle-chevron {
+  transition: transform 200ms ease;
+}
+
+.explain-toggle-chevron.is-open {
+  transform: rotate(180deg);
+}
+
+/* Same 0fr/1fr grid-template-rows collapse `.auth-collapse` already uses for the signup panel's
+   optional fields — proven to animate open/closed smoothly without JS height measurement, reused
+   here rather than inventing a second collapsing technique. */
+.explain-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 320ms cubic-bezier(0.16, 1, 0.3, 1), opacity 260ms ease;
+}
+
+.explain-collapse.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.explain-collapse-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.explain-steps-card {
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+}
+
+.explain-panel-note {
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  margin-top: calc(-1 * var(--space-2));
+}
+
+.explain-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.explain-step {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.explain-step-index {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(var(--color-accent-rgb), 0.1);
+  color: var(--color-accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.explain-step-body h4 {
+  margin: 0 0 2px;
+  font-size: 0.92rem;
+}
+
+.explain-step-body p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+}
+
 /* ---- check-result banner ---- */
 .challenge-check-alert {
   display: flex;
@@ -3861,6 +3991,14 @@ html {
   .dot-connecting {
     animation: none;
     box-shadow: none;
+  }
+
+  .explain-toggle-chevron {
+    transition: none;
+  }
+
+  .explain-collapse {
+    transition: none;
   }
 
   /* Belt-and-suspenders alongside HeroTerminal's own reducedMotion check (which skips the reveal

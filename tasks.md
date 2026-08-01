@@ -1333,3 +1333,144 @@ ordering was already correct). Full trace/reasoning/before-after in decisions/00
       flows to confirm they're unaffected. Post-hoc `docker ps -a --filter label=app=devops-trainer` and `users`/
       `sessions` row counts confirmed nothing from this pass was left behind. Left the dev-override stack running
       as the steady state.
+
+## 2026-07-31 — HTTP security headers, npm audit fix, opt-in TLS overlay (decisions/0035)
+- [x] **`helmet` added to `backend/package.json`** (justified exception to the no-new-dependencies rule, same
+      category as `nodemailer` earlier — single-purpose, well-established security middleware, not UI work).
+      Wired in as the earliest middleware in `backend/src/index.ts`, before `cors()`/`express.json()`, so every
+      response — including error-handler responses — gets the headers.
+- [x] **Hand-tuned CSP**, not helmet's raw defaults — the frontend's hand-built spotlight-glow/tilt/magnetic
+      -button/shiny-text/click-spark effects depend on inline styles (`style={{...}}` and
+      `element.style.setProperty(...)`, confirmed via `grep -rn style.setProperty frontend/src` — 7 files, 22 call
+      sites, all CSS-custom-property writes, none of which are event-handler attributes or `dangerouslySetInnerHTML`,
+      confirmed absent from the whole frontend). Final directives (`useDefaults: true`, then overridden):
+      `script-src 'self'` (no CDN/inline script anywhere — confirmed via grep and reading `index.html` in full),
+      `style-src 'self' 'unsafe-inline'` (the load-bearing one — keeps every inline-style effect working; dropped
+      helmet's default `https:` since no third-party stylesheet is ever loaded), `img-src 'self' data:` (`data:`
+      specifically for the one inline SVG noise-texture background in `styles.css`'s `--texture-grain`, the only
+      non-`'self'` image source anywhere), `font-src 'self'` (all `@fontsource` webfonts are self-hosted; dropped
+      helmet's default `https:`/`data:`), `connect-src 'self' ws: wss:` (same-origin XHR/fetch plus the terminal
+      WebSocket, which uses `ws://`/`wss://` depending on page scheme), `frame-ancestors 'none'` (nothing is ever
+      iframed — confirmed no `<iframe>` in the codebase), and `upgrade-insecure-requests` explicitly set to `null`
+      (deletes it from helmet's default set entirely) — leaving it enabled would make browsers rewrite the
+      terminal's `ws://` URL to `wss://`, breaking it against this project's actual default steady-state stack
+      (plain HTTP, no TLS, per `docker-compose.yml`). Also set `frameguard: { action: "deny" }` (X-Frame-Options:
+      DENY, nothing needs framing) and `referrerPolicy: { policy: "strict-origin-when-cross-origin" }` (aligned
+      with the frontend's nginx-level policy below rather than left on helmet's stricter but inconsistent
+      `no-referrer` default).
+- [x] **`frontend/nginx.conf`**: added `X-Content-Type-Options`, `X-Frame-Options: DENY`,
+      `Referrer-Policy: strict-origin-when-cross-origin`, and the same-reasoning CSP string, all scoped to the
+      `location /` block only (nginx does not merge server-level `add_header` into a location that defines its
+      own, and these were never set at server level to begin with) — so the `/health`, `/api/`, `/ws/` locations
+      that `proxy_pass` to the backend carry zero nginx-added headers and get everything from the backend's own
+      helmet config, unmodified, per the task's explicit "don't double-set or override" requirement.
+- [x] **npm audit fix (backend)**: before, 2 moderate vulnerabilities (`uuid` missing-buffer-bounds-check advisory,
+      GHSA-w5hq-g745-h8pq, pulled in transitively via `dockerode@4.0.12`'s `uuid@^10.0.0` dependency). Plain
+      `npm audit fix` couldn't resolve it without a major `dockerode` bump. Checked `dockerode@5.0.0`'s release
+      notes first: its only breaking change is "dropped uuid package, bumped minimum node version requirement" —
+      confirmed via `npm view dockerode@5.0.1 dependencies` that `uuid` is gone entirely from 5.0.1's dependency
+      tree (replaced with `node:crypto`'s built-in `randomUUID`, no external dependency at all), and the new
+      minimum (`node >= 14.17`) is far below this project's `node:20-alpine`. Every dockerode API this codebase
+      actually calls (`docker.service.ts`: `listNetworks`, `createNetwork`, `listImages`, `buildImage`,
+      `modem.followProgress`, `createContainer`, `getContainer().inspect/start/exec`, `modem.demuxStream`,
+      `listContainers`) is untouched by the changelog — none of it is uuid-related. Bumped
+      `dockerode` to `^5.0.1` and `@types/dockerode` to `^4.0.1` (the DefinitelyTyped version matching dockerode's
+      v4/v5-era API surface). **Result: `npm audit` now reports 0 vulnerabilities** (down from 2 moderate).
+      Verified this didn't break the highest-risk integration point in the codebase: `npx tsc --noEmit` clean,
+      `npm test` (unit, includes `docker.service.test.ts`'s `imageTag`/`isNotModifiedOrMissing` tests) — 3 files,
+      23 tests, all passing; `docker compose exec backend npm run test:integration` — 1 file, 6 tests, all passing
+      against the real Postgres container after a full `docker compose up --build -d` rebuild.
+- [x] **Opt-in TLS overlay**: `docker-compose.tls-example.yml` (new, NOT merged into `docker-compose.yml`/
+      `docker-compose.override.yml` — only takes effect via explicit `-f docker-compose.tls-example.yml`) adds a
+      `caddy:2-alpine` service publishing 80/443, and clears the `frontend`/`backend` services' own host port
+      publishing via Compose's `!reset` merge tag (requires Compose v2.24.0+; this host runs v5.3.0 — verified via
+      `docker compose -f docker-compose.yml -f docker-compose.tls-example.yml config` that the resolved config has
+      no `ports:` left on `frontend`/`backend` and Caddy alone publishes 80/443) so Caddy becomes the sole
+      internet-facing entrypoint once used. Companion `Caddyfile.example` routes `/health`, `/api/*`, `/ws/*` to
+      the backend and everything else to the frontend, matching `frontend/nginx.conf`'s own routing exactly; Caddy
+      upgrades WebSocket connections automatically, so the terminal bridge needs no special-casing. Caddy was
+      chosen specifically for automatic Let's Encrypt provisioning/renewal via HTTP-01 with no manual
+      certbot/cron/renewal-hook setup to get wrong — the whole TLS story is the one `Caddyfile.example`.
+      README's existing "Security notes" section got a new "TLS / exposing beyond localhost (opt-in)" subsection
+      alongside it: opt-in, requires a real domain + reachable 80/443, and reiterates (doesn't replace) the
+      existing VPN/docker-socket warnings — TLS termination only encrypts the transport, it does not change the
+      docker-socket root-equivalent-to-host risk from `decisions/0001`.
+- [x] Verified: `cd backend && npx tsc --noEmit` clean. `cd frontend && npx tsc --noEmit` clean and
+      `npm run build` clean (380 modules, no warnings beyond normal chunk-size output). `docker compose up
+      --build -d` (rebuild needed for the new `helmet`/`dockerode` versions) — all three services healthy.
+      Curled the real running backend directly (`curl -sD - http://localhost:4000/health`) and confirmed the
+      exact intended CSP string is present with no `upgrade-insecure-requests` and no unexpected directives.
+      Then, since a prior bug in this exact `nginx.conf` file (`decisions/0013`) once broke the WS path silently
+      in *production only*, re-verified both transport paths per this project's established convention: brought
+      up the real production stack (`docker compose -f docker-compose.yml up --build -d`, no override, port
+      3000) and confirmed (a) `curl -sD - http://localhost:3000/` returns only nginx's own new headers
+      (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, the CSP string) with no helmet-specific
+      extras, since that request never reaches the backend, and (b) `curl -sD - http://localhost:3000/api/public-stats`
+      returns the correct `{"challengeCount":50,"categoryCount":10}` JSON *and* the backend's own full helmet
+      header set passed through unmodified (confirming nginx isn't double-setting or stripping anything on the
+      proxied path). Restored the dev-override stack afterward (`docker compose up --build -d`) and re-ran both
+      the unit and integration suites against it to confirm nothing regressed, per instruction, leaving it running
+      as the steady state.
+- [x] **Honest limits of this verification**: no headless browser exists in this environment, so the CSP's actual
+      *enforced* runtime behavior (would a browser really keep every inline-style effect working, would it really
+      allow the WebSocket) could not be watched directly. What was verified instead: the exact header string
+      leaving both the backend and nginx matches the intended policy byte-for-byte, and every inline-style call
+      site in the frontend was traced against `style-src 'self' 'unsafe-inline'` and confirmed to be a plain CSS
+      custom-property write via `style={{...}}` or `.style.setProperty(...)` — nothing using `dangerouslySetInnerHTML`,
+      inline event-handler attributes, or a `<style>` tag exists anywhere in the frontend, which is the class of
+      thing this exact CSP would actually block.
+
+## 2026-07-31 — "Explain" panel: an uncosted, always-available reasoning walkthrough (3 reference challenges)
+A third content mechanic alongside Hints (progressive, tracked against `hints_used`) and Solution (full fix,
+ends the challenge via the existing `window.confirm`) — neither of those was touched. Explain is a panel attached
+directly to the terminal that a user can open/close freely, any number of times, mid-challenge, showing the
+*reasoning* behind the fix rather than the exact commands. See `decisions/0036-*.md` for the full rationale
+(schema choice, why it's read from disk per-request rather than synced into Postgres like hints/solution, the
+3-now/47-later scope decision, and the sidebar/drawer placement reasoning).
+- [x] `challenges/{perm-config-blocks-service,disk-full-var-log,systemd-crashloop-bad-config}/explain.json` — new
+      per-challenge content file, an array of `{ order_index, title, explanation }` steps, authored by restructuring
+      each challenge's existing `solution.md` into discrete reasoning steps (no new technical facts). The other 47
+      challenges deliberately do not get this file in this pass.
+- [x] `backend/src/services/challenge.service.ts`: new `ExplainStep` type + `getExplainSteps(slug)`, reading
+      `challenges/<slug>/explain.json` directly off disk on every call (`fs.existsSync`/`fs.readFileSync`/
+      `JSON.parse`, same idiom as `syncChallengesFromDisk`'s hints/solution reads) — **not** upserted into the DB,
+      since there's nothing to track/invalidate for static, uncosted content. Missing file → `[]`, not an error.
+- [x] `backend/src/services/session.service.ts`: new `getExplainSteps(sessionId, userId)`, same ownership check
+      (`getOwnedSession`) `getHintsState`/`getSolution` already use, looks up the session's challenge slug and
+      defers to `challenge.service.ts`'s disk read.
+- [x] `backend/src/routes/sessions.routes.ts`: new `GET /api/sessions/:id/explain` — a plain read, no
+      reveal/tracking mutation like `POST /:id/hints/reveal`, no `hints_used`/scoring/session-state effect at all.
+- [x] **Security-critical, verified directly**: `docker.service.ts`'s `buildImage` `src` allow-list
+      (`["Dockerfile", "seed.sh", "check.sh"]`) was not touched — `explain.json` is never `COPY`'d into the
+      challenge image, same rule as `challenge.json`/`hints.json`/`solution.md`. Forced a real rebuild (deleted the
+      3 challenges' cached images) and confirmed via `docker exec <container> find / -xdev -name "explain.json"`
+      that it's genuinely absent from all three running containers post-rebuild, not just absent by (stale)
+      allow-list reasoning.
+- [x] Frontend: `frontend/src/api/client.ts` (`ExplainStep` type + `getExplainSteps`), `frontend/src/api/queries.ts`
+      (`useExplainSteps`, `staleTime: Infinity` — static per-challenge content), new
+      `frontend/src/components/ExplainPanel.tsx` (renders nothing at all, not even the toggle, when `steps` is
+      empty — graceful absence, not a broken-looking empty panel). `ChallengeDetailPage.tsx` wraps `.terminal-frame`
+      + `<ExplainPanel>` in a new `.terminal-explain-layout` (only gains `.has-explain` when steps exist): a plain
+      flex column (drawer below the terminal, using the same `grid-template-rows: 0fr → 1fr` collapse `.auth-collapse`
+      already uses) below the existing `min-width: 900px` breakpoint `.dashboard-grid` already uses for its own
+      sidebar split, becoming a flex row (fixed ~300px sidebar beside the terminal) at and above it. Zero new npm
+      dependencies — plain `useState` for open/closed, owned entirely by `ExplainPanel` itself. Explicit
+      `prefers-reduced-motion` overrides added for the new chevron-rotation and collapse transitions, alongside the
+      file's existing blanket `animation-duration`/`transition-duration` override.
+- [x] Verified: `cd backend && npx tsc --noEmit` clean, `npm test` (3 files, 23 tests) all passing unchanged.
+      `cd frontend && npx tsc --noEmit` clean, `npm run build` clean (381 modules, no CSS-minifier warnings),
+      `npm test` (Vitest, 5 files, 28 tests) all passing. `docker compose up --build -d` — all three services
+      healthy. Signed up a throwaway account, started a real session on each of the 3 reference challenges, and
+      confirmed `GET /api/sessions/:id/explain` returns real, non-empty step content for all three; started a
+      session on a 4th, non-reference challenge (`user-account-locked`) and confirmed the same endpoint returns
+      `{"steps":[]}`, not an error. Re-verified hints/solution/check-fix are completely unaffected on
+      `perm-config-blocks-service`: revealed a hint (tracked as before), confirmed `check` fails pre-fix, applied
+      the real fix as `trainee` via `docker exec`, confirmed `check` then passes, confirmed `GET /solution` still
+      returns the unchanged `solution.md`. Cleaned up every session/container created during verification and
+      deleted the throwaway account. Left the dev-override stack running as the steady state afterward.
+- [x] **Honest limit**: no headless browser exists in this environment, so the panel's actual rendered layout (does
+      the 900px breakpoint genuinely read as "sidebar attached to the terminal," does the row-collapse animate
+      smoothly) could not be watched directly. Verified instead by careful reading of the CSS against this app's own
+      already-shipping, presumably-visually-confirmed patterns it directly reuses (`.dashboard-grid`'s identical
+      breakpoint, `.auth-collapse`'s identical collapse technique) rather than a new layout mechanism introduced
+      sight-unseen.

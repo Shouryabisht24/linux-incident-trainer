@@ -35,6 +35,17 @@ interface HintJson {
   text: string;
 }
 
+export interface ExplainStep {
+  order_index: number;
+  title: string;
+  explanation: string;
+}
+
+// Same challenges/ location docker.service.ts builds images from (CHALLENGES_DIR there) — kept as
+// its own local constant here rather than threading a directory param through every call site,
+// since (unlike syncChallengesFromDisk) getExplainSteps is called per-request, on demand.
+const CHALLENGES_DIR = path.join(process.cwd(), "challenges");
+
 export interface Challenge {
   id: string;
   slug: string;
@@ -172,4 +183,22 @@ export async function getChallengeBySlug(slug: string): Promise<Challenge | null
     [slug],
   );
   return result.rows[0] ?? null;
+}
+
+/**
+ * Reads challenges/<slug>/explain.json directly off disk on every call, mirroring the exact
+ * fs.existsSync/fs.readFileSync/JSON.parse idiom syncChallengesFromDisk uses for hints.json/
+ * solution.md above — but unlike those, explain steps are NOT synced into the DB. There's nothing
+ * to track (no reveal-progression, no cost) and nothing to invalidate on edit, so a plain
+ * on-demand disk read keeps this content editable without a DB migration or a content_version
+ * bump/image rebuild (explain.json, like hints.json/solution.md, is never `COPY`'d into the
+ * challenge Docker image — see docker.service.ts's buildImage `src` list — so it was never part of
+ * the cache-key story to begin with). Most challenges don't have this file yet, so a missing file
+ * is a normal, silent [] rather than an error — see decisions/00NN-*.md.
+ */
+export function getExplainSteps(slug: string): ExplainStep[] {
+  const explainPath = path.join(CHALLENGES_DIR, slug, "explain.json");
+  if (!fs.existsSync(explainPath)) return [];
+  const steps: ExplainStep[] = JSON.parse(fs.readFileSync(explainPath, "utf8"));
+  return [...steps].sort((a, b) => a.order_index - b.order_index);
 }

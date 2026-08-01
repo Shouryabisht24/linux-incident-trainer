@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import {
   useChallenge,
   useCheckSession,
+  useExplainSteps,
   useHints,
   useProgress,
   useRevealHint,
@@ -14,6 +15,7 @@ import {
   useRefreshWsTicket,
 } from "../api/queries";
 import { Celebration, type CelebrationKind } from "../components/Celebration";
+import { ExplainPanel } from "../components/ExplainPanel";
 import { Markdown } from "../components/Markdown";
 import { TerminalPane, type TerminalStatus } from "../components/TerminalPane";
 import { DifficultyBadge, ErrorBanner, PageLoading, Spinner } from "../components/ui";
@@ -242,6 +244,7 @@ export function ChallengeDetailPage() {
   const reconnectTimerRef = useRef<number | null>(null);
 
   const hintsQuery = useHints(session?.id);
+  const explainStepsQuery = useExplainSteps(session?.id);
 
   // A session belongs to a single challenge — reset local UI state whenever the
   // slug changes so navigating between challenges doesn't carry over stale state.
@@ -539,15 +542,18 @@ export function ChallengeDetailPage() {
             )}
           </div>
 
-          <div className="terminal-frame">
-            <div className="terminal-wrap">
-              <TerminalPane
-                key={session.id}
-                wsTicket={session.wsTicket}
-                onExit={handleUnexpectedExit}
-                onStatusChange={handleTerminalStatusChange}
-              />
+          <div className={`terminal-explain-layout${(explainStepsQuery.data?.length ?? 0) > 0 ? " has-explain" : ""}`}>
+            <div className="terminal-frame">
+              <div className="terminal-wrap">
+                <TerminalPane
+                  key={session.id}
+                  wsTicket={session.wsTicket}
+                  onExit={handleUnexpectedExit}
+                  onStatusChange={handleTerminalStatusChange}
+                />
+              </div>
             </div>
+            <ExplainPanel steps={explainStepsQuery.data ?? []} />
           </div>
 
           <div className="row row-wrap">
