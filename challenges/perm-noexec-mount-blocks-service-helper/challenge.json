@@ -1,0 +1,13 @@
+{
+  "slug": "perm-noexec-mount-blocks-service-helper",
+  "title": "renderd service refuses to start: \"startup self-test failed\"",
+  "category": "permissions-ownership",
+  "difficulty": "hard",
+  "description_md": "The `renderd` invoice-rendering service won't start. `service renderd start` reports `renderd: startup self-test failed, refusing to start`, and `service renderd status` confirms it isn't running. Nobody touched the service's configuration, and the render helper it depends on internally is exactly where it's always been, with its execute bit clearly set -- `ls -l` shows nothing wrong. SSH in as `trainee` (passwordless `sudo`), work out why a script with the execute bit set still won't run when `renderd` tries to invoke it during startup, and get the service running again (you do not have the ability to remount filesystems in this environment -- find a fix that doesn't require it).\n\nYou're done when `service renderd start` succeeds and `service renderd status` reports it running.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "tmpfs": { "/opt/render-assets": "size=20m,mode=755,noexec" },
+  "time_limit_minutes": 20,
+  "content_version": 1
+}

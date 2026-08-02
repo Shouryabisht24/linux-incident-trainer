@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "The script and the cron.d entry (`0 2 * * *`) are both syntactically fine, and the job actually does run once a day -- just apparently not when everyone expects it to. Check what time this box itself thinks it is right now: `date`." },
+  { "order_index": 2, "text": "Cron schedules jobs against the system's own local timezone, not UTC, unless a job specifically overrides it. Check what timezone this box is actually configured for: `date +%z`, `cat /etc/timezone`, `timedatectl` (if available) -- compare that to what the rest of the fleet is supposed to run on." },
+  { "order_index": 3, "text": "\"0 2 * * *\" means 02:00 *in whatever timezone this box's clock is set to* -- it has no idea the fleet-wide intent was 02:00 UTC. If this box's local timezone isn't actually UTC, the job fires hours away from every other box's 02:00 UTC run, even though the cron line is byte-for-byte identical everywhere." },
+  { "order_index": 4, "text": "Fix the box's system timezone itself, not the cron syntax: point `/etc/localtime` at the UTC zoneinfo file and update `/etc/timezone` to match, e.g. `sudo ln -sf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC | sudo tee /etc/timezone`. Confirm with `date +%z` -- it should read `+0000`." }
+]

@@ -1,0 +1,12 @@
+{
+  "slug": "proc-nice-priority-starvation",
+  "title": "batch-report-job never finishes -- telemetry-agent is eating its CPU share",
+  "category": "process-performance",
+  "difficulty": "intermediate",
+  "description_md": "`batch-report-job` (the nightly report roll-up) has been running for ages and barely making progress. The box's own runbook is explicit that `telemetry-agent` (a background metrics scraper) must always run deprioritized so it never competes evenly with real work -- but on this box, `batch-report-job` is getting almost no more CPU time than `telemetry-agent` is, despite `telemetry-agent` being the lower-importance job. SSH in as `trainee` (passwordless `sudo`), work out what's actually competing for the CPU, and correct its priority so the important job gets its fair share.\n\nYou're done when `batch-report-job` is clearly getting the lion's share of CPU time again.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

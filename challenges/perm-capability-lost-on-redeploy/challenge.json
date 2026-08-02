@@ -1,0 +1,12 @@
+{
+  "slug": "perm-capability-lost-on-redeploy",
+  "title": "Monitoring probe fails after a routine redeploy: 'Operation not permitted' opening a raw socket",
+  "category": "permissions-ownership",
+  "difficulty": "intermediate",
+  "description_md": "The on-box monitoring agent runs as the unprivileged `netmon` service account (no sudo) and uses a small helper, `/usr/local/bin/icmp-probe`, to build a raw ICMP packet directly for a lightweight latency check -- deliberately not running as root or shelling out to a setuid `ping`. It's been working fine for months, but after last night's routine redeploy of the monitoring-agent package, `netmon`'s probe now fails immediately with `Operation not permitted` -- even though `ls -l /usr/local/bin/icmp-probe` shows it's still owned by root and still executable, identical to before. SSH in as `trainee` (passwordless `sudo`), work out what the redeploy actually changed, and get the probe working for `netmon` again.\n\nYou're done when running `icmp-probe` as the `netmon` user succeeds and prints its probe-ok marker.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

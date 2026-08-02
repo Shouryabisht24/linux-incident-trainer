@@ -1,0 +1,12 @@
+{
+  "slug": "net-unix-socket-path-mismatch",
+  "title": "Reverse proxy gets 502: backend's unix socket moved and the proxy config didn't follow",
+  "category": "networking-dns",
+  "difficulty": "intermediate",
+  "description_md": "A reverse proxy (nginx on port 8080) forwards to a backend app over a unix domain socket instead of a TCP port. Users now get `502 Bad Gateway`. The backend process itself is healthy and definitely listening on *a* socket. A recent rollout changed the socket's filename on the backend side, and only that side got updated. SSH in as `trainee` (passwordless `sudo`), find where the backend's socket actually lives versus where the proxy is looking for it, and fix the mismatch.\n\nYou're done when `curl http://localhost:8080/` returns the backend's page.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

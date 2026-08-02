@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Just run the failing command and read it: `sudo apt-get update`. apt names the exact source it couldn't fetch, including the path it tried." },
+  { "order_index": 2, "text": "See everywhere apt is configured to look: `cat /etc/apt/sources.list` and `ls /etc/apt/sources.list.d/`, then `cat` each file there. One of them points at a path that doesn't exist on disk at all -- check with `ls` on the path it names." },
+  { "order_index": 3, "text": "This box is offline by design (`/etc/apt/sources.list` is intentionally empty) and has exactly one real, working mirror (a `file://` entry). The other `sources.list.d` entry references a mirror path that was decommissioned and never cleaned out of the config -- it isn't coming back." },
+  { "order_index": 4, "text": "Remove the stale entry: `sudo rm /etc/apt/sources.list.d/internal-legacy.list`. Then `sudo apt-get update` should succeed, and `apt-cache policy reportviewer` should show a real candidate again." }
+]

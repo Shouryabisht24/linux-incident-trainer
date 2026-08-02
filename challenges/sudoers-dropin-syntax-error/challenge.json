@@ -1,0 +1,12 @@
+{
+  "slug": "sudoers-dropin-syntax-error",
+  "title": "netops was granted sudo, but it still doesn't work",
+  "category": "users-groups-sudo",
+  "difficulty": "intermediate",
+  "description_md": "The `netops` service account is supposed to have full passwordless `sudo` — someone added a drop-in file under `/etc/sudoers.d/` for it last week. But `sudo` for `netops` still fails every time, as if nothing was ever granted. SSH in as `trainee` (you have full passwordless `sudo`), work out why the grant isn't taking effect, and fix it properly.\n\nYou're done when `netops` can run a command via `sudo -n`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

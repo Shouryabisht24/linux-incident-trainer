@@ -3470,11 +3470,27 @@ html {
   gap: var(--space-3);
 }
 
+/* Overrides `.btn`'s flat neutral-gray resting style on purpose — as a plain secondary button
+   sitting right next to the terminal's own animated conic-gradient frame, it read as visually
+   inert and was easy to miss entirely (confirmed: findable via browser search, i.e. genuinely
+   present and positioned correctly, just not eye-catching). Given real presence instead: an
+   accent-tinted fill/border/text treatment matching this app's teal accent, so it reads as an
+   actual call-to-action next to the terminal rather than a generic secondary control. */
 .explain-toggle {
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
+  background: rgba(var(--color-accent-rgb), 0.1);
+  border-color: rgba(var(--color-accent-rgb), 0.4);
+  color: var(--color-accent-hover);
+  font-weight: 600;
+}
+
+.explain-toggle:hover:not(:disabled) {
+  background: rgba(var(--color-accent-rgb), 0.16);
+  border-color: var(--color-accent);
+  color: var(--color-accent-active);
 }
 
 .explain-toggle-chevron {

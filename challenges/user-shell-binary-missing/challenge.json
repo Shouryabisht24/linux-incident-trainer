@@ -1,0 +1,12 @@
+{
+  "slug": "user-shell-binary-missing",
+  "title": "reportbot's jobs fail: 'No such file or directory'",
+  "category": "users-groups-sudo",
+  "difficulty": "beginner",
+  "description_md": "Automation that runs jobs as the `reportbot` service account (`su - reportbot -c '...'`) started failing with `su: failed to execute /usr/local/sbin/corp-shell: No such file or directory`. The account's configured login shell used to be a custom, audited wrapper binary that apparently isn't there anymore. SSH in as `trainee` (passwordless `sudo`), find out what's actually going on, and get `reportbot` able to run jobs again.\n\nYou're done when `su - reportbot -c 'echo ok'` runs successfully.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

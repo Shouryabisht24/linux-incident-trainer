@@ -1,0 +1,13 @@
+{
+  "slug": "disk-stale-lock-file-fills-tmpfs",
+  "title": "brokerctl refuses to start: 'insufficient space, another instance may be running'",
+  "category": "disk-filesystem",
+  "difficulty": "intermediate",
+  "description_md": "The `eventqueue` broker is down and won't come back up. Every attempt to start it with `brokerctl start` refuses, saying something like 'only 2MB free ... a WAL reservation is already present, assuming another instance is still using it' -- but nothing is actually running. The box lost power mid-run last night. SSH in as `trainee` (passwordless `sudo`), work out whether that reservation is real, reclaim the space it's holding, and get the broker running.\n\nYou're done when `eventqueue-worker` is actually running and there's healthy free space in `/var/lib/eventqueue` again.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "tmpfs": { "/var/lib/eventqueue": "size=24m,mode=1777" },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

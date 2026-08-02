@@ -1,0 +1,12 @@
+{
+  "slug": "proc-limitnofile-ceiling-too-low",
+  "title": "apiworker.service can't hold its full connection pool -- 'Too many open files'",
+  "category": "process-performance",
+  "difficulty": "intermediate",
+  "description_md": "The `apiworker` service is healthy and restarting fine, but it never reaches its expected steady-state connection pool of 40 simultaneous connections. Its journal is full of `Too many open files` errors that repeat forever. Nobody touched the app itself recently -- the only recent change was a systemd unit edit as part of a resource-limits hardening pass. SSH in as `trainee` (passwordless `sudo`), find the real ceiling `apiworker` is hitting, and raise it to something the service actually needs.\n\nYou're done when `apiworker` is `active` and actually holding its full 40-connection pool open.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

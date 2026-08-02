@@ -1,0 +1,12 @@
+{
+  "slug": "systemd-active-not-holding-port",
+  "title": "systemctl says webapp.service is active, but curl to its port fails",
+  "category": "networking-dns",
+  "difficulty": "hard",
+  "description_md": "`webapp.service` is supposed to serve `http://localhost:8080/`. `systemctl is-active webapp` reports `active` -- the unit looks perfectly healthy -- but `curl http://localhost:8080/` times out. A leftover unit from an old canary rollout was never cleaned up after cutover. SSH in as `trainee` (passwordless `sudo`), figure out why an \"active\" unit isn't actually the one answering on its own port, and get the real app serving.\n\nYou're done when `curl http://localhost:8080/` succeeds.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 100 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

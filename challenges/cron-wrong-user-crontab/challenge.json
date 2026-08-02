@@ -1,0 +1,12 @@
+{
+  "slug": "cron-wrong-user-crontab",
+  "title": "Invoice export runs on schedule, but the pipeline downstream of it keeps rejecting the result",
+  "category": "cron-scheduling",
+  "difficulty": "intermediate",
+  "description_md": "The nightly invoice export (`/opt/scripts/export-invoices.sh`, scheduled via `/etc/cron.d/export-invoices`) runs every minute without a single error in its own log. But the downstream step that's supposed to pick up its output (`/opt/scripts/process-export.sh`, which runs as the dedicated `invoicer` service account) keeps refusing to touch the file it produces. SSH in as `trainee` (passwordless `sudo`), work out why the export's own output isn't acceptable to the process waiting for it, and fix where the job actually runs.\n\nYou're done when the export job (run the way cron runs it) produces a file that `process-export.sh`, run as `invoicer`, actually accepts.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

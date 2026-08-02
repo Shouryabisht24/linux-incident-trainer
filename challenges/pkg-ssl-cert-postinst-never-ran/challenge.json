@@ -1,0 +1,12 @@
+{
+  "slug": "pkg-ssl-cert-postinst-never-ran",
+  "title": "TLS service won't start: snakeoil certificate the ssl-cert package should have generated is missing",
+  "category": "package-management",
+  "difficulty": "intermediate",
+  "description_md": "This box was provisioned by cloning a golden VM image, and an internal TLS-terminating service refuses to start because it can't find `/etc/ssl/private/ssl-cert-snakeoil.key`. That's odd: `dpkg -s ssl-cert` says the package is fully installed and configured -- nothing looks unpacked or half-done. But the actual self-signed certificate the package's own setup step is supposed to generate on first boot was never produced on *this* host; the golden image carried dpkg's bookkeeping over, but not the host-specific artifact. SSH in as `trainee` (passwordless `sudo`) and get a valid, matching snakeoil key/cert pair in place the right way.\n\nYou're done when `/etc/ssl/private/ssl-cert-snakeoil.key` and `/etc/ssl/certs/ssl-cert-snakeoil.pem` exist as a valid, matching pair with the correct ownership.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

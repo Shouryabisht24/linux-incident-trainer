@@ -1,0 +1,12 @@
+{
+  "slug": "logs-dead-symlink-destination",
+  "title": "reportd's log file exists, but writes to it never stick",
+  "category": "logs-journald",
+  "difficulty": "beginner",
+  "description_md": "`reportd`'s config points its logging at `/var/log/reportd/reportd.log`, and that path is right there when you `ls` it -- but nothing reportd writes ever actually shows up when you read it back. The app never complains, never errors, just keeps running as if everything's fine. SSH in as `trainee` (passwordless `sudo`), work out where writes to that path are actually going, and fix it so they land somewhere real.\n\nYou're done when a line written through reportd's logger actually shows up when you read back `/var/log/reportd/reportd.log`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

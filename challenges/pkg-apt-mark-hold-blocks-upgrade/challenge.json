@@ -1,0 +1,12 @@
+{
+  "slug": "pkg-apt-mark-hold-blocks-upgrade",
+  "title": "Monitoring probe fails: widget-cli --health missing despite a fix sitting in the mirror",
+  "category": "package-management",
+  "difficulty": "beginner",
+  "description_md": "The monitoring stack just started probing this host with `widget-cli --health`, and it's failing every time with `unknown option: --health`. Ops says the fix already shipped: version `2.0-1` of `widget-cli`, which adds the `--health` subcommand, is sitting right in this host's internal package mirror. But something is stopping the upgrade from actually landing, even though nothing looks broken about the mirror itself. SSH in as `trainee` (passwordless `sudo`) and get the newer version actually installed.\n\nYou're done when `widget-cli --health` reports `OK`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

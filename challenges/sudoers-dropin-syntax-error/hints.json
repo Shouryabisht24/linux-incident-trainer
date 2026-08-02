@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Reproduce: `sudo -u netops sudo -n id` fails with 'a password is required' (not 'is not in the sudoers file' -- that phrasing matters). Something was written for netops, but it isn't taking effect." },
+  { "order_index": 2, "text": "Check syntax, not just presence: `sudo visudo -c`. It will point at a specific file and line -- `/etc/sudoers.d/netops` -- with a parse error. A malformed rule is silently discarded by sudo, which is why netops effectively has nothing granted." },
+  { "order_index": 3, "text": "Look at the file: `sudo cat /etc/sudoers.d/netops`. Compare it against a known-good grant like the one `trainee` has in `/etc/sudoers`. Something structural is missing from the `(...)` runas part." },
+  { "order_index": 4, "text": "No text editor is installed on this box, so `visudo -f` can't open one -- write the corrected line directly and let `visudo -c` do the validation instead: `echo 'netops ALL=(ALL) NOPASSWD:ALL' | sudo tee /etc/sudoers.d/netops && sudo chmod 440 /etc/sudoers.d/netops && sudo visudo -c`. Then confirm `sudo -u netops sudo -n id` succeeds." }
+]

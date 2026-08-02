@@ -1,0 +1,12 @@
+{
+  "slug": "pkg-force-removed-shared-lib",
+  "title": "clientapp fails: a shared library was force-removed out from under it, and dpkg's database still doesn't agree with itself",
+  "category": "package-management",
+  "difficulty": "hard",
+  "description_md": "`clientapp` fails immediately with `error while loading shared libraries: libfoo.so.1: cannot open shared object file: No such file or directory`. Digging through shell history, someone ran `dpkg -r --force-depends libfoo1` a while back while \"cleaning up unused packages\" -- `--force-depends` let dpkg skip the safety check that would normally have refused, since `clientapp` still depends on it. SSH in as `trainee` (passwordless `sudo`), work out what state dpkg's database is actually in now, and restore things properly (not just by copying a file back by hand).\n\nYou're done when `clientapp` runs successfully, `apt-get check` reports no broken dependencies, and `libfoo1` is genuinely reinstalled (not just its file quietly replaced).",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

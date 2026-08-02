@@ -1,0 +1,12 @@
+{
+  "slug": "logs-journald-storage-none",
+  "title": "telemetryd's messages don't show up anywhere -- not even right now",
+  "category": "logs-journald",
+  "difficulty": "intermediate",
+  "description_md": "`telemetryd` is supposed to log through the system journal, but nothing it emits ever turns up in `journalctl` -- not even messages sent seconds ago, in this exact boot, before anyone has rebooted anything. It isn't a reboot-persistence problem; the messages seem to vanish the instant they're sent. SSH in as `trainee` (passwordless `sudo`), figure out why journald isn't retaining anything at all right now, and fix it.\n\nYou're done when a message emitted through the journal (e.g. via `logger`) actually shows up in a `journalctl` query immediately afterwards.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

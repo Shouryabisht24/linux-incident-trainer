@@ -1,0 +1,12 @@
+{
+  "slug": "proc-hung-dependent-service",
+  "title": "event-shipper has been 'starting up' forever and telemetry is dark",
+  "category": "process-performance",
+  "difficulty": "hard",
+  "description_md": "`event-shipper` is supposed to be forwarding a steady stream of events, but nothing has shown up in the telemetry pipeline since the box came up. It's not crash-looping, it's not spinning a CPU, and it isn't a zombie -- `ps` shows it just sitting there, alive, doing nothing, apparently forever. SSH in as `trainee` (passwordless `sudo`), work out exactly what it's stuck waiting on, and get the pipeline flowing.\n\nYou're done when events are actually being collected end-to-end.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

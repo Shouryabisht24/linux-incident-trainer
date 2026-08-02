@@ -1,0 +1,18 @@
+[
+  {
+    "order_index": 1,
+    "text": "Reproduce it as the real actor first: `sudo -u netmon /usr/local/bin/icmp-probe`. Now try the exact same command as root/trainee (`sudo /usr/local/bin/icmp-probe`) -- does the identical binary behave differently depending on who runs it?"
+  },
+  {
+    "order_index": 2,
+    "text": "`ls -l /usr/local/bin/icmp-probe` shows `-rwxr-xr-x root root` -- completely normal, and nobody changed its ownership or mode. Building a raw socket isn't gated by a DAC permission bit at all, though -- it needs a specific Linux *capability*. Check for one with `getcap /usr/local/bin/icmp-probe`."
+  },
+  {
+    "order_index": 3,
+    "text": "A capability like `cap_net_raw` lets one binary perform one privileged kernel operation without full setuid-root -- but it's stored as an extended attribute tied to that exact file's data, not to its path or ownership. A redeploy that overwrites the binary with a freshly built copy produces a file with none of that data, even though it looks byte-for-byte identical at the permission level to the one before it."
+  },
+  {
+    "order_index": 4,
+    "text": "Restore it: `sudo setcap cap_net_raw=+ep /usr/local/bin/icmp-probe`. Confirm with `getcap /usr/local/bin/icmp-probe` (should show `cap_net_raw=ep`), then re-run the probe as `netmon`."
+  }
+]

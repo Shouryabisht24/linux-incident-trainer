@@ -1,0 +1,12 @@
+{
+  "slug": "logs-logrotate-create-wrong-owner",
+  "title": "orderapi's log went silent right after the last rotation",
+  "category": "logs-journald",
+  "difficulty": "intermediate",
+  "description_md": "The `orderapi` service runs as the unprivileged `orderapi` system account (it never runs as root). It's still handling requests fine, but `/var/log/orderapi/orderapi.log` hasn't grown at all since logrotate last rotated it -- the old entries from before the rotation are still there, nothing new. SSH in as `trainee` (passwordless `sudo`), find out why the `orderapi` account can no longer write to its own log file, and fix it.\n\nYou're done when, after forcing a fresh logrotate run, the `orderapi` account can actually write a new line into the post-rotation log file.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

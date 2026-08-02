@@ -1,0 +1,12 @@
+{
+  "slug": "perm-umask-hides-files-from-consumer",
+  "title": "Dashboard can't read the nightly report files -- the job that makes them runs fine",
+  "category": "permissions-ownership",
+  "difficulty": "beginner",
+  "description_md": "A nightly cron job, run as the unprivileged `reportgen` account, drops report files into `/var/lib/reports/` for a separate dashboard process (running as the unprivileged `dashboard` account, a member of the `reportreaders` group meant to have read access there) to pick up and display. The job itself completes successfully every time -- but the dashboard has started showing 'permission denied' reading the very files the job just created. SSH in as `trainee` (passwordless `sudo`), find the report-generation script, work out what's silently changing the mode of the files it writes, and fix it so the dashboard can read them again.\n\nYou're done when a freshly generated report file can be read by the `dashboard` user.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

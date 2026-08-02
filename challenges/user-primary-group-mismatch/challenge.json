@@ -1,0 +1,12 @@
+{
+  "slug": "user-primary-group-mismatch",
+  "title": "Export files come out unreadable to the reporting team",
+  "category": "users-groups-sudo",
+  "difficulty": "intermediate",
+  "description_md": "The `dataexport` service account writes fresh files into `/srv/exports` (owned `dataexport:exportreaders`, mode `770`, no setgid bit) with a restrictive `umask` for compliance reasons. The `analyst` user is a member of `exportreaders` and is supposed to be able to read every new export as soon as it lands, but every file `dataexport` creates comes out unreadable to `analyst`. SSH in as `trainee` (passwordless `sudo`), work out why brand-new files never end up in the right group, and fix `dataexport` so future exports are readable by `analyst` from the moment they're created.\n\nYou're done when a file freshly created by `dataexport` can immediately be read by `analyst`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

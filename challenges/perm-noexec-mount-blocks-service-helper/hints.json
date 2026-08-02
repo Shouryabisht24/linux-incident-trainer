@@ -1,0 +1,18 @@
+[
+  {
+    "order_index": 1,
+    "text": "Reproduce it the way it's actually discovered: `sudo service renderd start`. Read the output/log carefully -- `cat /var/log/renderd/renderd.log`. What exactly does the self-test step report, and what does `/etc/init.d/renderd` do with that result?"
+  },
+  {
+    "order_index": 2,
+    "text": "The init script sources `/etc/default/renderd` for `HELPER_PATH` and runs that path once, as its own startup self-test, before considering itself started. Find out where that actually points (`cat /etc/default/renderd`) and check the helper directly: `ls -l $HELPER_PATH` (or the literal path). The execute bit is set -- so why would `execve()` refuse it?"
+  },
+  {
+    "order_index": 3,
+    "text": "If the execute bit is fine but running the file is still refused, the block might not be a permission bit at all. Check how the helper's directory is actually mounted: `mount | grep render-assets`. `noexec` tells the kernel to refuse executing ANYTHING there, regardless of permission bits -- and unlike ordinary file permissions, root does not bypass this. You don't have the capability to remount it here, so `chmod`/`chown` won't help."
+  },
+  {
+    "order_index": 4,
+    "text": "The fix is to stop running scripts directly off a noexec-mounted directory: copy the helper to a normal, exec-enabled location, make it executable there, and repoint `HELPER_PATH` in `/etc/default/renderd` at the new path (both the init script's self-test and the resident daemon loop read that same variable, so this one edit fixes both). Then retry `sudo service renderd start`."
+  }
+]

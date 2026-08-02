@@ -1,0 +1,13 @@
+{
+  "slug": "disk-thumbnail-cache-never-pruned",
+  "title": "No space left on device: the photo gallery's thumbnail cache is full",
+  "category": "disk-filesystem",
+  "difficulty": "beginner",
+  "description_md": "The `photoapp` gallery site can no longer generate new thumbnails -- every attempt fails with `No space left on device`. The thumbnail cache at `/var/cache/photoapp/thumbnails` has been growing for as long as anyone can remember and nobody ever added anything to prune it, even as photos got deleted from the live site over time. SSH in as `trainee` (passwordless `sudo`), find what's actually filling that filesystem, clear it out, and confirm the app can generate thumbnails again.\n\nYou're done when `/var/cache/photoapp/thumbnails` has a healthy amount of free space again *and* `photoapp-thumbnailer` can successfully generate a new thumbnail.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "tmpfs": { "/var/cache/photoapp/thumbnails": "size=24m,mode=1777" },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

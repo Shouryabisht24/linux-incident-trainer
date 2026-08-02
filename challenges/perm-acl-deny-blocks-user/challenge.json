@@ -1,0 +1,12 @@
+{
+  "slug": "perm-acl-deny-blocks-user",
+  "title": "Export file is readable by literally everyone -- except the account that needs it",
+  "category": "permissions-ownership",
+  "difficulty": "intermediate",
+  "description_md": "The nightly export at `/var/data/exports/customer_export.csv` feeds the `etl` service account's daily load job. `ls -l` shows the file is world-readable (`-rw-r--r--`), so on paper the unprivileged `etl` account should have no trouble reading it -- but its load job has started failing with `permission denied` regardless. A while back, a security engineer was asked to lock a departing contractor's account out of this exact file and added a targeted access-control entry for an account named `etl` -- without realizing that name belongs to the legitimate automated service account, not the contractor. SSH in as `trainee` (passwordless `sudo`), figure out what's actually blocking `etl` when the plain permission bits look totally permissive, and fix it.\n\nYou're done when the `etl` user can read `/var/data/exports/customer_export.csv`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

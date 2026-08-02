@@ -1,0 +1,12 @@
+{
+  "slug": "logs-journald-forward-to-syslog-disabled",
+  "title": "invoiced's dedicated log file stopped getting new entries",
+  "category": "logs-journald",
+  "difficulty": "hard",
+  "description_md": "`invoiced` logs through the system journal like everything else on this box, and `journalctl -t invoiced` proves its messages are still arriving there just fine. But the dedicated file the billing team actually tails, `/var/log/invoiced/invoiced.log` (filed there by a legitimate rsyslog rule that depends on rsyslog receiving what journald forwards it), hasn't gotten a single new line in a while. SSH in as `trainee` (passwordless `sudo`), work out why journald's messages aren't making it to rsyslog anymore, and fix the pipeline.\n\nYou're done when a fresh `invoiced` message shows up in `/var/log/invoiced/invoiced.log`.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

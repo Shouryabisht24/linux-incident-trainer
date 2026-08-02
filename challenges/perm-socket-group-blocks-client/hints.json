@@ -1,0 +1,18 @@
+[
+  {
+    "order_index": 1,
+    "text": "Reproduce it as the real actor: `sudo -u collector nc -U /run/metricsd/metricsd.sock`. Now confirm the daemon itself is genuinely fine: check it's running (`pgrep -f metricsd-daemon.sh`) and even connect to the socket as root/trainee -- does the exact same socket behave differently depending on who connects?"
+  },
+  {
+    "order_index": 2,
+    "text": "A Unix domain socket is gated by ordinary file permissions on its own path, just like a regular file. Check them: `ls -l /run/metricsd/metricsd.sock`. Then check `id collector` -- is `collector` actually a member of the group that owns the socket?"
+  },
+  {
+    "order_index": 3,
+    "text": "`collector` IS a member of `metrics-clients` (check `id collector`) -- but the socket's group is something else. Fix what's live right now: `sudo chgrp metrics-clients /run/metricsd/metricsd.sock`, then re-test as `collector` -- it should connect immediately."
+  },
+  {
+    "order_index": 4,
+    "text": "That fix only covers the *current* socket file, though -- this daemon recreates its socket from scratch every time it restarts or cycles, and a fresh one will default right back to the wrong group unless the parent directory itself is fixed. Check `ls -ld /run/metricsd`: new files created inside a plain directory get the creating process's own primary group, not any \"shared\" group. Make it durable: `sudo chgrp metrics-clients /run/metricsd && sudo chmod g+s /run/metricsd` -- the setgid bit makes every future file/socket created inside inherit the *directory's* group automatically, regardless of which account creates it."
+  }
+]

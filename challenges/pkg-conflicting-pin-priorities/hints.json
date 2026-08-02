@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Refresh apt's cache first (`sudo apt-get update`), then look at `apt-cache policy auditlog-agent`. Check the version table below `Candidate:` -- both 1.0-1 and 2.0-1 are listed, each with a number next to it. That number is the effective pin priority apt is using to choose between them." },
+  { "order_index": 2, "text": "A version with priority over 1000 wins outright, even over a newer version -- that's apt's own rule for pins that high. If 1.0-1 shows a priority above 1000, that alone explains why it's still `Candidate` no matter what you try to install." },
+  { "order_index": 3, "text": "Find where that priority is coming from: `grep -rl auditlog-agent /etc/apt/preferences.d/`. There's more than one file -- read both. One pins 1.0-1 very high (left over from an old freeze); another pins 2.0-1 much lower (a later, well-intentioned rollout attempt that never actually had a chance of winning)." },
+  { "order_index": 4, "text": "Remove or defang the stale high-priority freeze pin (e.g. `sudo rm /etc/apt/preferences.d/00-incident-freeze`), then re-check `apt-cache policy auditlog-agent` -- 2.0-1 should now show as `Candidate`. Finish with `sudo apt-get update && sudo apt-get install --only-upgrade -y auditlog-agent`." }
+]

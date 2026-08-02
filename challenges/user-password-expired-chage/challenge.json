@@ -1,0 +1,12 @@
+{
+  "slug": "user-password-expired-chage",
+  "title": "Nightly backup job fails: 'You are required to change your password'",
+  "category": "users-groups-sudo",
+  "difficulty": "intermediate",
+  "description_md": "The nightly backup sync runs as the `backupsvc` service account via `su - backupsvc`. It's been failing every night with `You are required to change your password immediately (administrator enforced).`, followed by an authentication error, since it has no interactive terminal to actually change anything. A box-wide password-aging policy rollout swept up this service account along with real human accounts. SSH in as `trainee` (passwordless `sudo`), work out exactly what's forcing the change, and get `backupsvc` usable again.\n\nYou're done when `su - backupsvc -c 'echo ok'` runs successfully.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

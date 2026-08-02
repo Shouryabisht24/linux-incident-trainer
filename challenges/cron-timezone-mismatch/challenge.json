@@ -1,0 +1,12 @@
+{
+  "slug": "cron-timezone-mismatch",
+  "title": "Nightly report fires 8 hours off from when the fleet expects it",
+  "category": "cron-scheduling",
+  "difficulty": "intermediate",
+  "description_md": "`/etc/cron.d/nightly-report` schedules `/opt/scripts/nightly-report.sh` at `0 2 * * *`, intended to run at 02:00 UTC like every other box in the fleet -- the whole reconciliation pipeline downstream expects this box's report at the same wall-clock moment as everyone else's. But this box was provisioned with the wrong local timezone, so cron -- which schedules against the system's own local time, not UTC -- fires the job at 02:00 in a completely different zone, hours away from every other box's actual 02:00 UTC run. SSH in as `trainee` (passwordless `sudo`), work out why this box's schedule doesn't line up with the rest of the fleet, and fix it at the source.\n\nYou're done when the system's configured timezone is genuinely UTC (zero offset), so `0 2 * * *` means the same instant here as it does everywhere else in the fleet, and the report job itself still runs cleanly.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

@@ -1,0 +1,18 @@
+[
+  {
+    "order_index": 1,
+    "text": "Run the generator as the real actor right now, don't wait for cron: `sudo -u reportgen /usr/local/bin/generate-report.sh`. Find the file it just created in `/var/lib/reports/` and check its permissions with `ls -la`."
+  },
+  {
+    "order_index": 2,
+    "text": "The new file is mode `0600`, owned only by `reportgen` -- no group or other access at all, even though `/var/lib/reports` itself is correctly set up (`ls -ld /var/lib/reports` shows it's group-owned by `reportreaders`, which `dashboard` is a member of). Something in the *script* is overriding what the directory would otherwise grant."
+  },
+  {
+    "order_index": 3,
+    "text": "Read the script: `cat /usr/local/bin/generate-report.sh`. Look for a `umask` line near the top -- a umask set before a file is written determines which permission bits get stripped from it at creation, regardless of the containing directory's own group ownership."
+  },
+  {
+    "order_index": 4,
+    "text": "`umask 077` strips every bit except the owner's -- that's too restrictive for a file a different account is supposed to read via group membership. Edit the script (`sudo nano /usr/local/bin/generate-report.sh`) and relax it to something like `umask 027` (or `022`), which still permits group-read. Re-run the generator as `reportgen` and check the new file's permissions again."
+  }
+]

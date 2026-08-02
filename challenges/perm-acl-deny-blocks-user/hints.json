@@ -1,0 +1,18 @@
+[
+  {
+    "order_index": 1,
+    "text": "Reproduce it as the real actor: `sudo -u etl cat /var/data/exports/customer_export.csv`. Now check the plain permission bits: `ls -l /var/data/exports/customer_export.csv`. Do they actually look like they should block this?"
+  },
+  {
+    "order_index": 2,
+    "text": "The mode string is `-rw-r--r--` -- world-readable, completely permissive. `ls -l` on its own can lie about who can actually access a file, though: look for a `+` after the permission string. That marks the presence of an extended POSIX ACL beyond the normal owner/group/other bits."
+  },
+  {
+    "order_index": 3,
+    "text": "Inspect the ACL directly: `getfacl /var/data/exports/customer_export.csv`. A named-user entry for `etl` there overrides the group/other bits specifically for that account -- regardless of how permissive those bits look -- which is exactly how someone locks out one account without touching the file's normal mode at all."
+  },
+  {
+    "order_index": 4,
+    "text": "Remove the stale deny entry: `sudo setfacl -x u:etl /var/data/exports/customer_export.csv` (or grant it explicitly with `sudo setfacl -m u:etl:r-- ...`). Confirm with `getfacl`, then re-check as `etl`."
+  }
+]

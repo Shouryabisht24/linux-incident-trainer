@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "`webappctl start` fails right away: `cat: /etc/webapp/conf.active/app.conf: Too many levels of symbolic links`. That's ELOOP -- the kernel gave up resolving a symlink chain. Look at what the symlink actually points at: `ls -l /etc/webapp/conf.active`." },
+  { "order_index": 2, "text": "`readlink /etc/webapp/conf.active` shows it points at `conf.active` -- itself. A self-referential symlink, not a missing file. Check whether a real profile exists elsewhere: `ls -l /etc/webapp/profiles/`." },
+  { "order_index": 3, "text": "`/etc/webapp/profiles/prod/app.conf` is intact and normal (`cat` it to confirm). Repoint the active symlink at it: `sudo ln -sfn /etc/webapp/profiles/prod /etc/webapp/conf.active`." },
+  { "order_index": 4, "text": "Start the service: `webappctl start`. Confirm with `pgrep -af webapp-worker`." }
+]

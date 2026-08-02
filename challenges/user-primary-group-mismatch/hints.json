@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Reproduce it the way the real export job runs: `sudo -u dataexport sh -c \"umask 027; touch /srv/exports/probe\"` then `sudo -u analyst test -r /srv/exports/probe`. It's denied, even though `analyst` is in the group that owns the directory." },
+  { "order_index": 2, "text": "Look at what group the new file actually got: `ls -l /srv/exports/probe`. It's not `exportreaders` -- it's some other group that only `dataexport` belongs to. `/srv/exports` has no setgid bit (`ls -ld /srv/exports`), so new files don't inherit the directory's group automatically." },
+  { "order_index": 3, "text": "A new file's group comes from the creating process's PRIMARY group (the GID field in `/etc/passwd`/`id -g`), not its supplementary groups. Check `id dataexport` -- its primary group isn't `exportreaders`." },
+  { "order_index": 4, "text": "Fix the PRIMARY group, not the supplementary list: `sudo usermod -g exportreaders dataexport` (not `-aG`, which only adds a supplementary group and would not change what group new files get). Verify: `sudo -u dataexport sh -c \"umask 027; touch /srv/exports/probe2\"` then `sudo -u analyst test -r /srv/exports/probe2` should succeed." }
+]

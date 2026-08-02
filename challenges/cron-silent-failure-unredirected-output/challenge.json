@@ -1,0 +1,12 @@
+{
+  "slug": "cron-silent-failure-unredirected-output",
+  "title": "Metrics rotation job never produces archives -- and never logs an error either",
+  "category": "cron-scheduling",
+  "difficulty": "beginner",
+  "description_md": "`/etc/cron.d/rotate-metrics` runs `/opt/scripts/rotate-metrics.sh` every 5 minutes, but `/var/lib/metrics/archive/` has stayed empty. There's no error anywhere -- no log file, nothing in the job's own output, nothing to go on. SSH in as `trainee` (passwordless `sudo`), make the job's real failure visible, then fix whatever it turns out to be.\n\nYou're done when the cron job actually redirects its output somewhere real, and running it the way cron runs it succeeds and produces an archive file.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

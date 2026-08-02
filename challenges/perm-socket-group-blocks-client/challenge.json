@@ -1,0 +1,12 @@
+{
+  "slug": "perm-socket-group-blocks-client",
+  "title": "Metrics collector can't connect to the stats daemon's socket -- but the daemon itself is fine",
+  "category": "permissions-ownership",
+  "difficulty": "intermediate",
+  "description_md": "The `metricsd` stats daemon on this box is healthy -- it's up, logging normally, and listening on its local control socket at `/run/metricsd/metricsd.sock` exactly as expected. But the on-box `collector` service account (which is supposed to poll that socket every few seconds and forward the numbers upstream) has started failing every single poll with `Permission denied`, even though nothing about the daemon's own health changed. SSH in as `trainee` (passwordless `sudo`), work out why a perfectly healthy daemon's socket is refusing a legitimate, already-provisioned client, and fix it.\n\nYou're done when the `collector` user can connect to `/run/metricsd/metricsd.sock` and read the daemon's response.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

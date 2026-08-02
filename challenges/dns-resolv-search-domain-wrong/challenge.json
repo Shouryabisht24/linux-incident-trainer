@@ -1,0 +1,12 @@
+{
+  "slug": "dns-resolv-search-domain-wrong",
+  "title": "Short hostname 'db' won't resolve even though its DNS record is correct",
+  "category": "networking-dns",
+  "difficulty": "intermediate",
+  "description_md": "An app on this box is configured to reach its database at the short hostname `db` (not a fully-qualified name), on port 8080. It used to work fine; now every lookup fails, even though the internal DNS record for `db` is correct and the database itself is healthy. A zone rename happened recently. SSH in as `trainee` (passwordless `sudo`), figure out why a short name that used to resolve now doesn't, and fix it.\n\nYou're done when `curl http://db:8080/` succeeds.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

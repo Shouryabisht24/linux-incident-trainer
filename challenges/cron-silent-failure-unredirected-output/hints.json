@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Look at the job line in `/etc/cron.d/rotate-metrics`. Is there anywhere its output could possibly go? Cron's default behavior for a job with no redirection is to try to mail the output -- check whether anything on this box can even deliver mail (`which sendmail`, `which mail`)." },
+  { "order_index": 2, "text": "With no MTA installed and no redirection in the cron line, both stdout and stderr from a failing job go nowhere you'll ever see. Add a redirection to the cron.d line itself, e.g. `>> /var/log/rotate-metrics.log 2>&1`, then run the job (don't wait 5 minutes -- run `/opt/scripts/rotate-metrics.sh` yourself, or check the log after your fix takes effect on the next tick) and read what actually happens." },
+  { "order_index": 3, "text": "Once you can see the real error, it'll be something like `cp: cannot stat '/var/lib/metrics/metrics.log': No such file or directory`. Compare that path to what's actually on disk in `/var/lib/metrics/` -- the current data file has a different name than the script expects." },
+  { "order_index": 4, "text": "Two things need fixing: point `rotate-metrics.sh`'s `SRC` at the file that actually exists (`/var/lib/metrics/metrics.current.log`), and keep the output redirection in `/etc/cron.d/rotate-metrics` so the next real failure won't disappear again." }
+]

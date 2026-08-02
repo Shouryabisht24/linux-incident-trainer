@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Check dpkg's view first: `dpkg -s ssl-cert` and `sudo dpkg --audit`. dpkg is completely happy -- the package is 'install ok installed', nothing is reported as unpacked or half-configured. So this isn't the classic interrupted-install state." },
+  { "order_index": 2, "text": "`sudo dpkg --configure -a` (the usual fix for 'dpkg was interrupted') will report nothing to do here -- there's nothing left in dpkg's own configure queue. The actual missing thing is a *file* the package's setup step is supposed to generate, not a database state: `ls -la /etc/ssl/private/ | grep snakeoil` and `ls -la /etc/ssl/certs/ | grep snakeoil`." },
+  { "order_index": 3, "text": "ssl-cert's own postinst doesn't hand-write these files directly -- it calls a helper command to generate them. Look for it: `dpkg -L ssl-cert | grep bin`. You'll find `make-ssl-cert`." },
+  { "order_index": 4, "text": "Re-trigger the package's actual generation step rather than hand-rolling your own cert: `sudo dpkg-reconfigure ssl-cert` (this re-runs ssl-cert's postinst, which calls `make-ssl-cert generate-default-snakeoil --force-overwrite` for you, with the right ownership and permissions). If debconf declines to re-run it, call the helper directly: `sudo make-ssl-cert generate-default-snakeoil --force-overwrite`." }
+]

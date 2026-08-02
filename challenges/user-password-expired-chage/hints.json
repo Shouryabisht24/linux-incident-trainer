@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Reproduce: `su - backupsvc -c 'echo ok'` prints `You are required to change your password immediately (administrator enforced).`, then fails trying to prompt for one. This is password-aging enforcement, not an account lock or expiry." },
+  { "order_index": 2, "text": "Check the account's aging status: `sudo chage -l backupsvc` (or `sudo passwd -S backupsvc`). Look specifically at 'Last password change' -- if it shows as something like 'password must be changed' instead of a real date, that's the special sentinel." },
+  { "order_index": 3, "text": "A 'last changed' date of day 0 (`chage -d 0`) is a hard-coded trigger meaning 'force a change right now', independent of any max-days policy -- setting a longer max-days alone will NOT clear it, since the sentinel itself is what's forcing the prompt." },
+  { "order_index": 4, "text": "Clear it by setting the last-changed date to something real: `sudo chage -d $(date +%Y-%m-%d) backupsvc`. Verify with `sudo chage -l backupsvc` (should show a real date, not 'must be changed') and `su - backupsvc -c 'echo ok'`." }
+]

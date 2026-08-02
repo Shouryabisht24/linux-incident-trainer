@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "`metricsdctl start` refuses immediately: `SPOOL_DIR=/var/lib/metricsd/spool is not on a size-bounded tmpfs`. Check what filesystem type that path is actually on: `stat -f -c %T /var/lib/metricsd/spool` (or `findmnt -T /var/lib/metricsd/spool`)." },
+  { "order_index": 2, "text": "It's an ordinary directory on the root filesystem, not tmpfs. Is there a real tmpfs mounted anywhere on this box? `findmnt -t tmpfs` (or `mount | grep tmpfs`) lists one at `/var/lib/metricsd-buffer` -- that's the bounded buffer ops actually provisioned." },
+  { "order_index": 3, "text": "The config still names the old path. Look at it: `cat /etc/metricsd/metricsd.conf`. Point `SPOOL_DIR` at the real mount instead: `sudo sed -i 's#^SPOOL_DIR=.*#SPOOL_DIR=/var/lib/metricsd-buffer#' /etc/metricsd/metricsd.conf`." },
+  { "order_index": 4, "text": "Start it: `metricsdctl start`, then confirm it's actually using the tmpfs, not just that it started: `pgrep -af metricsd-worker` should show `/var/lib/metricsd-buffer` in its argv." }
+]

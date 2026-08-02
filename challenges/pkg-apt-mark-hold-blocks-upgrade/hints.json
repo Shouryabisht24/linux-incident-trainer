@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Compare what's installed against what's actually available: `apt-cache policy widget-cli`. Look at the Installed line vs. the versions listed in the table below it." },
+  { "order_index": 2, "text": "Try the upgrade directly: `sudo apt-get install --only-upgrade widget-cli` (or `sudo apt-get upgrade`). If it reports the package is being 'kept back' or does nothing at all, something is actively preventing the upgrade -- it isn't a missing package or a network problem." },
+  { "order_index": 3, "text": "Check for a hold: `apt-mark showhold`. A held package is skipped by `apt-get upgrade`/`install --only-upgrade` entirely, no matter what version is sitting in the mirror." },
+  { "order_index": 4, "text": "Lift the hold and retry: `sudo apt-mark unhold widget-cli && sudo apt-get update && sudo apt-get install --only-upgrade -y widget-cli`. Confirm with `widget-cli --health`." }
+]

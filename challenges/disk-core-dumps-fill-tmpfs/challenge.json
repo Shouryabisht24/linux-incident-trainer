@@ -1,0 +1,13 @@
+{
+  "slug": "disk-core-dumps-fill-tmpfs",
+  "title": "No space left on device: /var/crash is full of core dumps",
+  "category": "disk-filesystem",
+  "difficulty": "intermediate",
+  "description_md": "The `render-worker` job keeps crashing, and every crash leaves a full core dump behind in `/var/crash` -- someone left core dumping wide open (`ulimit -c unlimited`) for a binary that segfaults constantly, and now that filesystem is completely full. SSH in as `trainee` (passwordless `sudo`), clean up the accumulated dumps, and fix the actual problem so this doesn't just fill back up the next time it crashes.\n\nYou're done when `/var/crash` has a healthy amount of free space again, *and* triggering the worker's crash loop one more time doesn't leave a fresh core dump behind.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "tmpfs": { "/var/crash": "size=24m,mode=1777" },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

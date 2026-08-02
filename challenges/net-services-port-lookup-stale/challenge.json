@@ -1,0 +1,12 @@
+{
+  "slug": "net-services-port-lookup-stale",
+  "title": "myapp is running fine, just not on the port everyone expects",
+  "category": "networking-dns",
+  "difficulty": "intermediate",
+  "description_md": "`myapp` is supposed to serve on port 8080, but `curl http://localhost:8080/` gives connection refused. The process is up and healthy -- it's just listening somewhere else. This app doesn't hardcode its port; it looks it up by name from the system's service-name database, and that entry is stale from before a port reassignment. SSH in as `trainee` (passwordless `sudo`), find out what port it's actually on and why, and get it onto 8080.\n\nYou're done when `curl http://localhost:8080/` succeeds.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

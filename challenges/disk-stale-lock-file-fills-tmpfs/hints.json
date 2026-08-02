@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "`brokerctl start` refuses immediately, saying a WAL reservation already exists and there isn't enough free space -- as if another instance owns it. Check whether one actually does: `pgrep -af eventqueue-worker` and `df -h /var/lib/eventqueue`." },
+  { "order_index": 2, "text": "No process is running (empty `pgrep` output). That reservation is stale -- left behind by a broker that lost power before it could release it. Look at what's actually consuming the space: `ls -lh /var/lib/eventqueue`." },
+  { "order_index": 3, "text": "Since nothing is holding it, the ~13MB `wal.reserved` file is just dead weight. Remove it: `sudo rm /var/lib/eventqueue/wal.reserved`, then re-check `df -h /var/lib/eventqueue`." },
+  { "order_index": 4, "text": "Start again: `brokerctl start`. It claims a fresh reservation for itself and this time actually launches the broker -- confirm with `pgrep -af eventqueue-worker`." }
+]

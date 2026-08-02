@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Confirm the filesystem: `df -h /var/crash`. It should be at (or very near) 100% used. `du -sh /var/crash` / `find /var/crash -type f | wc -l` shows a lot of small-ish files spread across many directories, not one giant one." },
+  { "order_index": 2, "text": "Look at what's actually in there: `find /var/crash -maxdepth 2 -type f`. These are core dumps -- one per crash of some worker, each in its own `run-*` directory." },
+  { "order_index": 3, "text": "Free the space first: `sudo rm -rf /var/crash/run-*` (or `sudo find /var/crash -mindepth 1 -delete`). But if you stop there, the next crash just refills it -- find whatever keeps generating these. `cat /usr/local/bin/worker-supervisor` is the thing invoking the crashy binary." },
+  { "order_index": 4, "text": "`worker-supervisor` runs `ulimit -c unlimited` before every invocation of the crash-prone binary -- that's what makes every single crash dump a full core file. Edit it (`sudo nano /usr/local/bin/worker-supervisor` or a `sed -i`) to cap it instead, e.g. `ulimit -c 0`, so future crashes don't dump at all. `ulimit -c` is honored by the kernel for root and non-root processes alike, so this genuinely stops the behavior, not just today's mess." }
+]

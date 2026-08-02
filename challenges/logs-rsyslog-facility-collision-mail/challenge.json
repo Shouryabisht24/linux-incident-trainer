@@ -1,0 +1,12 @@
+{
+  "slug": "logs-rsyslog-facility-collision-mail",
+  "title": "shipnotify has a dedicated log file, but it's always empty",
+  "category": "logs-journald",
+  "difficulty": "intermediate",
+  "description_md": "`shipnotify` is supposed to log to `/var/log/shipnotify/shipnotify.log` -- there's a dedicated rsyslog rule for it and everything -- but the file never gets a single line, even though the app is clearly running and rsyslog is clearly up. Nothing is being blackholed or silenced on purpose here; every rule in play is a legitimate one. SSH in as `trainee` (passwordless `sudo`), work out where `shipnotify`'s messages are actually ending up, and get them landing in the right place.\n\nYou're done when a fresh message from `shipnotify` actually appears in `/var/log/shipnotify/shipnotify.log`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

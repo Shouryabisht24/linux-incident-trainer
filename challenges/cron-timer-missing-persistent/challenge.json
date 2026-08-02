@@ -1,0 +1,12 @@
+{
+  "slug": "cron-timer-missing-persistent",
+  "title": "Nightly reconciliation timer never catches up after being re-enabled",
+  "category": "cron-scheduling",
+  "difficulty": "intermediate",
+  "description_md": "`nightly-reconcile.timer` (triggering `nightly-reconcile.service`) was disabled three days ago during a maintenance freeze, and someone just re-enabled it -- but the run that should have caught up immediately never happened. `/var/lib/app/last-reconcile` still doesn't exist. SSH in as `trainee` (passwordless `sudo`), work out why re-enabling the timer doesn't make it catch up on what it missed while it was off, and fix it so it does.\n\nYou're done when the timer is configured to catch up on missed runs, and doing so for real actually produces `/var/lib/app/last-reconcile`.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

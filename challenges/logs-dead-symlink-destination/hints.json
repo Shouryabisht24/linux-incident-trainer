@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Write a test line and read it back: `reportd-log hello; cat /var/log/reportd/reportd.log`. The `cat` itself fails -- 'No such file or directory' -- even though `ls /var/log/reportd/` shows `reportd.log` sitting right there." },
+  { "order_index": 2, "text": "`ls -l /var/log/reportd/reportd.log` shows it's a symlink. Where does it actually point? Check the target directory itself: `ls -ld $(dirname $(readlink /var/log/reportd/reportd.log))`." },
+  { "order_index": 3, "text": "The symlink's target directory doesn't exist at all -- so every write to it fails outright (there's nowhere for the file to even be created), and reportd's logging wrapper silently swallows that error rather than surfacing it. Check `/etc/reportd/reportd.conf` to confirm this dead symlink is exactly what the app is configured to log to." },
+  { "order_index": 4, "text": "Point logging at something real again. Either recreate the missing target directory (`sudo mkdir -p /var/log/reportd-archive`, then `sudo touch` the symlink's target so it resolves), or simplify by replacing the symlink with a real file directly: `sudo rm /var/log/reportd/reportd.log && sudo touch /var/log/reportd/reportd.log`. Then confirm: `reportd-log test && cat /var/log/reportd/reportd.log`." }
+]

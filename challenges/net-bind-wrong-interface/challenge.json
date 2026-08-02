@@ -1,0 +1,12 @@
+{
+  "slug": "net-bind-wrong-interface",
+  "title": "nginx is running but 'localhost' can't reach it -- wrong bind address",
+  "category": "networking-dns",
+  "difficulty": "beginner",
+  "description_md": "The web app is supposed to answer on `http://localhost:8080/` (i.e. `127.0.0.1:8080`). Health checks all fail with connection refused, but the nginx process is definitely running and definitely holding port 8080 open -- `ss` proves it. Someone pinned the bind address to the wrong local address during a redeploy. SSH in as `trainee` (passwordless `sudo`), find the mismatch, and fix it.\n\nYou're done when `curl http://127.0.0.1:8080/` (equivalently `http://localhost:8080/`) succeeds.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

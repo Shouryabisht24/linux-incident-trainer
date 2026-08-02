@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Check the timer's current state first: `systemctl status nightly-reconcile.timer`, `systemctl is-enabled nightly-reconcile.timer`. It's inactive/disabled -- re-enable it: `sudo systemctl enable --now nightly-reconcile.timer`. Still no `/var/lib/app/last-reconcile` shows up." },
+  { "order_index": 2, "text": "This isn't an OnCalendar syntax problem -- the schedule itself (`02:00:00` daily) is valid. Check `systemctl show nightly-reconcile.timer -p Persistent`." },
+  { "order_index": 3, "text": "By default a systemd timer is NOT persistent: if it was inactive when a scheduled occurrence would have fired, that occurrence is just gone the moment you re-enable it -- systemd only waits for the next natural one, potentially a full day away. `Persistent=true` tells systemd to run the service immediately on activation if at least one scheduled trigger was missed while the timer was inactive." },
+  { "order_index": 4, "text": "Add a `Persistent=true` line under `[Timer]` in `/etc/systemd/system/nightly-reconcile.timer`, then `sudo systemctl daemon-reload` and `sudo systemctl enable --now nightly-reconcile.timer` again. Because a real 02:00 occurrence was missed while the timer was off, the service now fires immediately to catch up." }
+]

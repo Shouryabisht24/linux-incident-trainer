@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Reproduce: `su - reportbot -c 'echo ok'` prints `su: failed to execute /usr/local/sbin/corp-shell: No such file or directory`. That's an exec() failure, not a permissions message and not nologin's canned text -- the file su is trying to run doesn't exist at all." },
+  { "order_index": 2, "text": "Confirm the configured shell: `getent passwd reportbot` -- last field is `/usr/local/sbin/corp-shell`. Check whether it's actually there: `ls -l /usr/local/sbin/corp-shell` (or just `test -x /usr/local/sbin/corp-shell; echo $?`)." },
+  { "order_index": 3, "text": "The wrapper binary is gone and there's no package or fixture available to reinstall it in this box. The practical fix is to point reportbot at a real, existing shell instead." },
+  { "order_index": 4, "text": "`sudo usermod -s /bin/bash reportbot`. Verify with `su - reportbot -c 'echo ok'`." }
+]

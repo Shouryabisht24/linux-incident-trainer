@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "The export script itself has no bug -- run it by hand and it works. The problem shows up one step later: `sudo -u invoicer /opt/scripts/process-export.sh`. Read exactly what it complains about." },
+  { "order_index": 2, "text": "`process-export.sh` refuses to touch the export file unless it's owned by the same account running the script (`invoicer`). Check who actually owns `/var/lib/invoicer/exports/last-export.txt`: `ls -l`." },
+  { "order_index": 3, "text": "Whoever cron runs the job as becomes the owner of whatever it writes. Look at `/etc/cron.d/export-invoices` -- what user is in the job line?" },
+  { "order_index": 4, "text": "Change the user field in `/etc/cron.d/export-invoices` from `root` to `invoicer`, so the job runs (and its output is owned) as the account that's actually supposed to own it. A fresh run will now produce a file `process-export.sh` accepts." }
+]

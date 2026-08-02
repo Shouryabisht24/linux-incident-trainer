@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Confirm what dpkg currently thinks: `dpkg-query -W -f='${Status}\\n' libfoo1`. It'll say something like 'deinstall ok config-files' or simply not be installed -- while `dpkg-query -W -f='${Status}\\n' clientapp` still shows 'install ok installed', with a recorded dependency on libfoo1 that no longer holds." },
+  { "order_index": 2, "text": "Ask apt directly whether it sees a problem: `sudo apt-get check`. It reports clientapp's unmet dependency on libfoo1 -- this is dpkg's database disagreeing with itself, not just a missing file." },
+  { "order_index": 3, "text": "Resist the urge to just copy a .so file back by hand or symlink around it -- that might get clientapp running again, but dpkg would still have no record of libfoo1 being installed, and `apt-get check` would still complain. Check whether the package is still available to reinstall properly: `apt-cache policy libfoo1`." },
+  { "order_index": 4, "text": "Reinstall the actual package: `sudo apt-get update && sudo apt-get install -y libfoo1`. Since it's marked not-installed, a normal install (not `--reinstall`) puts it back -- this restores both the real file dpkg extracts *and* dpkg's own bookkeeping in one step, satisfying clientapp's dependency for real. Confirm with `clientapp` and `sudo apt-get check`." }
+]

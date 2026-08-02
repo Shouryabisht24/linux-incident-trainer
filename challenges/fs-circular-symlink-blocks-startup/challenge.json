@@ -1,0 +1,12 @@
+{
+  "slug": "fs-circular-symlink-blocks-startup",
+  "title": "webappctl start fails: 'Too many levels of symbolic links'",
+  "category": "disk-filesystem",
+  "difficulty": "beginner",
+  "description_md": "The `webapp` service won't start. `webappctl start` fails immediately trying to read its own config, complaining about `Too many levels of symbolic links` -- not a missing file, not a permissions error. A deploy script that was supposed to point the active config at a real profile directory clearly went wrong. SSH in as `trainee` (passwordless `sudo`), work out what the active config symlink is actually pointing at, fix it, and get the service running.\n\nYou're done when the `webapp-worker` process is actually running.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

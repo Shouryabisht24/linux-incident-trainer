@@ -1,0 +1,12 @@
+{
+  "slug": "proc-pidslimit-fork-exhaustion",
+  "title": "This box is dangerously close to 'cannot fork' -- something keeps spawning workers",
+  "category": "process-performance",
+  "difficulty": "hard",
+  "description_md": "Something on this box has been quietly creeping toward its process-count ceiling. Commands are starting to intermittently fail with things like `fork: retry: Resource temporarily unavailable`, and it's getting worse, not better. This container's process-count (`pids`) limit is deliberately tight -- and whatever's spawning new processes shows no sign of ever stopping on its own. SSH in as `trainee` (passwordless `sudo`), find what's eating the process table, stop it, and clean up what it already leaked before this box locks itself out entirely.\n\nYou're done when the process count has real headroom again and nothing is still trying to grow it.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 40 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

@@ -1,0 +1,12 @@
+{
+  "slug": "user-duplicate-uid",
+  "title": "Two service accounts both claim to be UID 1301",
+  "category": "users-groups-sudo",
+  "difficulty": "intermediate",
+  "description_md": "A provisioning script created a new service account, `metricsagent`, and it accidentally got the same UID (1301) as the existing, unrelated `logshipper` account. Now `ls -l`/`getent passwd 1301` shows everything as `logshipper` no matter which account actually owns it, and nobody can tell the two apart by name -- a real identity-confusion incident waiting to cause an ownership mistake. SSH in as `trainee` (passwordless `sudo`), untangle the two accounts so each has its own unique UID, without breaking either account or its files.\n\nYou're done when `logshipper` and `metricsagent` are distinct accounts with distinct UIDs, and each still owns its own home directory correctly.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

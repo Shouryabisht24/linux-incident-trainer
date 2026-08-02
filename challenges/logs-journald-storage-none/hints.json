@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Reproduce it directly: `logger -t telemetryd \"probe\"` then immediately `journalctl -t telemetryd`. Nothing -- not even the message you just sent, in this exact boot. That rules out a reboot-persistence problem; something is stopping journald from retaining anything at all, right now." },
+  { "order_index": 2, "text": "Check journald's actual merged config: `systemd-analyze cat-config systemd/journald.conf`. Look at the `Storage=` line specifically -- there's more than one valid value, and they don't all mean 'keep it in memory instead of disk'." },
+  { "order_index": 3, "text": "`Storage=none` doesn't mean 'memory only' -- it means journald keeps nothing at all, ever (it still forwards elsewhere if configured to, but stores nothing itself). That's different from `Storage=volatile` (RAM-only, lost on reboot) or `Storage=persistent`/`auto` (written to disk)." },
+  { "order_index": 4, "text": "Fix the drop-in: change `Storage=none` to `Storage=auto` in `/etc/systemd/journald.conf.d/nostore.conf`, then `sudo systemctl restart systemd-journald`. Verify: `logger -t telemetryd \"confirm\"` followed immediately by `journalctl -t telemetryd` now shows it." }
+]

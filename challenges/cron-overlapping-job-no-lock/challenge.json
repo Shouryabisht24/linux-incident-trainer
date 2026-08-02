@@ -1,0 +1,12 @@
+{
+  "slug": "cron-overlapping-job-no-lock",
+  "title": "Overlapping cron runs are corrupting the processed-count tally",
+  "category": "cron-scheduling",
+  "difficulty": "hard",
+  "description_md": "`/opt/scripts/tally-processed.sh` runs every minute via `/etc/cron.d/tally-processed`, adding to a running total in `/var/lib/app/total-processed` every time it's invoked. Under load the job can take longer than a minute to finish, so the next minute's cron invocation starts while the previous one is still running -- and the shared total keeps coming out lower than the number of times the job actually ran, with no error anywhere. SSH in as `trainee` (passwordless `sudo`), work out why concurrent runs are stomping on each other's updates, and fix the script so overlapping invocations can never corrupt the total.\n\nYou're done when several invocations launched at the same time -- exactly the scenario that happens when a run overlaps the next -- all serialize correctly and the total ends up exactly right, every time.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

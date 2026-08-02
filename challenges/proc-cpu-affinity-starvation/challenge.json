@@ -1,0 +1,12 @@
+{
+  "slug": "proc-cpu-affinity-starvation",
+  "title": "render-worker is barely making progress despite idle CPU cores",
+  "category": "process-performance",
+  "difficulty": "hard",
+  "description_md": "`render-worker` is supposed to be chewing through its job queue continuously, but its throughput has collapsed to a crawl -- and `top` shows this box has cores sitting idle while `render-worker` limps along. Nothing about the job itself changed. SSH in as `trainee` (passwordless `sudo`), work out why a process can be CPU-starved on a box with free capacity to spare, and fix it.\n\nYou're done when `render-worker` is actually making healthy forward progress again.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 2, "pidsLimit": 50 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

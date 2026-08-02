@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Confirm which filesystem is actually full: `df -h /var/cache/photoapp/thumbnails`. Then look at how many files are in there: `ls /var/cache/photoapp/thumbnails | wc -l` -- a suspiciously huge number for a small site." },
+  { "order_index": 2, "text": "Cross-reference against what photos actually still exist: `ls /srv/photoapp/photos/`. Only a few real photos remain, but almost every cached file is `thumb-orphan-*.jpg` -- thumbnails for photos deleted long ago that were never cleaned up." },
+  { "order_index": 3, "text": "There are too many to remove with a bare wildcard (`rm /var/cache/photoapp/thumbnails/thumb-orphan-*.jpg` will likely fail with 'Argument list too long'). Use find instead: `sudo find /var/cache/photoapp/thumbnails -name 'thumb-orphan-*.jpg' -delete`, then re-check `df -h`." },
+  { "order_index": 4, "text": "Confirm the app can actually use the cache again, not just that space is free: `photoapp-thumbnailer generate 1` should succeed and create a fresh thumbnail file." }
+]

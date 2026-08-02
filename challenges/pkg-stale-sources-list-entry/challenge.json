@@ -1,0 +1,12 @@
+{
+  "slug": "pkg-stale-sources-list-entry",
+  "title": "apt-get update fails: a decommissioned internal mirror entry never got cleaned up",
+  "category": "package-management",
+  "difficulty": "beginner",
+  "description_md": "This host has no real internet access -- it only ever installs from an internal package mirror baked into the image. Lately, `sudo apt-get update` fails outright, which is also breaking any script here that chains `apt-get update && apt-get install ...`. SSH in as `trainee` (passwordless `sudo`), read what apt is actually complaining about, and fix the source list so updates -- and installs from the still-healthy internal mirror -- work again.\n\nYou're done when `apt-get update` succeeds cleanly and packages from the internal mirror (e.g. `reportviewer`) are resolvable again.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 50 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}
