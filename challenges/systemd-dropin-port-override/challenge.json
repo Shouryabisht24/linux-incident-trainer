@@ -1,0 +1,12 @@
+{
+  "slug": "systemd-dropin-port-override",
+  "title": "webapp.service looks fine, but nothing answers on its documented port",
+  "category": "systemd-services",
+  "difficulty": "intermediate",
+  "description_md": "`webapp.service` is active according to systemd, and every runbook says it listens on port 8080 -- but `curl http://localhost:8080/` times out. Nobody touched the unit file itself. SSH in as `trainee` (passwordless `sudo`), find out what's actually overriding its configuration, and get it back on the documented port.\n\nYou're done when `curl http://localhost:8080/` succeeds.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

@@ -1,0 +1,12 @@
+{
+  "slug": "sshd-maxauthtries-too-low",
+  "title": "deploy's key is valid, but SSH still gets disconnected mid-handshake",
+  "category": "ssh-remote-access",
+  "difficulty": "hard",
+  "description_md": "The deploy automation authenticates as `deploy` by offering a fixed sequence of SSH keys held over from a key-rotation history -- two retired keys first, then the current one -- and letting the server reject the retired ones before the current key succeeds. That's always worked. Today it doesn't: the connection is dropped mid-handshake with `Too many authentication failures`, even though the correct key is right there in the sequence. Something on the server now cuts authentication off too early. SSH in as `trainee` (passwordless `sudo`) and fix it without changing the automation's key sequence.\n\nThe three keys, tried in order, are at `~/decoy1_key`, `~/decoy2_key`, `~/deploy_key` (only the last one is actually authorized). You're done when `ssh -o IdentitiesOnly=yes -i ~/decoy1_key -i ~/decoy2_key -i ~/deploy_key deploy@localhost 'echo SSH_OK'` prints `SSH_OK`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 60 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

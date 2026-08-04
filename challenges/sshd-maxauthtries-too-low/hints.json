@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "The key itself is fine -- it's the *sequence* that's the problem. Watch what happens during a failed attempt: `sudo tail -n 30 /var/log/auth.log` after a failed run shows several `Failed publickey for deploy` lines followed by `Disconnecting: Too many authentication failures`." },
+  { "order_index": 2, "text": "Every offered key that sshd rejects counts against a per-connection limit, independent of which auth method is used. Check it: `sudo sshd -T | grep -i maxauthtries`." },
+  { "order_index": 3, "text": "Find where it's set: `sudo grep -rin maxauthtries /etc/ssh/sshd_config /etc/ssh/sshd_config.d/` -- it's `MaxAuthTries 2` in `/etc/ssh/sshd_config.d/authtries.conf`. With 2 retired keys offered before the real one, the connection is dropped after the 2nd failure, before the 3rd (correct) key ever gets tried." },
+  { "order_index": 4, "text": "Raise the limit high enough to cover the full legitimate sequence, e.g. edit the existing line to `MaxAuthTries 6` (don't just append a second `MaxAuthTries` line to the file -- sshd_config keeps the *first* value it sees for a directive, so an appended duplicate in the same file is silently ignored). Validate and reload: `sudo sshd -t && sudo service ssh reload`." }
+]

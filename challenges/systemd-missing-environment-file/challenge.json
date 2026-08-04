@@ -1,0 +1,12 @@
+{
+  "slug": "systemd-missing-environment-file",
+  "title": "billing-worker.service starts and immediately dies -- systemd never complained about its config",
+  "category": "systemd-services",
+  "difficulty": "intermediate",
+  "description_md": "`billing-worker.service` is supposed to run continuously, but `systemctl status billing-worker` shows `failed` -- and it never gets a second chance, it just sits there. systemd itself never flagged anything wrong with the unit's configuration when it loaded. SSH in as `trainee` (passwordless `sudo`), find out why the worker dies the instant it starts, and get it running for real.\n\nYou're done when `systemctl is-active billing-worker` reports `active`.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

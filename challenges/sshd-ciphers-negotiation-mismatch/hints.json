@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Run it plainly and read the actual error (don't hide stderr): `ssh -i ~/deploy_key deploy@localhost 'echo hi'`. It fails before any login prompt or key exchange with users -- that's a transport-layer problem, not an authentication one." },
+  { "order_index": 2, "text": "The message is `Unable to negotiate with ... no matching cipher found. Their offer: <something>`. That \"offer\" is the server's allowed cipher list -- ask sshd directly what it is: `sudo sshd -T | grep -i '^ciphers'`." },
+  { "order_index": 3, "text": "Find where it's set: `sudo grep -rin '^ciphers' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/`. It's restricted to a single legacy cipher that a modern `ssh` client doesn't propose by default." },
+  { "order_index": 4, "text": "Broaden the list to include at least one modern cipher (don't just remove the directive and lose the hardening intent entirely) -- e.g. edit it to `Ciphers 3des-cbc,aes256-gcm@openssh.com,chacha20-poly1305@openssh.com`. Validate and reload: `sudo sshd -t && sudo service ssh reload`. Retry the login." }
+]

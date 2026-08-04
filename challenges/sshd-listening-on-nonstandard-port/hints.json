@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "Nothing answers on 22 at all -- not even a rejection, just a timeout/refused. That points at sshd not listening there anymore, rather than an auth problem. Confirm what's actually listening: `sudo ss -tlnp | grep sshd`." },
+  { "order_index": 2, "text": "You should see sshd bound to some other port number. Ask sshd's own effective config directly: `sudo sshd -T | grep -i '^port'`." },
+  { "order_index": 3, "text": "Find where that's configured: `sudo grep -rin '^port' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/`. sshd supports multiple `Port` lines -- you don't have to remove the existing one, you can add `Port 22` alongside it." },
+  { "order_index": 4, "text": "Add a `Port 22` line to the config (in the same drop-in or a new one), validate with `sudo sshd -t`, then `sudo service ssh reload` to make sshd re-bind. Retry `ssh -p 22 -i ~/deploy_key deploy@localhost`." }
+]

@@ -1,0 +1,12 @@
+{
+  "slug": "sshd-ciphers-negotiation-mismatch",
+  "title": "SSH fails instantly with \"no matching cipher found\" -- before any login prompt",
+  "category": "ssh-remote-access",
+  "difficulty": "intermediate",
+  "description_md": "Connecting to this box as `deploy` fails immediately with `Unable to negotiate with ... no matching cipher found` -- there's no login prompt, no key rejection, nothing user- or key-related at all. A hardening change restricted which ciphers sshd will use, and it went further than it should have. SSH in as `trainee` (passwordless `sudo`), find the mismatch, and fix it so a normal client can actually negotiate a session -- without turning off encryption restrictions altogether.\n\nA test key is at `~/deploy_key`. You're done when `ssh -i ~/deploy_key deploy@localhost 'echo SSH_OK'` prints `SSH_OK`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 60 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

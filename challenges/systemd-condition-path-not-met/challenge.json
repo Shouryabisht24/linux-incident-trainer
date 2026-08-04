@@ -1,0 +1,12 @@
+{
+  "slug": "systemd-condition-path-not-met",
+  "title": "metrics-agent.service isn't running, but systemd doesn't call it failed",
+  "category": "systemd-services",
+  "difficulty": "intermediate",
+  "description_md": "`metrics-agent` is supposed to be running on every host, but `systemctl is-active metrics-agent` reports `inactive` -- not `failed`, not `masked`, just quietly not running -- and `systemctl start metrics-agent` returns success without anything actually starting. The provisioning step that's supposed to flip this host into the rollout was apparently skipped. SSH in as `trainee` (passwordless `sudo`), figure out why systemd treats this as a non-event instead of an error, and get the agent genuinely running.\n\nYou're done when `systemctl is-active metrics-agent` reports `active`.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

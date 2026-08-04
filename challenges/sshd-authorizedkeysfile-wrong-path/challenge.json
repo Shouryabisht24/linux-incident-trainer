@@ -1,0 +1,12 @@
+{
+  "slug": "sshd-authorizedkeysfile-wrong-path",
+  "title": "deploy's key is correct, but SSH still asks for a password",
+  "category": "ssh-remote-access",
+  "difficulty": "intermediate",
+  "description_md": "A migration to a centralized authorized-keys layout happened recently, and it wasn't finished. The `deploy` user's key is valid, `~/.ssh` permissions are all correct, but key login still falls through to a password prompt (which doesn't exist for `deploy` -- so it just fails). SSH in as `trainee` (passwordless `sudo`), find where sshd is actually looking for `deploy`'s authorized keys, and get a working key into that location.\n\nA test key is at `~/deploy_key` (`ssh -i ~/deploy_key deploy@localhost`). You're done when that key login succeeds.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 60 },
+  "time_limit_minutes": 12,
+  "content_version": 1
+}

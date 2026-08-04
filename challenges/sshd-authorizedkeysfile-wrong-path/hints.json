@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "The key and `~/.ssh` permissions are fine, and it's failing for `deploy` even though the key content is right, so this isn't a StrictModes/permissions problem. Ask sshd what it's actually using: `sudo sshd -T | grep -i authorizedkeysfile`." },
+  { "order_index": 2, "text": "It's not the default `.ssh/authorized_keys` -- it's some other path (with a `%u` token for the username). That path is where sshd looks, full stop; it does not also fall back to the per-user default once this directive is set." },
+  { "order_index": 3, "text": "Check whether that configured path/directory actually exists yet: `sudo ls -la` on it. If it's missing, that's the whole bug -- nobody finished the migration." },
+  { "order_index": 4, "text": "Create the directory and drop deploy's public key in at the exact path sshd expects (substituting `deploy` for `%u`), owned by root, readable: e.g. `sudo mkdir -p /etc/ssh/authorized_keys && sudo cp /home/deploy/.ssh/authorized_keys /etc/ssh/authorized_keys/deploy && sudo chmod 755 /etc/ssh/authorized_keys && sudo chmod 644 /etc/ssh/authorized_keys/deploy`. No sshd reload needed -- AuthorizedKeysFile is read fresh on every auth attempt." }
+]

@@ -1,0 +1,12 @@
+{
+  "slug": "ssh-client-config-bad-perms",
+  "title": "Your own ssh alias stopped working -- \"Bad owner or permissions\"",
+  "category": "ssh-remote-access",
+  "difficulty": "beginner",
+  "description_md": "You (the `trainee` user) have an `apphost` alias set up in your own `~/.ssh/config` for the app server, but running `ssh apphost` now fails outright -- it doesn't even try to connect, and it's not sshd on the other end rejecting anything. Something local to your own account changed. Figure out why `ssh` itself is refusing to use your config file, and get `ssh apphost` working again.\n\nYou're done when `ssh apphost 'echo SSH_OK'` prints `SSH_OK`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 60 },
+  "time_limit_minutes": 8,
+  "content_version": 1
+}

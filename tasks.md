@@ -1474,3 +1474,84 @@ directly to the terminal that a user can open/close freely, any number of times,
       already-shipping, presumably-visually-confirmed patterns it directly reuses (`.dashboard-grid`'s identical
       breakpoint, `.auth-collapse`'s identical collapse technique) rather than a new layout mechanism introduced
       sight-unseen.
+
+## Challenge catalogue expansion — 50 → 100 (decisions/0037-0046)
+Doubled the challenge catalogue, adding 50 new challenges across all 10 existing categories (no new
+categories — each category's target roughly doubled). Delivered in 10 batches of ~5 challenges each,
+run 2 batches at a time as separate background agents, after an initial fully-parallel 5-batch attempt
+hit real infrastructure instability (background-task stalls and connection drops, recovered from by
+resuming agents from their transcripts rather than restarting, and by reducing concurrency going
+forward). Every single challenge, across every batch, went through the same non-negotiable loop this
+project has required since `decisions/0007`: `docker build` clean → run with the platform's real flags
+→ `check.sh` fails non-zero before any fix → the intended fix applied as the unprivileged `trainee`
+user (never root) → `check.sh` passes. At least 2 challenges per batch were additionally verified
+through the real running API (real session start, real `docker exec` fix, real check-pass), not just
+the isolated build loop.
+- [x] **Cron & scheduling** — 3 more (`cron-timer-missing-persistent`, `cron-overlapping-job-no-lock`,
+      `cron-timezone-mismatch`) + 2 added in the earlier partial batch = **9/9 total**. See `decisions/0037`.
+- [x] **Package management** — 5 new (`pkg-apt-mark-hold-blocks-upgrade`, `pkg-conflicting-pin-priorities`,
+      `pkg-ssl-cert-postinst-never-ran`, `pkg-stale-sources-list-entry`, `pkg-force-removed-shared-lib`) =
+      **9/9 total**. Caught and fixed two real tooling bugs along the way (a `dpkg-scanpackages
+      --multiversion` flag omission, and Debian 12's newer deb822 `sources.list.d` format needing
+      explicit handling). See `decisions/0038`.
+- [x] **Disk & filesystem** — 4 more (`fs-circular-symlink-blocks-startup`,
+      `disk-stale-lock-file-fills-tmpfs`, `disk-thumbnail-cache-never-pruned`,
+      `disk-tmpfs-mount-path-mismatch`) + 1 from the earlier partial batch
+      (`disk-core-dumps-fill-tmpfs`) = **11/11 total**. The verify loop itself caught a sizing bug (a
+      16MB tmpfs that could never reach a passing post-fix state) before it shipped. See `decisions/0039`.
+- [x] **Logs & journald** — 5 new (`logs-logrotate-create-wrong-owner`, `logs-journald-storage-none`,
+      `logs-rsyslog-facility-collision-mail`, `logs-dead-symlink-destination`,
+      `logs-journald-forward-to-syslog-disabled`) = **9/9 total**. Journald mechanisms were pre-validated
+      by hand before committing to the design, specifically to avoid the exact traps `decisions/0016`
+      already documented (journald's own runtime self-enforcement doesn't survive a real build/run
+      cycle; a persistent-journal-permissions idea would get silently "healed" by systemd's tmpfiles
+      logic). See `decisions/0040`.
+- [x] **Permissions & ownership** — 5 new (`perm-capability-lost-on-redeploy`, `perm-acl-deny-blocks-user`,
+      `perm-socket-group-blocks-client`, `perm-umask-hides-files-from-consumer`,
+      `perm-noexec-mount-blocks-service-helper`) = **11/11 total**. Two genuinely new infrastructure
+      findings surfaced and documented: POSIX ACLs don't survive a Docker image build/export (same class
+      of gotcha as tmpfs being empty at container start — the fix moved ACL application into `CMD`), and
+      a per-connection-recreated socket needs both an immediate live-socket fix and a durable
+      directory-level one. A seed idea (`chattr +i`) was tested and correctly ruled out — it needs a
+      capability (`LINUX_IMMUTABLE`) this platform doesn't grant. See `decisions/0041`.
+- [x] **Users/groups/sudo** — 5 new (`sudoers-dropin-syntax-error`, `user-primary-group-mismatch`,
+      `user-shell-binary-missing`, `user-duplicate-uid`, `user-password-expired-chage`) = **10/10 total**.
+      One seed's premise was empirically tested and disproven (a sudoers drop-in syntax error only voids
+      that one file's own rules, it never cascades to break all of sudo) and honestly reframed around
+      what's actually true instead. See `decisions/0042`.
+- [x] **Process & performance** — 5 new (`proc-limitnofile-ceiling-too-low`,
+      `proc-cpu-affinity-starvation`, `proc-nice-priority-starvation`, `proc-pidslimit-fork-exhaustion`,
+      `proc-hung-dependent-service`) = **10/10 total**. Two real pivots were caught only by actually
+      running the verify loop, not by design review: the CPU-starvation challenge needed 2 full vCPUs
+      instead of this category's usual 0.5 (0.5 causes CFS bandwidth-quota fragmentation that inverts the
+      intended starvation effect), and the pids-exhaustion challenge needed a small reap loop as PID 1
+      instead of a bare `sleep infinity`, since killed children become permanent zombies that still count
+      against the `pids` cgroup ceiling. See `decisions/0043`.
+- [x] **Networking & DNS** — 5 new (`net-bind-wrong-interface`, `net-unix-socket-path-mismatch`,
+      `dns-resolv-search-domain-wrong`, `net-services-port-lookup-stale`,
+      `systemd-active-not-holding-port`) = **10/10 total**. A firewall/iptables seed idea was tested and
+      correctly ruled out (this platform never grants `NET_ADMIN`, confirmed directly against
+      `docker.service.ts`) and swapped for a real `/etc/services`/`getservbyname()` mechanism instead.
+      Incidentally re-confirmed `decisions/0003`'s one-live-session-per-user behavior during its own
+      real-API verification. See `decisions/0044`.
+- [x] **systemd & services** — 5 new (`systemd-missing-after-ordering`, `systemd-dropin-port-override`,
+      `systemd-condition-path-not-met`, `systemd-socket-path-mismatch`,
+      `systemd-missing-environment-file`) = **11/11 total**. A seed idea (a wrong-*permission*
+      `EnvironmentFile=`) was correctly ruled out mid-design: systemd itself reads that file as root
+      before ever dropping to the service's own user, so permission bits on it are inert — exactly the
+      fake-break pattern `decisions/0007` warns against — and was swapped for the file being genuinely
+      *missing* instead (using the optional `-` prefix, which really does suppress the error). See
+      `decisions/0045`.
+- [x] **SSH & remote access** — 5 new (`sshd-authorizedkeysfile-wrong-path`,
+      `sshd-listening-on-nonstandard-port`, `ssh-client-config-bad-perms`, `sshd-maxauthtries-too-low`,
+      `sshd-ciphers-negotiation-mismatch`) = **10/10 total**. A chrooted-SFTP seed idea was actually built
+      end-to-end (real `ldd`-computed dependency closure, minimal `/etc/passwd`/`/etc/group`, device
+      nodes) before an undocumented NSS `dlopen()` dependency invisible to static `ldd` analysis was
+      found blocking it — honestly documented and swapped for a cipher-negotiation-mismatch scenario
+      instead, per `AUTHORING.md`'s own explicit fallback guidance. See `decisions/0046`.
+- [x] **Verified**: every one of the 50 new challenges independently spot-checked (fresh `docker build`)
+      by re-running a sample from each batch directly, not just trusting each batch's own self-report;
+      final catalogue count independently confirmed at exactly **100** by direct directory listing.
+      `tasks.md` and all 10 `decisions/0037`-`0046` batch documents were kept off-limits to every
+      individual batch agent (to avoid 10 concurrent/near-concurrent writers racing on the same files)
+      and consolidated here in one pass afterward.

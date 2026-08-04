@@ -1,0 +1,12 @@
+{
+  "slug": "systemd-missing-after-ordering",
+  "title": "webapp.service fails on every fresh boot, but restarting it always works",
+  "category": "systemd-services",
+  "difficulty": "hard",
+  "description_md": "`webapp.service` is supposed to come up automatically at boot, but on a clean start it's always `failed` -- and yet the moment you run `sudo systemctl restart webapp`, it comes up fine and stays up. It depends on a local data-init step that finishes a couple of seconds after boot, but nothing in `webapp.service` says so. SSH in as `trainee` (passwordless `sudo`), figure out why a working restart doesn't mean the boot sequence is actually fixed, and make `webapp.service` genuinely wait for its dependency -- not just get lucky on a manual restart.\n\nYou're done when `webapp.service` is confirmed to correctly wait for `data-init.service` to complete before starting, even on a simulated fresh start.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

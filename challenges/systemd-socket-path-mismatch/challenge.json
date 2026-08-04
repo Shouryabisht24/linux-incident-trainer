@@ -1,0 +1,12 @@
+{
+  "slug": "systemd-socket-path-mismatch",
+  "title": "notify-relay is socket-activated, but nothing answers at its documented socket path",
+  "category": "systemd-services",
+  "difficulty": "hard",
+  "description_md": "`notify-relay` is supposed to accept local notifications over a Unix socket at `/run/notify-relay.sock` -- every client and healthcheck on this box uses that exact path. `notify-relay.socket` is active and `notify-relay.service` looks completely normal (inactive, waiting to be triggered -- that's expected for a socket-activated service that hasn't received a connection yet), yet nothing ever answers at `/run/notify-relay.sock`. SSH in as `trainee` (passwordless `sudo`), work out what the socket unit is actually listening on, and get it back on the path everything else expects.\n\nYou're done when a request to `/run/notify-relay.sock` gets a real response.",
+  "requires_network": false,
+  "requires_systemd": true,
+  "resource_limits": { "memoryMb": 256, "cpus": 0.5, "pidsLimit": 80 },
+  "time_limit_minutes": 15,
+  "content_version": 1
+}

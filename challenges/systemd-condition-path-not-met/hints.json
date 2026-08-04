@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "`systemctl is-active metrics-agent` says `inactive`, not `failed` -- and `sudo systemctl start metrics-agent` exits successfully without anything actually starting. When a start 'succeeds' but nothing runs and nothing looks broken, suspect a Condition, not a crash: `sudo systemctl status metrics-agent`." },
+  { "order_index": 2, "text": "The status output has a `Condition:` block, something like `ConditionPathExists=/etc/metrics-agent/enabled was not met`. That directive gates whether the unit is even attempted -- when it's false, systemd treats the (non-)start as a clean skip rather than a failure, which is exactly why nothing here ever shows up as broken." },
+  { "order_index": 3, "text": "See exactly what's required: `sudo systemctl cat metrics-agent.service`. Then check whether that path actually exists on this host: `ls -l /etc/metrics-agent/`." },
+  { "order_index": 4, "text": "Create what provisioning was supposed to leave behind, then start the service: `sudo mkdir -p /etc/metrics-agent && sudo touch /etc/metrics-agent/enabled && sudo systemctl start metrics-agent`. Confirm with `systemctl is-active metrics-agent`." }
+]

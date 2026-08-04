@@ -1,0 +1,12 @@
+{
+  "slug": "sshd-listening-on-nonstandard-port",
+  "title": "The deploy pipeline can't reach this box over SSH on port 22",
+  "category": "ssh-remote-access",
+  "difficulty": "beginner",
+  "description_md": "An automated deploy pipeline connects to this box over SSH on port 22 as part of every release, and it's been failing all morning with a connection refused/timeout -- nothing answers on 22 at all. Someone changed something about how sshd listens. SSH in as `trainee` (passwordless `sudo`), figure out what port sshd is actually listening on now, and get it back to answering on port 22 (the pipeline can't be reconfigured today, so 22 has to work).\n\nA test key is at `~/deploy_key`. You're done when `ssh -i ~/deploy_key -p 22 deploy@localhost 'echo SSH_OK'` prints `SSH_OK`.",
+  "requires_network": false,
+  "requires_systemd": false,
+  "resource_limits": { "memoryMb": 128, "cpus": 0.5, "pidsLimit": 60 },
+  "time_limit_minutes": 10,
+  "content_version": 1
+}

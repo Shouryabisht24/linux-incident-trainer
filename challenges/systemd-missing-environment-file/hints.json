@@ -1,0 +1,6 @@
+[
+  { "order_index": 1, "text": "`sudo systemctl status billing-worker` shows `failed`, and `Restart=no` means it isn't looping -- it died once and just stayed dead. `sudo journalctl -u billing-worker -n 20 --no-pager` shows the app's own reason: `FATAL: BILLING_API_KEY is not set -- check EnvironmentFile`." },
+  { "order_index": 2, "text": "`sudo systemctl cat billing-worker.service` shows `EnvironmentFile=-/etc/billing-worker/billing-worker.env`. That leading `-` matters: it tells systemd not to complain if the file is missing -- which is exactly why nothing about the *unit itself* ever looked broken. Check whether the file (or even the directory) actually exists: `ls -l /etc/billing-worker/`." },
+  { "order_index": 3, "text": "It doesn't exist -- the deploy step that's supposed to write that file never ran on this host. Create it with the variable the app actually needs: `sudo mkdir -p /etc/billing-worker && printf 'BILLING_API_KEY=prod-key-please-rotate\\n' | sudo tee /etc/billing-worker/billing-worker.env`." },
+  { "order_index": 4, "text": "Restart the worker so it actually picks up the new file -- it's read once at process start, not live-reloaded: `sudo systemctl restart billing-worker`. Confirm with `systemctl is-active billing-worker`." }
+]
