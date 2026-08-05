@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "The refusal message names the check, not the fix",
+    "explanation": "`metricsdctl start` doesn't fail with a generic error — it explicitly says `SPOOL_DIR=/var/lib/metricsd/spool is not on a size-bounded tmpfs`. Reading that literally (a self-check about mount type, not a permissions or missing-file problem) points the investigation straight at filesystem types rather than ownership or existence."
+  },
+  {
+    "order_index": 2,
+    "title": "Verify the claim independently",
+    "explanation": "`stat -f -c %T /var/lib/metricsd/spool` reports the filesystem type of that specific path directly from the kernel — and it comes back as an ordinary filesystem (e.g. `ext4` or `overlay`), confirming the configured `SPOOL_DIR` really isn't tmpfs. The directory itself exists and is writable, which is exactly why this bug wouldn't have shown up as a permissions error."
+  },
+  {
+    "order_index": 3,
+    "title": "Find where the real bounded mount actually lives",
+    "explanation": "`findmnt -t tmpfs` (or `mount | grep tmpfs`) lists every tmpfs mount on the box regardless of what any config file claims, and shows the real bounded buffer sitting at `/var/lib/metricsd-buffer` — a different path than the one `metricsd.conf` names."
+  },
+  {
+    "order_index": 4,
+    "title": "Recognize this as drift, not a typo",
+    "explanation": "`cat /etc/metricsd/metricsd.conf` shows `SPOOL_DIR=/var/lib/metricsd/spool` — the path from before the buffer mount was relocated or renamed. A mount point and a config file that names it are two independent things kept in sync by nothing but convention; when one moves and the other doesn't, the mismatch is silent until something actually checks."
+  },
+  {
+    "order_index": 5,
+    "title": "Point the config at the real mount and restart",
+    "explanation": "`sudo sed -i 's#^SPOOL_DIR=.*#SPOOL_DIR=/var/lib/metricsd-buffer#' /etc/metricsd/metricsd.conf` closes the gap between what the config says and what's actually provisioned. `metricsdctl start` now passes its own self-check because the path it's checking is the path that's genuinely tmpfs."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify it's using the bounded mount, not just that it started",
+    "explanation": "`pgrep -af metricsd-worker` shows `/var/lib/metricsd-buffer` in the running process's own argv — proof it's spooling to the real bounded mount, not merely that `metricsdctl` printed success. The check itself (refuse to start on a non-tmpfs `SPOOL_DIR`) was a good idea from the start; the bug was the drift between mount and config, not the safeguard."
+  }
+]

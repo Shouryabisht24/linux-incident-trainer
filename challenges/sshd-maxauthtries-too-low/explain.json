@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "A mid-handshake disconnect is a different signature than a rejected key",
+    "explanation": "The correct key is genuinely authorized and genuinely offered — this isn't a key-management or access-control problem in the usual sense. What's unusual is the shape of the login itself: a sequence of keys tried in order, and the connection getting cut off mid-handshake rather than any single key being cleanly rejected. That points at a counter tripping before the sequence finishes, not at any one key or user being blocked."
+  },
+  {
+    "order_index": 2,
+    "title": "Watch the log during a failed run to see the counter in action",
+    "explanation": "`sudo tail -n 30 /var/log/auth.log` shows two `Failed publickey for deploy` lines (for the retired decoy keys) immediately followed by `Disconnecting: Too many authentication failures for deploy` — sshd drops the connection outright and never even reaches the third, correct key in the sequence."
+  },
+  {
+    "order_index": 3,
+    "title": "Every offered key counts against the limit, correct or not",
+    "explanation": "`sudo sshd -T | grep -i maxauthtries` confirms the effective value is set to 2. `MaxAuthTries` counts each rejected authentication *attempt*, not failed logins overall — so with 2 retired keys offered ahead of the real one (a leftover of key-rotation history the automation still uses), hitting the limit is inevitable regardless of how correct the final key is. `sudo grep -rin maxauthtries /etc/ssh/sshd_config /etc/ssh/sshd_config.d/` traces it to a brute-force-hardening change that didn't account for this legitimate multi-key flow."
+  },
+  {
+    "order_index": 4,
+    "title": "Fix the existing directive rather than appending a new one",
+    "explanation": "sshd_config directives are first-match-wins when the file is parsed top to bottom — appending a second `MaxAuthTries` line below the original `2` would be silently ignored, leaving the low limit still in effect. Editing the existing line in place (e.g. to `MaxAuthTries 6`, with headroom above the number of keys the automation legitimately offers) is what actually changes the effective value."
+  },
+  {
+    "order_index": 5,
+    "title": "Validate, reload, and verify with the exact multi-key sequence",
+    "explanation": "`sudo sshd -t && sudo service ssh reload` applies the change. Verifying specifically means re-running the full sequence — `ssh -o IdentitiesOnly=yes -i ~/decoy1_key -i ~/decoy2_key -i ~/deploy_key deploy@localhost 'echo SSH_OK'` — not just a single-key login, since a single-key test would never have exposed this limit in the first place."
+  }
+]

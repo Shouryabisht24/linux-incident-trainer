@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "'Connection refused' with a live process means a binding problem, not a crash",
+    "explanation": "A crashed or never-started service produces the same 'connection refused' symptom as a service bound to the wrong place — but `pgrep nginx` showing a running process rules out the crash case immediately. That narrows the question from 'is it up' to 'where exactly is it listening.'"
+  },
+  {
+    "order_index": 2,
+    "title": "Read the address column in `ss -tlnp`, not just the port",
+    "explanation": "`sudo ss -tlnp` shows nginx bound to `127.0.0.2:8080` — the port is right, the address isn't. It's easy to eyeball a listener table and only check the port number; the address half is just as load-bearing, and this bug lives entirely in it."
+  },
+  {
+    "order_index": 3,
+    "title": "127.0.0.0/8 is all loopback, but only 127.0.0.1 is 'localhost' by default",
+    "explanation": "`127.0.0.2` is a perfectly legal, routable-on-this-host loopback address — the entire `127.0.0.0/8` block is reserved for loopback, not just `.1`. But nothing resolves the name `localhost` to it, and no client defaults to it, so a service bound there is technically alive and technically 'on loopback' while being unreachable by every normal client, health check, and monitor on the box."
+  },
+  {
+    "order_index": 4,
+    "title": "Fix the bind address, then reload without dropping connections",
+    "explanation": "Once `grep -rn listen /etc/nginx/` locates the config, changing `listen 127.0.0.2:8080;` to `127.0.0.1:8080;` (or `0.0.0.0:8080` to accept on every local interface) targets the actual address clients use. `nginx -t` validates the syntax before touching anything live, and `nginx -s reload` applies it by spawning new workers alongside old ones rather than dropping the socket, unlike a hard restart."
+  },
+  {
+    "order_index": 5,
+    "title": "Re-check with the same command that found the bug",
+    "explanation": "Running `ss -tlnp` again — not just `curl` — confirms nginx now shows up under `127.0.0.1:8080` specifically, so the fix is verified at the same layer where the mismatch was diagnosed."
+  }
+]

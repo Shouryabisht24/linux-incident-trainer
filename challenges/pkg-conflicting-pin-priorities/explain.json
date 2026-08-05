@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "Candidate, not Installed, is what apt will act on",
+    "explanation": "`apt-cache policy auditlog-agent` shows both `Installed: 1.0-1` and `Candidate: 1.0-1` -- and critically, the version table below lists 2.0-1 as available too, each with a number next to it. That number is the resolved pin priority apt uses to choose a candidate; as long as 1.0-1 outranks 2.0-1 there, no upgrade command will ever move past it, no matter how many times you retry `apt-get upgrade`."
+  },
+  {
+    "order_index": 2,
+    "title": "A priority above 1000 is apt's own signal for \"force this, even as a downgrade\"",
+    "explanation": "If 1.0-1 shows priority `1001` while 2.0-1 shows `500`, that's not an accident of ordering -- priorities over 1000 specifically mean \"install this version even if it's older than what's already installed.\" A pin that strong is deliberately set by a human for a specific reason (here, an incident freeze), not something that shows up from normal package metadata."
+  },
+  {
+    "order_index": 3,
+    "title": "Find every file contributing to the pin, not just one",
+    "explanation": "`grep -rl auditlog-agent /etc/apt/preferences.d/` turns up two separate files: an old `00-incident-freeze` pinning 1.0-1 at 1001, and a later `50-auditlog-rollout` pinning 2.0-1 at only 500. apt combines *every* matching stanza across all preferences files and takes the strict maximum priority -- there's no \"last file wins\" or \"most specific file wins\" rule -- so these two independently-reasonable-looking files silently combine into a result neither author intended."
+  },
+  {
+    "order_index": 4,
+    "title": "Remove the pin that's actually stale, then re-resolve",
+    "explanation": "The freeze is long over, so `sudo rm /etc/apt/preferences.d/00-incident-freeze` removes the only thing keeping 1.0-1 artificially ahead. Re-running `apt-cache policy auditlog-agent` should now show `Candidate: 2.0-1` -- confirming the fix at the resolution layer *before* touching the installed package at all."
+  },
+  {
+    "order_index": 5,
+    "title": "Installing by explicit version would have hidden the real bug",
+    "explanation": "Running `apt-get install auditlog-agent=2.0-1` directly would get the right bits onto disk, but would leave the underlying pin conflict untouched -- the very next plain `apt-get upgrade` a teammate ran would silently revert it back to 1.0-1, since the candidate itself was never actually corrected. Fixing the pin first, then doing a normal `apt-get install --only-upgrade -y auditlog-agent`, means the upgrade sticks."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify both fields, not just one",
+    "explanation": "Checking that `Installed:` reads 2.0-1 alone wouldn't catch a hacky version-pinned install with the pin conflict still lurking underneath. Confirming `apt-cache policy` shows `2.0-1` for *both* `Installed:` and `Candidate:` is what proves the resolution itself, not just today's package file, is actually fixed."
+  }
+]

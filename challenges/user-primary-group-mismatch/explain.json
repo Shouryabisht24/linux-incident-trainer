@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Reproduce the real workflow, including the umask",
+    "explanation": "`sudo -u dataexport sh -c \"umask 027; touch /srv/exports/probe\"` succeeds (dataexport owns the directory, so writing was never the issue), but `sudo -u analyst test -r /srv/exports/probe` is denied — even though analyst is a member of `exportreaders`, the group that owns the directory."
+  },
+  {
+    "order_index": 2,
+    "title": "Check what group the new file actually landed in",
+    "explanation": "`ls -l /srv/exports/probe` shows a group other than `exportreaders` — one only `dataexport` belongs to. `ls -ld /srv/exports` confirms there's no setgid bit, so this directory does nothing to force new files to inherit its own group; whatever group a file gets comes entirely from the process that created it."
+  },
+  {
+    "order_index": 3,
+    "title": "New-file group assignment reads the primary group, never the supplementary list",
+    "explanation": "`id dataexport` shows its primary group is its own private group, not `exportreaders` — even though the account could theoretically be added to `exportreaders` as a supplementary group. The kernel assigns a newly created file's group from the creating process's effective/primary GID; supplementary groups are consulted only when checking permissions against files that already exist, never when deciding what group a brand-new file gets."
+  },
+  {
+    "order_index": 4,
+    "title": "usermod -g, not -aG — the two solve different problems",
+    "explanation": "`usermod -aG exportreaders dataexport` would make dataexport a member of the group and even let it read/write existing exportreaders-owned files, but it would not change what group future files it creates come out as, since that decision reads the primary GID field. Only `sudo usermod -g exportreaders dataexport` changes the value the kernel actually consults at file-creation time."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify with a fresh file, not the one from step 1",
+    "explanation": "Re-running the same umask-027 probe against a new filename and testing `analyst`'s read access confirms the fix changes behavior for files created *from now on* — the earlier probe file, created before the fix, would stay group-owned however it already was and isn't a valid check on its own."
+  }
+]

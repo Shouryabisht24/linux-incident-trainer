@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "A healthy-looking unit and a correct base file don't rule out a config drift",
+    "explanation": "`systemctl status webapp` shows `active (running)`, and the base `/etc/systemd/system/webapp.service` clearly has `Environment=LISTEN_PORT=8080` — exactly what the runbook documents. Yet `curl http://localhost:8080/` times out. When the process is up and the file you can `cat` looks right, the mismatch has to be coming from configuration you haven't looked at yet."
+  },
+  {
+    "order_index": 2,
+    "title": "A plain file cat only shows part of the story",
+    "explanation": "systemd loads a unit as the base file merged with any drop-ins under `<unit>.service.d/*.conf` at parse time — a plain `cat` of the `.service` file can't show that merge. `systemctl cat webapp.service` shows the fully assembled configuration; `systemctl show webapp -p Environment` shows the effective runtime value directly, which is the faster way to confirm what the process actually got."
+  },
+  {
+    "order_index": 3,
+    "title": "Later directives win, and systemd never flags the collision",
+    "explanation": "A drop-in at `webapp.service.d/override.conf` sets `Environment=LISTEN_PORT=9099`. For repeatable directives like `Environment=`, a later occurrence of the same key overrides an earlier one, and drop-ins load after the base unit — so `9099` silently wins with zero warning from systemd anywhere. `ss -tlnp | grep 9099` confirms webapp's real PID is bound there instead of 8080."
+  },
+  {
+    "order_index": 4,
+    "title": "Remove the stale override and reload",
+    "explanation": "The comment left in the drop-in (\"TEMP: point at the debug port ... revert after\") explains how it got there — a debugging session's override that was never cleaned up. Deleting `override.conf` removes the shadowing directive; because a unit file under `/etc/systemd/system/` changed, `systemctl daemon-reload` is required before `systemctl restart webapp` will pick up the base unit's original port."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify against the documented path, not just process status",
+    "explanation": "`curl http://localhost:8080/` succeeding is the real proof — `systemctl status` alone was never going to catch this, since the unit was reporting healthy the entire time the override was in effect."
+  }
+]

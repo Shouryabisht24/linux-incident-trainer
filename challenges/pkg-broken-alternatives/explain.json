@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "\"No such file\" means follow the chain, not just the command name",
+    "explanation": "`mytool` failing to execute even though the package is installed means the executable apt/dpkg put on disk isn't what's actually being invoked. `ls -l $(command -v mytool)` shows it's a symlink (`/usr/local/bin/mytool -> /etc/alternatives/mytool`), so the real question is where that link ultimately points, not whether `mytool` itself exists."
+  },
+  {
+    "order_index": 2,
+    "title": "update-alternatives manages a two-hop symlink, not a single file",
+    "explanation": "The alternatives system exists so multiple installed versions (or implementations) of the same command can coexist, with one active choice: `/usr/local/bin/mytool` points at `/etc/alternatives/mytool`, which in turn points at whichever real binary is currently selected. `ls -l /etc/alternatives/mytool` reveals that second hop lands on `/usr/local/bin/mytool-2.0` -- a version that isn't actually on disk."
+  },
+  {
+    "order_index": 3,
+    "title": "Check what the alternatives system itself believes is registered",
+    "explanation": "`update-alternatives --display mytool` lists every version it knows about and which one is currently selected. Only `mytool-1.0` shows up as a real, present alternative -- `2.0` was never properly registered, meaning the `/etc/alternatives/mytool` link was hand-pointed at something the alternatives database doesn't actually track. That combination (a partial upgrade plus a manually edited link) is exactly what leaves this kind of dangling reference."
+  },
+  {
+    "order_index": 4,
+    "title": "Fix it through the tool that owns the link, not with a raw ln",
+    "explanation": "`sudo update-alternatives --set mytool /usr/local/bin/mytool-1.0` repoints `/etc/alternatives/mytool` at the version that's actually installed *and* updates the alternatives database entry to match. Editing the symlink directly with `ln -sf` would fix the immediate breakage but leave the database disagreeing with what's on disk -- exactly the kind of drift that caused this incident in the first place."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify by actually running it",
+    "explanation": "`mytool` now executing and printing `mytool v1.0 running` confirms the full chain -- `/usr/local/bin/mytool`, `/etc/alternatives/mytool`, and the real binary -- resolves end to end, not just that one symlink looks correct in isolation."
+  }
+]

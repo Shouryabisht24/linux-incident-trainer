@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Know what a zombie actually is before treating it as the problem",
+    "explanation": "`ps aux | grep defunct` shows a growing pile of `<defunct>` entries. A zombie is a process that has already exited -- the kernel keeps only a minimal record of it (PID, exit status) until its parent calls `wait()`/`waitpid()` to collect that status. It uses no CPU and no real memory, but it still occupies a slot against this box's process-count (`pids`) limit until reaped, so a pile of them is a real, escalating problem, not a cosmetic `ps` oddity."
+  },
+  {
+    "order_index": 2,
+    "title": "Zombies always point at their parent, not at themselves",
+    "explanation": "You can't `kill` a zombie -- it's already dead; `kill -9` on one does nothing. The only useful move is finding who keeps failing to reap its children: `ps -eo pid,ppid,stat,cmd | awk '$3 ~ /Z/ {print $2}' | sort -u` returns one PID repeatedly, the common parent behind every defunct entry."
+  },
+  {
+    "order_index": 3,
+    "title": "Confirm what that parent is actually doing",
+    "explanation": "`ps -p <ppid> -o pid,cmd` identifies it as `batch-dispatcher`, a loop that forks a short-lived worker on a fixed interval. Each worker exits almost instantly -- the bug isn't that workers hang or fail, it's that a `wait()` call was dropped from the dispatcher's own loop, so every single exit status goes uncollected forever."
+  },
+  {
+    "order_index": 4,
+    "title": "There's no config to fix -- the leak is in the code path itself",
+    "explanation": "Unlike a tunable limit or a stale file, this is a missing reap call baked into every iteration of the dispatcher's loop, so every run of it leaks exactly one more zombie with no exceptions. The only correct move is to stop the source: `sudo pkill -f /usr/local/bin/batch-dispatcher`."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify growth stopped, not that every zombie vanished",
+    "explanation": "`pgrep -f batch-dispatcher` should return nothing live (a `<defunct>` entry for the dispatcher itself is fine and expected -- this container's own PID 1 doesn't reap either). What matters is that nothing is spawning *new* zombies anymore; the existing entries are inert leftovers, not an active, worsening leak."
+  }
+]

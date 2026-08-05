@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "Reproduce with a message you control, and note there's no error anywhere",
+    "explanation": "`logger -p local0.info 'test message'` produces no error, but `/var/log/app/app.log` never receives the line. rsyslog isn't crashing or refusing anything — which means it's worth checking whether it's doing exactly what it's configured to do, rather than assuming something is broken."
+  },
+  {
+    "order_index": 2,
+    "title": "Read the rules in the order rsyslog actually evaluates them",
+    "explanation": "`cat /etc/rsyslog.d/10-app.conf` shows two rules for `local0`: one routing to `/dev/null` followed by `& stop`, then the real rule filing to `/var/log/app/app.log`. rsyslog evaluates rules top-to-bottom, per message — order isn't cosmetic, it's the entire logic."
+  },
+  {
+    "order_index": 3,
+    "title": "Understand what `& stop` actually does",
+    "explanation": "`& stop` halts all further rule processing for any message that matched the rule immediately above it. Since the `/dev/null` rule matches every `local0` message and is followed by `& stop`, the second rule — the one that would actually write to `app.log` — never runs at all for these messages."
+  },
+  {
+    "order_index": 4,
+    "title": "Recognize the comment as the real explanation, not just documentation",
+    "explanation": "The `# TEMP: quieting local0 during an investigation -- REMOVE ME` comment above the rule confirms this was a deliberate, temporary debugging measure to silence a noisy facility — never cleaned up afterward. A `stop` short-circuit like this is a very deliberate landmine: useful for genuinely dropping noise, dangerous if left in place."
+  },
+  {
+    "order_index": 5,
+    "title": "Remove the short-circuit and reload rsyslog's rules",
+    "explanation": "Replace the file's contents with just the real rule (`local0.*    /var/log/app/app.log`), then restart rsyslog so it re-reads its config — `sudo pkill rsyslogd` followed by `sudo rsyslogd`, since there's no systemd or init script managing it in this environment."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify with a fresh message, not old data",
+    "explanation": "`logger -p local0.info 'confirm fix'` followed by `tail /var/log/app/app.log` now shows the new line, confirming messages reach the file rather than being discarded before the real rule ever runs."
+  }
+]

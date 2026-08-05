@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "\"Ran with no errors\" only covers the job's own log",
+    "explanation": "Running `export-invoices.sh` by hand works fine, and its own cron log shows no failures either — the script's logic genuinely has no bug. But the actual failure surfaces one hop downstream: `sudo -u invoicer /opt/scripts/process-export.sh` prints `refusing to process /var/lib/invoicer/exports/last-export.txt: owned by root, not invoicer`. The export \"succeeding\" and the pipeline actually working are two different claims, and only the second one matters here."
+  },
+  {
+    "order_index": 2,
+    "title": "The downstream rejection is a deliberate safety check, not a bug in it",
+    "explanation": "`process-export.sh` refuses to touch any file it doesn't itself own — a defensive measure so the pipeline never processes something an unrelated principal (even root) could have planted there. `ls -l /var/lib/invoicer/exports/last-export.txt` confirms the concrete gap: the file is owned by `root`, not `invoicer`. Understanding that this check is intentional matters, because the fix is to satisfy it, not to weaken or bypass it."
+  },
+  {
+    "order_index": 3,
+    "title": "Whoever cron runs a job as owns everything that job writes",
+    "explanation": "`cat /etc/cron.d/export-invoices` shows the job line runs as `root`: `* * * * * root /opt/scripts/export-invoices.sh ...`. The user field in a crontab entry isn't just \"who's allowed to run this\" — every file the job creates is owned by that same account. The export script's logic was never wrong; only which identity cron invoked it under was."
+  },
+  {
+    "order_index": 4,
+    "title": "Fix the identity at the source, not the file after the fact",
+    "explanation": "`chown`-ing the existing file to `invoicer` would only patch this one output — the very next minute's run, still executing as `root`, would immediately re-create a root-owned file and undo the fix. The real correction is in the job definition itself: `sudo sed -i 's/^\\* \\* \\* \\* \\* root /* * * * * invoicer /' /etc/cron.d/export-invoices` (or editing the user field directly) changes which account produces the file going forward, permanently."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify the whole chain, not just the export step",
+    "explanation": "Re-running the export the way cron now will (`su -s /bin/sh -c /opt/scripts/export-invoices.sh invoicer`) and then `sudo -u invoicer /opt/scripts/process-export.sh` confirms both halves: the fresh file is owned by `invoicer`, and the downstream consumer accepts it. When a pipeline's own script runs clean but a later stage rejects its output, check which account actually ran it, not just whether it ran."
+  }
+]

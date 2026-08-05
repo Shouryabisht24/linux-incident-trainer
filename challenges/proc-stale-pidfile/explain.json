@@ -1,0 +1,22 @@
+[
+  {
+    "order_index": 1,
+    "title": "Take the error at face value, then check if it's actually true",
+    "explanation": "`sudo queue-workerctl start` refuses with \"already running (pid 31337)\". Rather than assuming the control script is right, check whether that PID is real: `ps -p 31337` comes back empty, and `sudo kill -0 31337` (a no-op signal used purely to test whether a PID exists) fails with \"No such process\". The service genuinely isn't running -- the script's belief that it is comes from somewhere else."
+  },
+  {
+    "order_index": 2,
+    "title": "Find where that belief comes from",
+    "explanation": "`cat /var/run/queue-worker.pid` shows 31337 -- a pidfile left behind by the box's unclean, hard-powered-off shutdown last week. Reading the control script itself (`cat /usr/local/bin/queue-workerctl`) shows exactly why it's fooled: the `start` logic only checks that the pidfile *exists*, never whether the PID inside it is actually alive. A crash that leaves a stale pidfile behind will block every future start attempt forever, with no self-recovery."
+  },
+  {
+    "order_index": 3,
+    "title": "Clear the stale state, then start normally",
+    "explanation": "`sudo rm /var/run/queue-worker.pid && sudo queue-workerctl start` removes the false signal and lets the script proceed through its normal start path, which writes a fresh, accurate pidfile for the process it actually launches."
+  },
+  {
+    "order_index": 4,
+    "title": "Verify the real process is up, not just that the script didn't complain",
+    "explanation": "`pgrep -af queue-worker` should show the daemon actually running. The lesson generalizes past this one script: any \"already running\" check that trusts a pidfile's mere existence, rather than confirming the PID inside it is live (`kill -0`), will get fooled by exactly this kind of unclean shutdown."
+  }
+]

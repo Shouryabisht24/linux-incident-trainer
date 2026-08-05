@@ -1,0 +1,22 @@
+[
+  {
+    "order_index": 1,
+    "title": "A snapshot can't distinguish \"heavy\" from \"leaking\"",
+    "explanation": "`ps aux --sort=-%mem | head` shows `cache-warmer` near the top, but a single reading only proves it's using a lot of memory right now, not that it's a leak. Running the same command again a few seconds later and seeing its RSS climb further -- while every other process stays flat -- is what actually distinguishes a genuine leak from a process that's simply, legitimately memory-hungry."
+  },
+  {
+    "order_index": 2,
+    "title": "There's no plateau to wait for",
+    "explanation": "cache-warmer allocates and touches a megabyte at a time and never frees any of it -- there's no cap in its own logic where growth would level off. Left alone, it keeps climbing until the container's tight memory limit forces a kill -- and the kernel's OOM killer doesn't necessarily pick the actual offender, so an unrelated process can end up as the casualty instead of cache-warmer itself."
+  },
+  {
+    "order_index": 3,
+    "title": "Stop the process, not the symptom",
+    "explanation": "Since nothing in cache-warmer will ever free what it's already allocated, the only real fix is stopping it outright: `sudo pkill -f cache-warmer`."
+  },
+  {
+    "order_index": 4,
+    "title": "Verify the trend stopped, not just that the process is gone",
+    "explanation": "`pgrep -f cache-warmer` returning nothing confirms it's stopped, but the more meaningful check is repeating `free -m` (or `ps aux --sort=-%mem`) a few seconds apart and seeing memory usage hold steady instead of continuing to climb -- the same two-sample comparison that identified the leak in the first place."
+  }
+]

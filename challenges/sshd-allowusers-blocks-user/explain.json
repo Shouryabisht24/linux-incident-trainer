@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "One user blocked while others work rules out most causes",
+    "explanation": "If this were StrictModes, `PubkeyAuthentication`, or a transport-level mismatch, it would affect everyone or nobody. A single account being singled out, with a key that's otherwise valid, points specifically at a per-user allow/deny rule in sshd's own config."
+  },
+  {
+    "order_index": 2,
+    "title": "Let sshd name the rule it's enforcing",
+    "explanation": "`sudo tail -n 30 /var/log/auth.log` during a failed attempt shows `User deploy not allowed because not listed in AllowUsers` — sshd tells you exactly which mechanism rejected the login, so there's no need to reverse-engineer it from symptoms alone."
+  },
+  {
+    "order_index": 3,
+    "title": "Find the directive and understand what kind of list it is",
+    "explanation": "`sudo grep -rin 'allowusers\\|denyusers\\|allowgroups' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/` locates `AllowUsers trainee` in `/etc/ssh/sshd_config.d/access.conf`. `AllowUsers` is a whitelist, not a blocklist — once it exists at all, every username not explicitly listed is denied, valid key or not. It matches by username pattern, evaluated independently of any authorized_keys check."
+  },
+  {
+    "order_index": 4,
+    "title": "Add the missing user rather than removing the control",
+    "explanation": "Changing the line to `AllowUsers trainee deploy` (space-separated) preserves whatever access-control intent the directive was added for while restoring `deploy`'s access — deleting the line entirely would remove the whitelist for every account, not just fix the one omission."
+  },
+  {
+    "order_index": 5,
+    "title": "Validate before reloading, then reload — config edits don't apply live",
+    "explanation": "`sudo sshd -t` catches a syntax mistake before it can lock out every account, and `sudo service ssh reload` (or a `SIGHUP`) makes sshd actually re-read the config; `AllowUsers` isn't checked fresh per-connection like `AuthorizedKeysFile` is. Retrying the key login now succeeds."
+  }
+]

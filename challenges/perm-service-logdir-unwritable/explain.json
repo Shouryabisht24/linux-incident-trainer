@@ -1,0 +1,22 @@
+[
+  {
+    "order_index": 1,
+    "title": "Simulate what the service itself does, not what you can do as root",
+    "explanation": "`orderd` runs as the unprivileged `orderd` account, never as root. `sudo -u orderd sh -c 'echo hi >> /var/log/orderd/orderd.log'` reproduces exactly the write the daemon attempts on startup -- and fails with `Permission denied`, matching the real symptom."
+  },
+  {
+    "order_index": 2,
+    "title": "Check who actually owns the directory",
+    "explanation": "`ls -ld /var/log/orderd` shows `drwxr-xr-x root root` -- mode `755`. Write permission is granted only to the owner (`root`); `orderd` falls into \"other\" and gets read+execute only, which is enough to list the directory but not to create or append to a file inside it."
+  },
+  {
+    "order_index": 3,
+    "title": "Give the service's actual account write access",
+    "explanation": "`sudo chown orderd:orderd /var/log/orderd` makes `orderd` the directory's owner, so its own writes are now permitted by the owner bits it already has. A group-based fix (`chmod 775` plus adding `orderd` to a shared group) would also work, but ownership is the simplest fix when only one account ever writes here."
+  },
+  {
+    "order_index": 4,
+    "title": "Verify as the service's own account",
+    "explanation": "`sudo -u orderd sh -c 'echo hi >> /var/log/orderd/orderd.log'` should now succeed. This is the same lesson as always testing service permission issues as the UID that actually runs the service, not the UID used to log in or start it -- a root-run write would have \"worked\" the whole time and never revealed the gap."
+  }
+]

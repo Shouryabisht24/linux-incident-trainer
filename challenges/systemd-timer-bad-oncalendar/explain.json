@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "A timer that never fires shows up as an activation failure, not a missed run",
+    "explanation": "`systemctl status cleanup.timer` shows it failed to activate at all: `Failed to start cleanup.timer: Invalid argument`. That's systemd's own parser rejecting the unit's schedule, not the cleanup job itself failing — `cleanup.service` and its `ExecStart` script are never even reached."
+  },
+  {
+    "order_index": 2,
+    "title": "OnCalendar= is a strict grammar, not free text",
+    "explanation": "`cat /etc/systemd/system/cleanup.timer` shows `OnCalendar=daily at 3am` — readable to a human, but not valid systemd calendar-event syntax. systemd doesn't attempt to interpret loose English; an expression it can't parse just makes the whole timer unit fail to activate, silently as far as any downstream consumer is concerned."
+  },
+  {
+    "order_index": 3,
+    "title": "Know the real grammar and validate before committing",
+    "explanation": "systemd calendar expressions follow `Weekday YYYY-MM-DD HH:MM:SS`, with `*` meaning \"any\" in a field — daily at 3am is `OnCalendar=*-*-* 03:00:00` (or the `daily` shorthand for midnight). `systemd-analyze calendar '*-*-* 03:00:00'` prints the next several times an expression would actually fire, which is the fast way to catch a bad expression before it ships instead of after someone notices a job never ran."
+  },
+  {
+    "order_index": 4,
+    "title": "Fix, reload, and restart — both are needed here",
+    "explanation": "After correcting the `OnCalendar=` line, `systemctl daemon-reload` picks up the edited unit file, and `systemctl restart cleanup.timer` is needed on top of that because the timer previously failed to activate at all — there's no already-running instance to simply pick up the new config."
+  },
+  {
+    "order_index": 5,
+    "title": "Confirm there's a real next trigger time, not just that the unit loaded",
+    "explanation": "`systemctl list-timers cleanup.timer` (or `systemctl status cleanup.timer`) showing an actual `NEXT` timestamp is the real proof — a schedule that parses cleanly and one that silently never fires can otherwise look identical from a quick glance at `is-active`, since a timer unit can be `active` while still holding an expression that resolves to no future occurrence."
+  }
+]

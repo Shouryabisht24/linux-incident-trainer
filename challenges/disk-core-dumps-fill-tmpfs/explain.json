@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Confirm the filesystem and see what's actually in it",
+    "explanation": "`df -h /var/crash` confirms the tmpfs is essentially full. But a full disk on its own doesn't tell you what to remove — `find /var/crash -maxdepth 2 -type f` shows a large number of `run-<pid>-<timestamp>/core` files, not one giant file. That shape (many similarly-sized files, one per subdirectory) is the signature of something crashing repeatedly, not a single runaway writer."
+  },
+  {
+    "order_index": 2,
+    "title": "Reclaiming the space now doesn't explain why it happened",
+    "explanation": "`sudo rm -rf /var/crash/run-*` gets space back immediately, but every one of those `core` files is a real kernel-written ELF core dump from a real SIGSEGV. If the worker keeps crashing at the same rate, the *next* crash starts refilling the tmpfs the moment cleanup finishes — so the cleanup by itself hasn't fixed anything."
+  },
+  {
+    "order_index": 3,
+    "title": "Find what's actually producing a core file on every crash",
+    "explanation": "`cat /usr/local/bin/worker-supervisor` shows it runs `ulimit -c unlimited` immediately before every invocation of `render-worker`. `ulimit -c` sets `RLIMIT_CORE`, the cap on how large a core dump the kernel is willing to write when a process is killed by a signal like SIGSEGV. Unlimited plus a binary that reliably segfaults means every single run leaves a full dump behind — the crashes were never the problem, the unbounded dumping of every one of them was."
+  },
+  {
+    "order_index": 4,
+    "title": "Cap the limit instead of chasing individual crashes",
+    "explanation": "`sudo sed -i 's/ulimit -c unlimited/ulimit -c 0/' /usr/local/bin/worker-supervisor` caps `RLIMIT_CORE` to zero, so the kernel simply skips writing a core file on future crashes — the crash still happens (that binary is always going to segfault), it just no longer leaves anything on disk. `RLIMIT_CORE` is enforced by the kernel identically for root and unprivileged processes, so this is a real fix regardless of what user the supervisor runs as, not just today's mess cleaned up."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify the mechanism changed, not just today's mess",
+    "explanation": "Re-running `df -h /var/crash` after cleanup only proves space came back once. Running `/usr/local/bin/worker-supervisor` one more time and confirming no new `core` file appears anywhere under `/var/crash` proves the underlying `ulimit` was actually fixed — the difference between a bandage and a durable fix."
+  }
+]

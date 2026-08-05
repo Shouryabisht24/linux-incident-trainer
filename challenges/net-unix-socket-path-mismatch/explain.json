@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "502 still means an upstream problem, even when the upstream isn't TCP",
+    "explanation": "As with any reverse-proxy 502, nginx itself answered on port 8080 — the failure is entirely in reaching whatever it forwards to. The difference here is what 'upstream' means: this proxy talks to its backend over a unix domain socket, a filesystem path, rather than a TCP host:port pair."
+  },
+  {
+    "order_index": 2,
+    "title": "ss -tlnp has nothing to show you for this kind of upstream",
+    "explanation": "`ss -tlnp` only lists TCP listening sockets bound to an address:port. A unix domain socket is a special file in the filesystem, not a network endpoint — it never appears in that table at all, no matter how carefully you grep it. Reaching for the usual port-mismatch tool here would look thorough but tell you nothing."
+  },
+  {
+    "order_index": 3,
+    "title": "Read the error log, then check the filesystem instead of the network stack",
+    "explanation": "`sudo tail /var/log/nginx/error.log` shows `connect() to unix:/run/backend/app.sock failed (2: No such file or directory)` — a filesystem error, not a network refusal, which is the tell that this is a socket path problem. `ls -la /run/backend/` confirms what actually exists: `app-v2.sock`, not `app.sock`."
+  },
+  {
+    "order_index": 4,
+    "title": "Understand why the path moved",
+    "explanation": "A recent rollout versioned the backend's socket filename as part of a blue/green-style cutover — a real, common pattern for unix-socket backends — but the change only landed on the backend side. The proxy's `proxy_pass` still references the old filename, so it's not that the backend is down; it's listening perfectly well, just under a name the proxy no longer knows to look for."
+  },
+  {
+    "order_index": 5,
+    "title": "Fix the path and verify by content, not just status",
+    "explanation": "Updating `proxy_pass` in `/etc/nginx/conf.d/app.conf` to `http://unix:/run/backend/app-v2.sock:;`, then `nginx -t && nginx -s reload`, and re-testing with `curl http://localhost:8080/` should return `backend ok` — the backend's actual response body, confirming the proxy is really reaching it and not just returning a different non-502 status by coincidence."
+  }
+]

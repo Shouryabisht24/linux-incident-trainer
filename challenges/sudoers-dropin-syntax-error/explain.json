@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "The error message is a different one — that's the whole clue",
+    "explanation": "`sudo -u netops sudo -n id` fails with `sudo: a password is required`, not `is not in the sudoers file`. sudo only says the latter when it finds zero matching rules; `a password is required` means it evaluated policy and landed on some rule, or believes it should have, without a NOPASSWD grant taking effect. Something was written for netops — it just isn't working."
+  },
+  {
+    "order_index": 2,
+    "title": "Ask sudo's own linter before reading any file by eye",
+    "explanation": "`sudo visudo -c` parses every sudoers source and reports exactly which file and line failed, rather than making you eyeball a config for a subtle typo. Here it points straight at `/etc/sudoers.d/netops`."
+  },
+  {
+    "order_index": 3,
+    "title": "A malformed rule doesn't degrade — it's discarded outright",
+    "explanation": "The file reads `netops ALL=(ALL NOPASSWD:ALL` — missing the closing paren after the runas list. sudo's parser can't make sense of that as a rule, so it drops the entire line rather than granting some partial or best-effort permission. From netops's perspective, this is indistinguishable from having never been granted anything, even though the file is sitting right there and looks correct at a glance."
+  },
+  {
+    "order_index": 4,
+    "title": "One broken drop-in doesn't take down sudo for everyone",
+    "explanation": "On this box's sudo (1.9.13), a syntax error in one sudoers.d file only voids the rule(s) inside that specific file — it does not cascade into a blanket denial across the whole policy. trainee's own grant lives directly in `/etc/sudoers` and kept working the entire time, which is exactly how trainee was able to SSH in and fix this in the first place. Worth knowing precisely because it's easy to over-assume the worst case here."
+  },
+  {
+    "order_index": 5,
+    "title": "Rewrite the line correctly, then re-validate",
+    "explanation": "With no text editor installed, `visudo -f` can't open one — writing the corrected line via `tee` and then running `sudo visudo -c` gets the same syntax-checking guarantee visudo would normally provide interactively. Re-running `visudo -c` after the fix, and `sudo -u netops sudo -n id`, confirms both that the policy as a whole is valid and that netops specifically is now covered — not just that some file changed."
+  }
+]

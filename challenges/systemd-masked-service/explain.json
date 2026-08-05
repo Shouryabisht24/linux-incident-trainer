@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Read the exact refusal, don't just retry the start",
+    "explanation": "`systemctl start nginx` doesn't time out or fail generically — it refuses outright with `Unit nginx.service is masked.` That specific wording is systemd telling you it never attempted a start at all, which rules out a crash, a bad config, or a missing dependency as the cause."
+  },
+  {
+    "order_index": 2,
+    "title": "Confirm the loaded state, not just the active state",
+    "explanation": "`systemctl status nginx` shows `Loaded: masked (/dev/null; ...)`. Masking is a distinct, stronger state than `disabled` — a disabled unit merely won't auto-start at boot but can still be started manually; a masked unit is symlinked to `/dev/null` in a way that blocks starting it either manually or automatically, by any mechanism."
+  },
+  {
+    "order_index": 3,
+    "title": "See the mechanism directly",
+    "explanation": "`ls -l /etc/systemd/system/nginx.service` shows the file is literally a symlink pointing at `/dev/null`, overriding whatever real unit file the package installed elsewhere on the search path. This is what a previous admin's \"make sure it can never start again\" during an incident actually did — a deliberate, low-level override, not a setting inside a config file."
+  },
+  {
+    "order_index": 4,
+    "title": "Unmask, then start",
+    "explanation": "`systemctl unmask nginx` removes the `/dev/null` symlink and restores systemd's normal ability to load the real unit; only then does `systemctl start nginx` have anything to actually start. Editing unit files or reaching for `daemon-reload` wouldn't touch this — the mask isn't a bad definition, it's the absence of one."
+  },
+  {
+    "order_index": 5,
+    "title": "Confirm with is-active",
+    "explanation": "`systemctl is-active nginx` reporting `active` closes the loop — masking is intentionally an all-or-nothing switch, so once it's lifted there's nothing partial left to check."
+  }
+]

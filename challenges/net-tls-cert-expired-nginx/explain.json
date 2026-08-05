@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "A working handshake and a valid certificate are two different claims",
+    "explanation": "TLS connections to `app.internal:8443` complete without error — nginx isn't refusing anything. That's expected: nginx doesn't check certificate expiry as a precondition for serving TLS at all, it just presents whatever certificate its config points at. Expiry is a property a client (or monitoring) has to check independently, on top of a successful handshake, not something the handshake itself proves or disproves."
+  },
+  {
+    "order_index": 2,
+    "title": "Find the certificate nginx is actually configured to use",
+    "explanation": "`grep ssl_certificate /etc/nginx/conf.d/tls-app.conf` points at `/etc/nginx/ssl/site.crt` — establishing exactly which file to inspect rather than assuming."
+  },
+  {
+    "order_index": 3,
+    "title": "Check expiry two ways, and prefer the one closer to what a real client sees",
+    "explanation": "`openssl x509 -in site.crt -noout -enddate` reads the file on disk directly. `echo | openssl s_client -connect localhost:8443 | openssl x509 -noout -checkend 0` instead asks the live socket what it's actually presenting right now — closer to what real monitoring does, and the only way to be sure you're diagnosing what's really being served rather than a file that might not even be the active one."
+  },
+  {
+    "order_index": 4,
+    "title": "Generate a fresh certificate/key pair to replace the expired one",
+    "explanation": "`openssl req -x509 -newkey rsa:2048 -nodes -days 365 ...` produces a new self-signed cert and key with a valid date range, written over the same paths nginx's config already references — so no config change is needed, only the underlying files."
+  },
+  {
+    "order_index": 5,
+    "title": "New files on disk don't matter until nginx reloads",
+    "explanation": "nginx reads its certificate files once at startup (or last reload) and keeps using that copy — replacing the files alone changes nothing for the already-running process. `sudo service nginx reload` is what makes it pick up the new pair."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify against the live socket, the same way you diagnosed it",
+    "explanation": "Re-running the `openssl s_client | openssl x509 -checkend 0` check from step 3 — not just re-reading the file — confirms nginx is actually serving the new certificate, which is the only thing that matters for real clients."
+  }
+]

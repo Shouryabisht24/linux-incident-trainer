@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Look at what the symlink points to, not just that it exists",
+    "explanation": "`ls -l /srv/app/current` shows it's a symlink — but a symlink existing tells you nothing about whether its target does. It resolves to `/srv/app/releases/20240121-0300-partial`, a path that looks like exactly what a half-finished deploy would leave behind."
+  },
+  {
+    "order_index": 2,
+    "title": "Confirm the target is actually missing",
+    "explanation": "`ls -ld /srv/app/current/` fails with *No such file or directory* — a dangling symlink, distinct from a symlink that resolves fine but points at broken content. The deploy was interrupted before that release directory was ever fully unpacked, so there's nothing there to serve."
+  },
+  {
+    "order_index": 3,
+    "title": "Find which release is actually real",
+    "explanation": "`ls -l /srv/app/releases/` lists what genuinely exists on disk, independent of what `current` claims. Only `20240120-1200` is actually present — that's the last release that completed, and the one worth pointing back at."
+  },
+  {
+    "order_index": 4,
+    "title": "Repoint atomically",
+    "explanation": "`sudo ln -sfn /srv/app/releases/20240120-1200 /srv/app/current` replaces the link in one step: `-f` overwrites the existing (broken) link, and `-n` is what makes this safe — without it, `ln` would treat `current` as a directory to follow and create a nested link inside the dangling target instead of replacing `current` itself."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify content, not just that the path resolves",
+    "explanation": "`cat /srv/app/current/index.html` (or checking for the `APP_OK` marker) confirms the symlink now resolves to a release that's actually healthy — a resolving symlink alone doesn't prove the content behind it is the right release."
+  }
+]

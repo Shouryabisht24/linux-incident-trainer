@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "Bisect the pipeline: confirm the source end is healthy first",
+    "explanation": "`logger -t invoiced 'probe'` followed by `journalctl -t invoiced --no-pager | tail` shows the message landed in the journal just fine. That rules out `invoiced` and journald itself as the problem — whatever's broken sits specifically in the handoff between journald and rsyslog, not before it."
+  },
+  {
+    "order_index": 2,
+    "title": "A correct rule and a running daemon can still produce nothing",
+    "explanation": "`cat /etc/rsyslog.d/25-invoiced.conf` shows an entirely ordinary, correct rule, and `systemctl status rsyslog` shows it active and running. Neither of those facts is enough on its own — a rule can only act on messages that actually reach rsyslog in the first place."
+  },
+  {
+    "order_index": 3,
+    "title": "Understand how rsyslog receives anything at all on a systemd box",
+    "explanation": "The `systemctl status rsyslog` output shows it acquired `/run/systemd/journal/syslog` via `imuxsock`. On a systemd system, rsyslog typically isn't tailing the binary journal directly (that needs the separate `imjournal` module, not configured here) — it's listening on a socket that journald itself feeds by re-transmitting a syslog-protocol copy of what it receives, and that re-transmission is entirely gated by journald's own `ForwardToSyslog=` setting."
+  },
+  {
+    "order_index": 4,
+    "title": "Check the merged config, not just the file you expect to matter",
+    "explanation": "`systemd-analyze cat-config systemd/journald.conf` shows a drop-in setting `ForwardToSyslog=no`. Someone likely disabled it to cut down on duplicate logging overhead without realizing `invoiced`'s dedicated rsyslog rule depends entirely on that forwarded feed — the journal keeps working perfectly, which is exactly why step 1 succeeded, while the export path to rsyslog goes dark with no error on either side."
+  },
+  {
+    "order_index": 5,
+    "title": "Flip the gate back on and restart the service that owns it",
+    "explanation": "`sudo sed -i 's/ForwardToSyslog=no/ForwardToSyslog=yes/' /etc/systemd/journald.conf.d/noforward.conf` followed by `sudo systemctl restart systemd-journald` re-enables the forwarding; journald has to be restarted for the setting to take effect."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify by walking the whole pipeline again, end to end",
+    "explanation": "`logger -t invoiced 'confirm fix'` followed by `tail /var/log/invoiced/invoiced.log` now shows the line — proving the message travels all the way from journald's forwarding through rsyslog's rule into the file, not just into the journal as in step 1."
+  }
+]

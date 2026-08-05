@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "Check each package's dpkg record individually first",
+    "explanation": "`dpkg-query -W -f='${Status}\\n' libfoo1` shows it's no longer installed, while `dpkg-query -W -f='${Status}\\n' clientapp` still shows `install ok installed` with a recorded `Depends: libfoo1`. Individually, both records are internally consistent -- dpkg isn't confused about either package on its own. The problem lives in the relationship between them, not inside either record."
+  },
+  {
+    "order_index": 2,
+    "title": "Ask the tool that actually checks cross-package relationships",
+    "explanation": "`dpkg --audit` (the tool for *interrupted* installs) finds nothing here, because nothing was interrupted -- `dpkg -r --force-depends` completed cleanly. `sudo apt-get check` is different: it walks the whole dependency graph and reports that clientapp's declared dependency on libfoo1 is now unmet. That distinction matters -- this incident needs the dependency-graph tool, not the interrupted-install tool."
+  },
+  {
+    "order_index": 3,
+    "title": "Understand exactly what --force-depends bypassed",
+    "explanation": "`dpkg -r --force-depends libfoo1` skips the one safety check dpkg would normally perform before removing a package: \"does anything else installed still depend on this?\" It doesn't corrupt libfoo1's own bookkeeping -- dpkg still correctly knows libfoo1 is gone -- it just lets you remove something out from under a dependent package that dpkg would otherwise have refused to touch."
+  },
+  {
+    "order_index": 4,
+    "title": "Resist copying the .so file back by hand",
+    "explanation": "Restoring `/usr/lib/libfoo.so.1` manually and running `ldconfig` would get `clientapp` running again, but dpkg would still have no record of libfoo1 being installed, and `apt-get check` would still flag the unmet dependency. The failure mode is a broken relationship between two package *records*, not just a missing file -- so the fix has to repair the record, not just the file."
+  },
+  {
+    "order_index": 5,
+    "title": "Reinstall through the package manager so files and bookkeeping recover together",
+    "explanation": "`sudo apt-get install -y libfoo1` (a plain install, not `--reinstall`, since dpkg already considers it not-installed) pulls the package from the still-healthy internal mirror, extracting the real library file *and* restoring the `install ok installed` status line that satisfies clientapp's recorded dependency -- in one step."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify all three angles, since any one alone can be misleading",
+    "explanation": "`clientapp` printing `RESULT=42` proves the runtime symptom is gone; `apt-get check` staying silent proves the dependency graph is consistent again; `dpkg-query -W -f='${Status}' libfoo1` reading `install ok installed` proves it's a real reinstall and not a file dropped in by hand. A hand-copied .so file would pass only the first of these."
+  }
+]

@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "'Address already in use' is a distinct diagnosis from a bad config",
+    "explanation": "nginx logging `Address already in use` on startup means the kernel refused to let it bind the socket because something else already holds it — this is a fact about port ownership, not about anything in nginx's own config files. Reaching for `nginx -t` or re-checking the config here would be looking in the wrong place entirely."
+  },
+  {
+    "order_index": 2,
+    "title": "Find out who actually owns the port",
+    "explanation": "`sudo ss -tlnp | grep 8080` (or `sudo lsof -i :8080`) names the real occupant directly, by process name and PID — no guessing required. Here it's `legacy-agent`, a process with no obvious connection to the web app at all."
+  },
+  {
+    "order_index": 3,
+    "title": "Understand why a decommissioned process is still running",
+    "explanation": "`legacy-agent` was supposed to be retired months ago, but its startup entry was never cleaned up, so it still launches on every boot — and because it starts before nginx does, it wins the race for port 8080 first, every single time. nginx isn't misconfigured; it's simply losing a startup race for a socket it should own uncontested."
+  },
+  {
+    "order_index": 4,
+    "title": "Kill precisely the right process",
+    "explanation": "`pkill -x legacy-agent` matches the exact process name rather than doing a substring match against the full command line (`-f`), which matters here because the container's own startup command happens to mention that same path as plain text — a `-f` match could catch more than intended. Re-checking `ss -tlnp | grep 8080` confirms the port is genuinely free before starting anything new."
+  },
+  {
+    "order_index": 5,
+    "title": "Start the real service only once the port is clear",
+    "explanation": "`sudo service nginx start` now succeeds because nothing is contesting the socket, and `curl http://localhost:8080/` reaching the app confirms the right process — not just *a* process — is finally the one holding port 8080."
+  }
+]

@@ -1555,3 +1555,33 @@ the isolated build loop.
       `tasks.md` and all 10 `decisions/0037`-`0046` batch documents were kept off-limits to every
       individual batch agent (to avoid 10 concurrent/near-concurrent writers racing on the same files)
       and consolidated here in one pass afterward.
+
+## `explain.json` backfill across all 100 challenges (decisions/0047)
+The "Explain" walkthrough panel shipped (2026-07-31) with only 3 reference `explain.json` files; the
+other 97 challenges silently rendered no panel (by design — `ExplainPanel` returns nothing rather than
+an empty-looking state for a missing file). With the catalogue now at 100, backfilled the remaining 97
+in 5 waves of 2 parallel background agents each, grouped by category, same "2 at a time" cadence as the
+catalogue expansion. Unlike that expansion, this work touched no Docker at all — pure content authoring
+(read `challenge.json`/`seed.sh`/`check.sh`/`solution.md`/`hints.json`, write 4-6 reasoning steps),
+so no build/run/check loop was needed per file.
+- [x] **Wave 1** — cron-scheduling (9) + disk-filesystem (10) = 19.
+- [x] **Wave 2** — logs-journald (9) + networking-dns (10) = 19.
+- [x] **Wave 3** — package-management (9) + permissions-ownership (10) = 19.
+- [x] **Wave 4** — process-performance (10) + ssh-remote-access (10) = 20.
+- [x] **Wave 5** — systemd-services (10) + users-groups-sudo (10) = 20.
+- [x] **Correctness guardrails carried into every relevant batch's agent prompt**, to avoid an explain
+      step describing the wrong mechanism (worse than no panel at all): `decisions/0007`'s root-ignores-DAC
+      rule and its two named exceptions (execute bit; sshd/ssh-client StrictModes-style enforcement) for
+      permissions/SSH; `systemd-missing-environment-file`'s file-must-be-*missing*-not-unreadable framing
+      (systemd reads `EnvironmentFile=` as root before dropping to the unit's own user, so permissions on
+      it are inert); the empirically-confirmed single-file-scope of a sudoers drop-in syntax error (doesn't
+      cascade to break sudo system-wide); no `NET_ADMIN`/iptables framing anywhere in networking-dns; no
+      live-`apt`-against-network framing anywhere in package-management (all package state is corrupted via
+      direct dpkg-database edits, no internet in the container); zombies still counting against a `pids`
+      cgroup ceiling and `proc-cpu-affinity-starvation` needing the full 2-vCPU quota, both carried forward
+      from the original process-performance challenge-authoring pass.
+- [x] **Verified**: all 97 new files independently re-validated by me directly (`python3 -m json.tool`)
+      after every single wave, not trusted from agent self-reports; final catalogue-wide count confirmed
+      at exactly **100/100** via `find challenges -name explain.json | wc -l`. No file other than the new
+      `explain.json` per slug was touched by any agent. No backend restart needed — `explain.json` is read
+      live off disk per-request, unlike `challenge.json`.

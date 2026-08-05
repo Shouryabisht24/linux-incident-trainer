@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Everyone affected means server config, not one account's files",
+    "explanation": "If this were a StrictModes permissions issue or a wrong `AuthorizedKeysFile` path, it would hit one user's account, not every key login on the box at once. A blanket failure across all users points at a single server-wide setting rather than anything per-user."
+  },
+  {
+    "order_index": 2,
+    "title": "Ask sshd for its effective, merged setting",
+    "explanation": "`sudo sshd -T | grep -i pubkey` dumps what sshd actually believes after merging the main config with every drop-in — here, `pubkeyauthentication no`. This is faster and more reliable than reading `sshd_config` files individually, since a later drop-in can silently override an earlier setting."
+  },
+  {
+    "order_index": 3,
+    "title": "Trace the setting to its actual source",
+    "explanation": "`sudo grep -rin pubkeyauthentication /etc/ssh/sshd_config /etc/ssh/sshd_config.d/` finds it in `/etc/ssh/sshd_config.d/hardening.conf` — a 'security hardening' change that disabled the very authentication method it should have been strengthening, entirely disabling public-key auth in favor of whatever password fallback exists."
+  },
+  {
+    "order_index": 4,
+    "title": "Flip the directive back and validate before it takes effect",
+    "explanation": "Editing the line to `PubkeyAuthentication yes` and running `sudo sshd -t` first catches any typo before it can take down SSH entirely — unlike `AuthorizedKeysFile`, this is a config-level directive that requires a reload, not something read fresh per connection."
+  },
+  {
+    "order_index": 5,
+    "title": "Reload and confirm with the original failing command",
+    "explanation": "`sudo service ssh reload` (or `sudo kill -HUP $(cat /run/sshd.pid)`) applies the change, and retrying `ssh -i ~/deploy_key deploy@localhost` confirms key login actually succeeds again rather than trusting the config value alone."
+  }
+]

@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "\"Works by hand\" and \"works under cron\" are different claims",
+    "explanation": "`cat /opt/scripts/sync-data.sh` shows it calls `datasync` by bare name, trusting `PATH` to resolve it. That trust is exactly where the two environments can diverge — a script that resolves a command via `PATH` is only as portable as whatever `PATH` happens to be wherever it's invoked from, and an interactive shell's `PATH` and cron's `PATH` are not the same thing."
+  },
+  {
+    "order_index": 2,
+    "title": "Find out why your own shell finds it",
+    "explanation": "`which datasync` shows it actually lives at `/opt/tools/bin/datasync` — a nonstandard location. `echo $PATH` shows that directory present, and `/etc/profile.d/tools.sh` is where it got added. It's not on `PATH` because the system considers it standard; it's on *your* `PATH* specifically because logging in sourced that profile snippet."
+  },
+  {
+    "order_index": 3,
+    "title": "cron never sources shell profiles",
+    "explanation": "Every cron job runs with cron's own minimal, hardcoded default `PATH` — typically just `/usr/bin:/bin` — regardless of what any user's `.bashrc`, `.profile`, or `/etc/profile.d/*.sh` sets up, because cron never launches a login or interactive shell that would read those files. Under that PATH, `datasync` genuinely cannot be found: `command not found`, even though the identical script, the identical binary, and the identical user account all work fine by hand."
+  },
+  {
+    "order_index": 4,
+    "title": "Fix it where cron actually reads its environment",
+    "explanation": "The fix has to live in the job definition itself, not in any shell profile cron never reads. Adding `PATH=/usr/bin:/bin:/opt/tools/bin` as its own line at the top of `/etc/cron.d/sync-job` gives that specific job the directory it needs. (Hardcoding the tool's full path, `/opt/tools/bin/datasync`, inside the script is an equally valid alternative that sidesteps `PATH` entirely.)"
+  },
+  {
+    "order_index": 5,
+    "title": "Verify by reproducing cron's environment, not your own",
+    "explanation": "Running the script with your normal shell would pass even if the cron.d fix were wrong, since your `PATH` is already wide enough to hide the bug. Stripping the environment down to cron's actual `PATH` (`env -i PATH=... /opt/scripts/sync-data.sh`) and confirming it succeeds is the only test that actually proves the job will work on its next real scheduled tick."
+  }
+]

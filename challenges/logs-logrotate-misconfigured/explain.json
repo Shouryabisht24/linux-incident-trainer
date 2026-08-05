@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Compare what logrotate is configured to rotate against what actually exists",
+    "explanation": "`cat /etc/logrotate.d/billing` shows the config targets `/var/log/billing/app.log`, but `ls /var/log/billing/` shows the real, ever-growing file is `billing.log` — a rename that never made it into the logrotate config."
+  },
+  {
+    "order_index": 2,
+    "title": "Explain why a wrong path produces zero visible errors",
+    "explanation": "`missingok` in the config explicitly tells logrotate it's fine if the configured path doesn't exist — so instead of erroring or warning, logrotate just runs on schedule and matches nothing, forever, with nothing to alert anyone that rotation stopped happening."
+  },
+  {
+    "order_index": 3,
+    "title": "Fix the path to match the real, current file",
+    "explanation": "`sudo sed -i 's#/var/log/billing/app.log#/var/log/billing/billing.log#' /etc/logrotate.d/billing` points the config at the file that actually exists and is actually growing."
+  },
+  {
+    "order_index": 4,
+    "title": "Verify by forcing a run rather than waiting on the schedule",
+    "explanation": "`sudo logrotate --force /etc/logrotate.d/billing` triggers rotation immediately; `ls /var/log/billing/` should now show `billing.log.1`, and `billing.log` itself is back to empty — since this config uses `copytruncate`, the original is copied out then truncated in place rather than renamed."
+  },
+  {
+    "order_index": 5,
+    "title": "Recognize the general pattern for next time",
+    "explanation": "Whenever an app's log file gets renamed or moved, its logrotate config is exactly the kind of dependent config that's easy to forget — and with `missingok` in play, there's no built-in signal that it's silently doing nothing; only comparing the config against reality catches it."
+  }
+]

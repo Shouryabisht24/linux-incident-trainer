@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "No login prompt at all means this isn't an authentication failure",
+    "explanation": "Every other SSH access-control problem (bad key permissions, AllowUsers, PubkeyAuthentication) fails *during* authentication, after a session is already established. Failing instantly, before any prompt or key exchange with the user even happens, means the client and server never finished agreeing on how to talk to each other in the first place — a transport-layer problem, evaluated before sshd knows or cares who's connecting."
+  },
+  {
+    "order_index": 2,
+    "title": "Read the negotiation error for what it actually names",
+    "explanation": "`Unable to negotiate with ... no matching cipher found. Their offer: 3des-cbc` is specific: it names the server's proposed cipher list directly in the error. A modern `ssh` client doesn't include 3des-cbc in what it offers by default (CBC-mode and 3DES ciphers were dropped from default client proposals years ago as weak), so there's zero overlap and the handshake can't proceed."
+  },
+  {
+    "order_index": 3,
+    "title": "Confirm the server's side directly rather than trusting the error alone",
+    "explanation": "`sudo sshd -T | grep -i '^ciphers'` shows sshd's effective `Ciphers` list is restricted to that single legacy cipher. Locating the source with `sudo grep -rin '^ciphers' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/` points to a hardening drop-in that named the cipher to *keep* instead of the ciphers to *drop* — almost certainly a copy-paste from the wrong half of a hardening guide's before/after example."
+  },
+  {
+    "order_index": 4,
+    "title": "Fix it without abandoning the original hardening intent",
+    "explanation": "Broadening the list to include a modern AEAD cipher alongside the legacy one — e.g. `Ciphers 3des-cbc,aes256-gcm@openssh.com,chacha20-poly1305@openssh.com` — restores compatibility with real clients without reverting to an unrestricted, pre-hardening state."
+  },
+  {
+    "order_index": 5,
+    "title": "sshd -t only checks syntax, not that anything can actually connect",
+    "explanation": "`sudo sshd -t` validates the config parses, then `sudo service ssh reload` applies it — but only a real client connection, `ssh -i ~/deploy_key deploy@localhost 'echo SSH_OK'`, proves the negotiation actually succeeds end to end. A syntactically valid Ciphers/KexAlgorithms/MACs list can still leave zero overlap with real-world clients, which is exactly how this incident happened in the first place."
+  }
+]

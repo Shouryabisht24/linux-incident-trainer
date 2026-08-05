@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Confirm the paradox before chasing it",
+    "explanation": "`df -h /var/log/streamer` reports the filesystem nearly full, while `du -sh /var/log/streamer` and `ls -la /var/log/streamer` show almost nothing there to account for it. That mismatch — full according to the filesystem, empty according to the directory — is itself the diagnostic signal, not a red herring."
+  },
+  {
+    "order_index": 2,
+    "title": "Understand the mechanism that makes both readings true",
+    "explanation": "`unlink()` (what `rm` does) only removes a name from a directory — it doesn't touch the underlying data unless the file's link count *and* its open-file-descriptor count both reach zero. A directory listing only reflects names, so a deleted file with a process still holding it open becomes invisible to `ls`/`du` while the kernel keeps every one of its blocks allocated until that last reference closes."
+  },
+  {
+    "order_index": 3,
+    "title": "Find who's holding it, since ls can't show you",
+    "explanation": "`sudo lsof +L1 /var/log/streamer` lists open files on that filesystem with a link count under 1 — i.e. deleted but still open — and shows the `streamer` process holding a large file marked `(deleted)` in the `NAME` column. This is the only way to see something that no longer exists in any directory."
+  },
+  {
+    "order_index": 4,
+    "title": "Recognize the real-world cause, not just this instance of it",
+    "explanation": "A log-rotation step removed the file directly instead of using `copytruncate` or signalling the process (`HUP`/`USR1`) to close and reopen its log. `streamer` never got the message, so it kept writing through its original file descriptor to blocks that no directory entry points to anymore — a very common production failure mode, not something unique to this box."
+  },
+  {
+    "order_index": 5,
+    "title": "Release the reference, then verify on the mount that mattered",
+    "explanation": "`sudo pkill -f /usr/local/bin/streamer` closes the last open reference to the deleted file, and the kernel reclaims its blocks the instant that happens. Re-checking `df -h /var/log/streamer` — the exact command from step 1 — confirms the space is genuinely back, not just that the process is gone."
+  }
+]

@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "Two busy processes at equal priority split the CPU evenly, importance notwithstanding",
+    "explanation": "`top` (Shift+P to sort by `%CPU`) shows both `batch-report-job` and `telemetry-agent` burning CPU at similar levels, with the `NI` column reading `0` for both. On a box where they're pinned to the same core, identical niceness means the CFS scheduler gives them roughly equal timeslices -- it has no idea one is the important nightly job and the other is a background scraper that's supposed to yield."
+  },
+  {
+    "order_index": 2,
+    "title": "Confirm precisely before touching anything",
+    "explanation": "`ps -o pid,ni,pcpu,cmd -p $(cat /var/run/batch-report-job.pid),$(cat /var/run/telemetry-agent.pid)` shows both at `NI 0` and roughly comparable `%CPU`. This rules out a quota or affinity problem -- the pin to one core is fixed, expected environment here, not the bug -- and confirms the fault is purely about relative priority."
+  },
+  {
+    "order_index": 3,
+    "title": "Trace the regression to its source",
+    "explanation": "The box's own runbook says telemetry-agent must always run deprioritized so it never meaningfully competes with real work. Its niceness is config-driven: `/etc/telemetry-agent/telemetry-agent.conf` sets `NICE_LEVEL=0` -- reset to the default by a recent redeploy instead of the documented, higher (lower-priority) value. batch-report-job itself was never touched; the misconfiguration is entirely on its competitor."
+  },
+  {
+    "order_index": 4,
+    "title": "Fix it live first -- niceness applies immediately, unlike a ulimit",
+    "explanation": "`sudo renice 15 -p $(cat /var/run/telemetry-agent.pid)` takes effect the instant it runs, no restart required, because niceness is read by the scheduler on every reschedule rather than fixed once at process launch. Note the direction: raising (deprioritizing) another process's niceness needs no special privilege, but lowering one back down requires `CAP_SYS_NICE`, which this container doesn't grant -- so there was never a path to \"fix\" this by boosting batch-report-job instead; deprioritizing the actual offender is the only fix available."
+  },
+  {
+    "order_index": 5,
+    "title": "Make the fix durable, not just live",
+    "explanation": "The live renice won't survive telemetry-agent's next restart, since `svc-ctl` reapplies whatever `NICE_LEVEL` is in the config at every start. Correcting the source of truth too -- `sudo sed -i 's/NICE_LEVEL=0/NICE_LEVEL=15/' /etc/telemetry-agent/telemetry-agent.conf` -- closes that gap."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify the split, not just the NI value",
+    "explanation": "`ps -o pid,ni,pcpu,cmd` should now show telemetry-agent at `NI 15`, but the real confirmation is the CPU-time ratio itself: batch-report-job should be visibly getting the overwhelming majority of ticks on the shared core, not just a marginally better number."
+  }
+]

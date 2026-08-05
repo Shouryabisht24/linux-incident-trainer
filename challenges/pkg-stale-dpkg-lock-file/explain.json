@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "The error already names a PID -- confirm it, don't assume",
+    "explanation": "`Could not get lock /var/lib/dpkg/lock-frontend. It is held by process <pid>` tells you exactly what to check next. `sudo fuser -v /var/lib/dpkg/lock-frontend` (or `sudo lsof /var/lib/dpkg/lock-frontend`) independently confirms which process(es) currently have that file open -- worth verifying directly rather than trusting the PID in the error message is still accurate."
+  },
+  {
+    "order_index": 2,
+    "title": "Check whether the process is doing real work before touching it",
+    "explanation": "`ps -p <pid> -o pid,etime,cmd` shows how long it's been running and what it actually is. If it were genuinely mid-way through package work, killing it could leave dpkg's own database half-written -- a worse problem than the lock itself. Here it's a leftover from an interrupted maintenance window with no real activity behind it, which is what makes killing it safe."
+  },
+  {
+    "order_index": 3,
+    "title": "Understand that the lock is a live kernel-level lock, not just a file",
+    "explanation": "dpkg/apt coordinate through a real advisory lock (`flock`) on `/var/lib/dpkg/lock-frontend`, held by whichever process opened it -- not by the file's mere existence. Deleting the lock file while the original process is still alive doesn't release anything: a new process opening the freshly recreated file gets an entirely separate lock from the one the old process still holds. This is why `rm /var/lib/dpkg/lock-frontend` is the wrong instinct here."
+  },
+  {
+    "order_index": 4,
+    "title": "Signal every process actually holding the file",
+    "explanation": "`sudo fuser -k /var/lib/dpkg/lock-frontend` signals every process with that file open -- there can be more than one PID involved, since a child process can inherit the same open file descriptor from a parent, and killing only one of them may leave the lock still held."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify the lock is actually free, not just that the process is gone",
+    "explanation": "Trying to acquire it fresh -- `flock -n -x /var/lib/dpkg/lock-frontend -c true` succeeding, or simply running `sudo dpkg --configure -a` and watching it proceed instead of refusing -- is the real test. Checking that the PID no longer appears in `ps` is suggestive but not proof; actually acquiring the lock is."
+  }
+]

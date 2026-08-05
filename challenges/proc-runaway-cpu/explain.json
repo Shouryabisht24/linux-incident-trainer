@@ -1,0 +1,22 @@
+[
+  {
+    "order_index": 1,
+    "title": "Sort by CPU, don't scan a wall of processes by eye",
+    "explanation": "`top` (Shift+P to sort by `%CPU`) or `ps -eo pid,pcpu,comm --sort=-pcpu | head` puts the worst offender at the top immediately. On this box's single, deliberately tight 0.5 vCPU core, one process pinned near 100% explains the whole-box sluggishness directly -- there's no need to look further once you see it."
+  },
+  {
+    "order_index": 2,
+    "title": "Confirm the exact process before acting",
+    "explanation": "`pgrep -af report-generator` gives its PID and full command line. It's a plain retry loop with no sleep in it at all (`while true; do :; done`) -- there's no legitimate workload here to preserve, no config to tune, just a stuck loop burning cycles for no purpose."
+  },
+  {
+    "order_index": 3,
+    "title": "Stop it, escalating only if needed",
+    "explanation": "`sudo pkill -f report-generator` sends SIGTERM first, which is the polite default -- it gives the process a chance to exit cleanly if it happens to have any cleanup logic. Only reach for `kill -9` (SIGKILL) if it ignores TERM, since SIGKILL bypasses any chance for the process to shut down gracefully."
+  },
+  {
+    "order_index": 4,
+    "title": "Verify against the same view that found it",
+    "explanation": "`top` should now show the core idle instead of pinned. The durable fix, if this were a real recurring job rather than a training scenario, is in the program itself -- add a sleep or backoff so a retry loop never spins unbounded again -- but killing the stuck process is what restores the box right now."
+  }
+]

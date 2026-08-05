@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Name the error before chasing a cause",
+    "explanation": "`tail /var/log/connd/connd.log` repeats \"cannot open connection N/25: Too many open files\" on every attempt, forever. That specific message is `EMFILE` -- a per-process file-descriptor limit being hit -- not a disk-space, permissions, or networking fault. It never self-resolves because nothing about the limit changes just by waiting."
+  },
+  {
+    "order_index": 2,
+    "title": "Compare the enforced limit against actual usage",
+    "explanation": "Find the process (`pgrep -f connd`), then check what the kernel is actually enforcing on it: `cat /proc/<pid>/limits | grep 'open files'` for the ceiling, `ls /proc/<pid>/fd | wc -l` for how many descriptors it currently holds. The usage sits pinned right at the limit -- proof this is a hard ceiling connd keeps slamming into, not a slow leak that's still climbing."
+  },
+  {
+    "order_index": 3,
+    "title": "Find where that ceiling actually comes from",
+    "explanation": "The limit isn't baked into the binary -- it's applied fresh at every start. `/usr/local/bin/svc-ctl` reads `NOFILE_LIMIT` out of `/etc/connd/connd.conf` and applies it via `ulimit -n` right before exec'ing connd. A recent hardening pass dropped that value to 20, well under the 25 simultaneous connections this service is meant to hold at steady state (plus a few descriptors for its own stdio)."
+  },
+  {
+    "order_index": 4,
+    "title": "Raise the config value, then restart -- in that order",
+    "explanation": "Editing `NOFILE_LIMIT` in the config alone changes nothing for the process already running: `ulimit -n` is only applied at the moment a process starts, not retroactively. Both the edit (e.g. up to 256) and `sudo svc-ctl restart` are required before the new ceiling takes effect."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify against the fd count, not just \"is it running\"",
+    "explanation": "Find the new PID and check `ls /proc/<pid>/fd | wc -l` reaches 25 or more, and that the log has stopped accumulating new EMFILE errors. Just confirming the process exists wouldn't be enough -- it can be alive and still stuck retrying below its target, exactly as it was before."
+  }
+]

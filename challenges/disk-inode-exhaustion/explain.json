@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Take the contradiction seriously instead of dismissing it",
+    "explanation": "`df -h /var/spool/ingest` shows free space, yet writes still fail with `No space left on device`. That's not a fluke — a filesystem tracks two separate, independently exhaustible resources: data blocks (bytes) and inodes (the fixed-size table of metadata entries, one required per file regardless of that file's size). `df -h` only reports the first one."
+  },
+  {
+    "order_index": 2,
+    "title": "Check the resource df -h doesn't show",
+    "explanation": "`df -i /var/spool/ingest` reports IUse% — inode utilization — separately from byte usage. Seeing it at 100% confirms the real constraint: every inode this filesystem was provisioned with (`nr_inodes=200` on this tmpfs) is already consumed, so `open(..., O_CREAT)` fails at the metadata layer even though plenty of bytes are still free."
+  },
+  {
+    "order_index": 3,
+    "title": "Find what consumed them",
+    "explanation": "`ls -1 /var/spool/ingest | wc -l` shows a huge count of tiny leftover `.tmp` files — each one, no matter how small, costs exactly one inode. A worker that creates temp files and never cleans them up can exhaust an inode table long before it comes anywhere close to filling the filesystem's actual byte capacity."
+  },
+  {
+    "order_index": 4,
+    "title": "Delete with find, not a shell glob",
+    "explanation": "`rm /var/spool/ingest/*.tmp` can fail outright with *Argument list too long* once the file count is this high, because the shell has to expand the glob into a single command line before `rm` ever runs. `sudo find /var/spool/ingest -name '*.tmp' -delete` walks and removes files one at a time without ever building that giant argument list."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify with the same command that caught the real cause",
+    "explanation": "Re-running `df -i /var/spool/ingest` (not `df -h`) confirms inodes are actually free again, and successfully creating a new file proves the fix worked at the layer that was actually broken."
+  }
+]

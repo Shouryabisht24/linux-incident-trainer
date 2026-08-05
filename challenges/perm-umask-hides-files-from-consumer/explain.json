@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Run the actual job right now, don't wait on cron",
+    "explanation": "`sudo -u reportgen /usr/local/bin/generate-report.sh` runs the nightly generator as the real account it uses, on demand -- no need to wait for the 2am schedule to reproduce whatever's currently broken. It completes without error, confirming the job itself isn't failing; whatever's wrong is in the file it leaves behind."
+  },
+  {
+    "order_index": 2,
+    "title": "Check the freshly created file against the directory it landed in",
+    "explanation": "`ls -la /var/lib/reports/` shows the newest file at mode `0600`, owned `reportgen:reportreaders` -- readable only by `reportgen` itself. That's surprising given `ls -ld /var/lib/reports` shows the directory is correctly set up: owned `reportgen:reportreaders` with the setgid bit, and `id dashboard` confirms `dashboard` really is a member of `reportreaders`. The group on the new file is right (setgid did its job) -- so the group membership isn't the problem. The *mode* is what's wrong."
+  },
+  {
+    "order_index": 3,
+    "title": "Find what's overriding the mode at creation time",
+    "explanation": "`cat /usr/local/bin/generate-report.sh` shows `umask 077` near the top. A process's umask is applied at file-creation time, stripping bits from whatever the default would otherwise be (`0666` for a plain file) -- `077` strips every bit except the owner's own read/write, unconditionally, regardless of what group the file ends up belonging to. The setgid directory correctly set the *group*; the umask then threw away every permission bit that would have let that group matter at all."
+  },
+  {
+    "order_index": 4,
+    "title": "Relax the umask to match who actually needs to read the output",
+    "explanation": "Editing the script to use `umask 027` instead yields mode `0640` on new files -- owner read/write, group read, nothing for other. That's the tightest umask that still lets `dashboard` (via its `reportreaders` group membership) read the report; `umask 022` (`0644`) would also work but is looser than necessary for a file meant to stay group-gated rather than world-readable."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify with a fresh file and the real consumer account",
+    "explanation": "Re-run `sudo -u reportgen /usr/local/bin/generate-report.sh`, confirm the new file is now `0640` group `reportreaders` via `ls -la`, then `sudo -u dashboard cat <newest file>` should print the report contents. Checking as `dashboard` specifically matters -- it's the actual, separate consumer process the whole scenario is about, not just a permissions number that looks better on paper."
+  }
+]

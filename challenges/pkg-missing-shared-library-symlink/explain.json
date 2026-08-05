@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "The error names an exact file -- check what's really on disk before assuming it's just a broken link",
+    "explanation": "`error while loading shared libraries: libcalc.so.1` points at one specific filename. `ls -la /usr/local/lib/ | grep calc` comes up completely empty -- not a dangling symlink pointing at something missing, but no trace of the library at all. That distinction changes the whole fix: a missing symlink can be recreated from what's already on disk, but a missing real file has to come from somewhere else entirely."
+  },
+  {
+    "order_index": 2,
+    "title": "A deleted file can't be relinked back into existence -- look for a backup",
+    "explanation": "Once the actual `libcalc.so.1.0.0` data is gone, no amount of `ln -sf` recreates it -- symlinks only point at bytes that already exist. `ls /var/backups/local-lib/` shows a copy was taken before whatever \"cleanup\" deleted the original, which is the only realistic path back short of rebuilding the library from source."
+  },
+  {
+    "order_index": 3,
+    "title": "Restore the real file under its correct versioned name",
+    "explanation": "`sudo cp /var/backups/local-lib/libcalc.so.1.0.0 /usr/local/lib/libcalc.so.1.0.0` puts the actual library data back using the same fully-versioned filename it originally had -- preserving the naming convention the rest of the toolchain (and the next step) depends on."
+  },
+  {
+    "order_index": 4,
+    "title": "Recreate the SONAME symlink the dynamic linker actually looks for at runtime",
+    "explanation": "Programs don't link against the fully-versioned filename (`libcalc.so.1.0.0`) directly -- at runtime they look for the SONAME embedded in the binary at link time (`libcalc.so.1`). `sudo ln -sf libcalc.so.1.0.0 /usr/local/lib/libcalc.so.1` restores that one-hop indirection, separate from the unversioned `libcalc.so` symlink (which is only used at compile time, never at runtime)."
+  },
+  {
+    "order_index": 5,
+    "title": "Refresh the linker cache -- it doesn't scan directories live",
+    "explanation": "The dynamic linker resolves libraries via a prebuilt cache (`/etc/ld.so.cache`), not by scanning `/usr/local/lib` on every program start. `ldconfig` rebuilds that cache by reading each library file's own embedded SONAME -- not by trusting filenames or symlinks on disk -- so it has to be re-run after restoring the file for the linker to actually find it again."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify by actually running the dependent program",
+    "explanation": "`calc-app` printing `RESULT=42` confirms the full path -- file present, correctly named, SONAME symlink correct, and linker cache refreshed -- works end to end, rather than just checking that the files exist on disk."
+  }
+]

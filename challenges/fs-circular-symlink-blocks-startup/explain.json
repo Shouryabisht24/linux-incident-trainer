@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Read the error as a specific kernel error, not a generic failure",
+    "explanation": "`webappctl start` fails with `Too many levels of symbolic links` — that's `ELOOP`, a distinct filesystem error from `ENOENT` (dangling symlink, nothing at the end) or `EACCES` (permission denied). It specifically means the kernel's path-resolution walk hit its symlink-hop limit (40 on Linux) without ever reaching a real file, which narrows the search to the symlink chain itself, not permissions or a missing config."
+  },
+  {
+    "order_index": 2,
+    "title": "Inspect what the link's target text actually says",
+    "explanation": "`readlink /etc/webapp/conf.active` shows the link points at `conf.active` — itself. `ls -l` alone would show \"it's a symlink\"; `readlink` is what reveals it's self-referential rather than pointing somewhere real, which is exactly the distinction that separates ELOOP from an ordinary broken link."
+  },
+  {
+    "order_index": 3,
+    "title": "Confirm the real config was never actually touched",
+    "explanation": "`cat /etc/webapp/profiles/prod/app.conf` shows a completely normal `LISTEN_PORT=8080` config, and `ls -l /etc/webapp/profiles/` confirms it's the only real profile on disk. A broken deploy script created the loop at the `conf.active` pointer — the actual profile data was never damaged."
+  },
+  {
+    "order_index": 4,
+    "title": "Repoint the symlink at the real target",
+    "explanation": "`sudo ln -sfn /etc/webapp/profiles/prod /etc/webapp/conf.active` replaces the self-referential link in one step. As with any symlink swap, `-n` matters here: without it, `ln` would try to follow `conf.active` (which loops) rather than replacing the link itself."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify the process actually started, not just that the read succeeded",
+    "explanation": "`webappctl start` succeeding at reading the config is necessary but not sufficient — `pgrep -af webapp-worker` confirms the worker process it launches is genuinely running. `ELOOP` is enforced identically for root and unprivileged processes, so no amount of `sudo` would have resolved the loop without fixing the link itself."
+  }
+]

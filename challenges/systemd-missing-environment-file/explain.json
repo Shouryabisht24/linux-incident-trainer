@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Died-once-and-stayed-dead means: ask the process, not systemd",
+    "explanation": "`systemctl status billing-worker` shows `failed`, and with `Restart=no` it isn't looping — it exited immediately, once. `journalctl -u billing-worker -n 20 --no-pager` shows the app's own stderr from that moment: `FATAL: BILLING_API_KEY is not set -- check EnvironmentFile`. Unlike `203/EXEC` or `217/USER`, this is the application's own logic failing after it successfully started — systemd got the process running fine."
+  },
+  {
+    "order_index": 2,
+    "title": "The leading dash on EnvironmentFile is why systemd never complained",
+    "explanation": "`systemctl cat billing-worker.service` shows `EnvironmentFile=-/etc/billing-worker/billing-worker.env`. The `-` prefix marks the file optional — it tells systemd to proceed silently if the file isn't there instead of failing the unit. That's exactly why nothing about the unit's own load or start ever looked wrong: no warning, no error, `systemctl status` reporting nothing amiss right up until the process itself checked its environment and found the key missing."
+  },
+  {
+    "order_index": 3,
+    "title": "This is a missing file, not a permissions problem",
+    "explanation": "`ls -l /etc/billing-worker/` shows the directory doesn't exist at all — the deploy or secrets-management step that's supposed to write this host's environment file was simply never run. It's worth being precise about the mechanism here: systemd reads `EnvironmentFile=` as root, before the process ever drops privileges to its configured `User=`, so file permissions on that path would be irrelevant even if the file existed with tight modes. The actual failure mode is absence, not access."
+  },
+  {
+    "order_index": 4,
+    "title": "Create the file with what the app actually needs",
+    "explanation": "`mkdir -p /etc/billing-worker` and writing a `BILLING_API_KEY=...` line into `billing-worker.env` supplies exactly what the earlier journal output showed the app checking for — no unit file edit required, since the `EnvironmentFile=` directive itself was always correct."
+  },
+  {
+    "order_index": 5,
+    "title": "Restart, because EnvironmentFile is read once at process start",
+    "explanation": "Creating the file doesn't affect an already-failed unit — `EnvironmentFile=` is only consulted when the process starts, not live-reloaded. `systemctl restart billing-worker` is what actually picks up the new environment; `systemctl is-active billing-worker` reporting `active` confirms it."
+  }
+]

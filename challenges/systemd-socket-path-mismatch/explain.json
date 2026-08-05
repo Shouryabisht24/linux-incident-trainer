@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Both units individually reporting fine doesn't mean the pairing between them is right",
+    "explanation": "`systemctl status notify-relay.socket` shows `active (listening)`, and `systemctl status notify-relay.service` shows `inactive (dead)` waiting to be triggered. Under socket activation with the default `Accept=no`, that's the expected, healthy state for a service that hasn't received a connection yet — neither status output flags anything wrong, because nothing about either unit's own state actually is wrong."
+  },
+  {
+    "order_index": 2,
+    "title": "The symptom only appears when you use the service the way clients do",
+    "explanation": "Every real client and healthcheck connects at `/run/notify-relay.sock` — `curl --unix-socket /run/notify-relay.sock http://localhost/` is what actually fails to connect, even though the socket unit insists it's listening. `systemctl status`/`is-active` alone would never surface this, since they only report the unit's own lifecycle state, not where its socket is actually bound."
+  },
+  {
+    "order_index": 3,
+    "title": "Trace the real bound path, not the assumed one",
+    "explanation": "`systemctl show notify-relay.socket -p Listen` (or `systemctl cat notify-relay.socket`) shows `ListenStream=/tmp/notify-relay.sock` — moved there during a migration that never updated downstream clients or docs. `curl --unix-socket /tmp/notify-relay.sock http://localhost/` answering normally confirms the service itself is completely healthy; it's reachable, just at the wrong address."
+  },
+  {
+    "order_index": 4,
+    "title": "A socket's bound address doesn't move on reload alone",
+    "explanation": "Fixing `ListenStream=` back to `/run/notify-relay.sock` in the `.socket` unit requires stopping it first — the currently bound `/tmp` socket has to be torn down before systemd can bind the new path, so `daemon-reload` by itself wouldn't relocate an already-listening socket. The sequence is `systemctl stop notify-relay.socket`, edit the file, `daemon-reload`, then `systemctl start notify-relay.socket`."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify from the documented address, the same way the incident was noticed",
+    "explanation": "`curl --unix-socket /run/notify-relay.sock http://localhost/` returning a real response closes the loop. Socket activation splits a service's identity across two units, so trusting \"active (listening)\" on the socket unit alone — without checking where it's actually listening — is exactly how this kind of drift goes unnoticed."
+  }
+]

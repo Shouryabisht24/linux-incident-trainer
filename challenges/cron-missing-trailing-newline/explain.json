@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "A file can be wrong in a way cat won't show you",
+    "explanation": "`cat /etc/cron.d/nightly-sync` prints a completely ordinary-looking line — valid five-field schedule, a real user, a real, executable command. There's no typo, no bad syntax, nothing an eye scan or even careful review of the visible characters would flag. When content that looks entirely correct still doesn't work, the bug is probably not in the content at all."
+  },
+  {
+    "order_index": 2,
+    "title": "Look at the raw bytes, not the rendered text",
+    "explanation": "`tail -c 1 /etc/cron.d/nightly-sync | od -c` shows the very last byte of the file is `h` — the final character of `.sh` — not a newline. A simpler tell: piping the file through `cat` runs straight into your next shell prompt with no line break in between, because there genuinely isn't one at the end of the file."
+  },
+  {
+    "order_index": 3,
+    "title": "cron requires every line, including the last, to be newline-terminated",
+    "explanation": "cron's crontab parser treats a file's final line as incomplete — and silently discards it — if it isn't terminated by `\\n`. This isn't a warning-and-continue situation: there's no log entry, no syslog message, nothing in any output anywhere, because as far as the parser is concerned there was never a complete line there to reject in the first place. The job is simply never scheduled, forever, with zero evidence pointing at why."
+  },
+  {
+    "order_index": 4,
+    "title": "The fix is one appended byte",
+    "explanation": "`echo >> /etc/cron.d/nightly-sync` appends a bare newline to the end of the file without touching the job line itself — an empty `echo` writes nothing but `\\n`."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify at the same byte level you diagnosed at",
+    "explanation": "`tail -c 1 /etc/cron.d/nightly-sync | od -c` now shows `\\n` as the last byte, and `grep nightly-sync.sh /etc/cron.d/nightly-sync` confirms the job line itself is still intact and untouched. Lesson for next time: any tool or script that generates crontab files programmatically must guarantee a trailing newline, or it will produce jobs that look perfect and never run — one of the most notorious \"invisible\" cron failure modes precisely because nothing about it is visible."
+  }
+]

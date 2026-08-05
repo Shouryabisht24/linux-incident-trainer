@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Idle cores plus one starved process points at affinity, not quota",
+    "explanation": "`top` (press `1` for the per-core view) shows one core pegged at 100% while every other core sits idle, yet `render-worker` is still barely progressing. If this were a CPU quota problem the whole box would be busy; if it were a priority problem the busy core would at least be shared. A single saturated core next to idle ones, on a box with plenty of spare quota, is the specific signature of a process that's only *allowed* to run on cores that are already spoken for."
+  },
+  {
+    "order_index": 2,
+    "title": "Compare allowed CPU sets, don't just guess from the busy core",
+    "explanation": "Find render-worker's PID (`cat /var/run/render-worker/render-worker.pid`) and check its actual affinity mask with `taskset -p <pid>`. Then check whatever `top` shows saturating the one busy core the same way. Both report the identical mask -- confirming render-worker isn't just unlucky, it's mechanically forced onto the exact core something else already owns."
+  },
+  {
+    "order_index": 3,
+    "title": "Trace the pin to its source instead of just clearing it blind",
+    "explanation": "render-worker's control script (`/usr/local/bin/svc-ctl`) reads `PINNED_CORE` from `/etc/render-worker/render-worker.conf` and applies it with `taskset -c` on every start -- a leftover from an old cache-locality tuning pass. `batch-encoder`, a separate and legitimate workload not part of this fix, is independently and permanently pinned to that same core by its own launcher. render-worker was never meant to contend for that specific core; it just needs to run somewhere free, and this box has an entire second vCPU of quota sitting untouched."
+  },
+  {
+    "order_index": 4,
+    "title": "Remove the constraint rather than fight for the contended core",
+    "explanation": "Clearing the pin in config (`PINNED_CORE=`) and restarting (`sudo svc-ctl restart`) makes the control script launch render-worker without `taskset` at all, letting the kernel's own scheduler place it on whatever core is actually idle. A live, no-restart version of the same idea -- `sudo taskset -pc 1 <pid>` -- re-pins a *running* process's affinity immediately, useful for confirming the theory before committing to the config edit."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify with the same signal the check itself uses",
+    "explanation": "`taskset -p <pid>` on the new process should show the full mask (or a core distinct from batch-encoder's). More importantly, actual throughput recovers: measured as CPU time genuinely consumed (`utime+stime` ticks from `/proc/<pid>/stat`), a wedged render-worker was managing only about half a core's worth per window; freed from the contended core, it saturates close to a full one, since it no longer has to split a single core with batch-encoder at all."
+  }
+]

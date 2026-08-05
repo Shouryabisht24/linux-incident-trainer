@@ -1,0 +1,22 @@
+[
+  {
+    "order_index": 1,
+    "title": "217/USER fails before the program ever runs",
+    "explanation": "`systemctl status reportd` shows `status=217/USER` — a pre-flight failure distinct from a normal crash. systemd resolves the configured `User=` account before it ever forks/execs the actual program, and this code means that resolution itself failed. Because of that ordering, `journalctl -u reportd` won't show anything from the application — it never got a chance to run."
+  },
+  {
+    "order_index": 2,
+    "title": "Compare what the unit expects against what actually exists",
+    "explanation": "`cat /etc/systemd/system/reportd.service` shows `User=reportgen`. `getent passwd | grep report` shows the real account on this host is `reportsvc` — a similarly-named account was created during a security review that renamed the service account, and the unit file was never updated to match."
+  },
+  {
+    "order_index": 3,
+    "title": "Fix the unit to reference the account that's actually there",
+    "explanation": "Updating `User=reportgen` to `User=reportsvc` in `/etc/systemd/system/reportd.service` is the entire fix — there's no application-level cause to chase, since the mismatch is purely between the unit's static config and the account namespace on this box."
+  },
+  {
+    "order_index": 4,
+    "title": "Reload before restarting, then confirm",
+    "explanation": "systemd caches parsed unit files, so the edit does nothing until `systemctl daemon-reload` picks it up; `systemctl start reportd` can then actually resolve the account and proceed. `systemctl is-active reportd` reporting `active` confirms the fix — and getting there is quick because, unlike a bad `ExecStart=` path, there was never any application logic to debug."
+  }
+]

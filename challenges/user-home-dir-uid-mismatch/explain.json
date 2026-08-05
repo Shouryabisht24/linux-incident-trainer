@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "A bare number where a username should be is the tell",
+    "explanation": "`ls -la /home/reports/data` shows the file's owner as a plain digit instead of a name. `ls` only prints usernames as a convenience lookup against `/etc/passwd` at display time — when it falls back to a raw number, that number doesn't match any account currently on the box, which is the first sign of a UID mismatch rather than a plain permissions problem."
+  },
+  {
+    "order_index": 2,
+    "title": "Compare the account's current UID against that number",
+    "explanation": "`id reports` reports the account's live UID. If it doesn't match the number `ls` printed, the account and its own files are, as far as the kernel is concerned, two unrelated identities that happen to share a username."
+  },
+  {
+    "order_index": 3,
+    "title": "Ownership is UID-based, not name-based — recreation broke the link",
+    "explanation": "The kernel never stores a username on a file, only a numeric UID; `reports` is just a label. When the account was deleted and recreated (e.g. by a restore/provisioning tool that didn't pin the original UID), it came back at a different number, but every file it previously owned is still stamped with the old one — nothing about the files changed, only what number the account itself now resolves to."
+  },
+  {
+    "order_index": 4,
+    "title": "Fix the account, not the files",
+    "explanation": "The data on disk is the source of truth here — those files were never touched. The correct fix is `sudo usermod -u <old-uid> reports`, reassigning the account back to the UID its files already carry, rather than `chown`-ing the files to match the account's new (wrong) UID."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify resolution, then actual access",
+    "explanation": "`ls -la /home/reports/data` should now resolve the owner back to `reports` by name, and reading/writing the file as `reports` should succeed — confirming the account and its data agree on identity again, not just that a number changed somewhere."
+  }
+]

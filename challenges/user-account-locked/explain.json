@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "The wording points at expiry, not a bad password",
+    "explanation": "`su - etl -c 'echo ok'` prints `Your account has expired; please contact your system administrator.` — a distinct message from a wrong-password prompt or a `nologin`-style lockout. That specific phrase means the account itself has an expiry date, checked separately from whatever the password field holds."
+  },
+  {
+    "order_index": 2,
+    "title": "Read the aging fields directly rather than guessing",
+    "explanation": "`sudo chage -l etl` lists every account-aging field at once, including `Account expires`. Here it shows a date back in 1970 — long past — confirming this is a hard expiry, not a max-password-age or inactivity setting."
+  },
+  {
+    "order_index": 3,
+    "title": "Expiry and a password lock are enforced differently, and that difference matters here",
+    "explanation": "`passwd -l` (a password lock) blocks password-based logins, but root invoking `su` doesn't need to supply a password, so it sails right past that kind of lock. Account expiry (`chage -E`) is a separate check that fires regardless of who's asking — including root — which is exactly why `su - etl` still fails even run by trainee with full sudo."
+  },
+  {
+    "order_index": 4,
+    "title": "Clear the expiry, don't just delete and recreate the account",
+    "explanation": "`sudo chage -E -1 etl` sets the expiry to `-1` (never expires), correcting the one field that's actually blocking things without touching the account's UID, home directory, or anything else it owns."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify the field, then the actual behavior",
+    "explanation": "`sudo chage -l etl` should now read `Account expires: never`, and re-running the exact command from step 1 confirms the account is genuinely usable again — not just that a config value changed on paper."
+  }
+]

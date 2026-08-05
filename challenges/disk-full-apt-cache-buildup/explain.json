@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Rule out the usual suspect before searching further",
+    "explanation": "\"No space left on device\" makes a runaway log the first thing to check, but `du -sh /var/log/*` shows nothing unusual there. Confirming that negative matters — it means the search has to widen rather than staring harder at logs that are actually fine."
+  },
+  {
+    "order_index": 2,
+    "title": "Widen the search instead of guessing directory by directory",
+    "explanation": "`du -sh /var/cache/* 2>/dev/null | sort -h` scans everything under `/var/cache` at once and sorts by size, so the dominant consumer surfaces on its own — no need to manually check one subdirectory at a time. It points squarely at `/var/cache/apt/archives`."
+  },
+  {
+    "order_index": 3,
+    "title": "Understand why that directory grows unbounded",
+    "explanation": "`ls /var/cache/apt/archives` shows a long list of `.deb` files — apt's local cache of every package it has ever downloaded, kept around in case that exact version is needed again. Nothing prunes this automatically by default, so on a box that's gone months without maintenance, it silently accumulates every install and upgrade the system has ever done."
+  },
+  {
+    "order_index": 4,
+    "title": "Use apt's own tool, not a manual delete",
+    "explanation": "Because apt will simply re-download a `.deb` if it's ever actually needed again, the cache is safe to clear outright. `sudo apt-get clean` removes everything under `/var/cache/apt/archives`, including partial downloads — the standard, safe mechanism for this, rather than hand-picking files to `rm` and risking leaving `partial/` in an inconsistent state."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify against the mount that was actually failing",
+    "explanation": "`df -h /var/cache/apt/archives` showing space back confirms the fix landed on the filesystem that mattered, and a real install/upgrade succeeding confirms apt itself is unblocked — not just that a number in `df` changed."
+  }
+]

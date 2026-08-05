@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "A failed lookup could mean a bad record or a bad client config — test which",
+    "explanation": "`curl http://db:8080/` failing to resolve doesn't by itself say whether the DNS *data* is wrong or whether this host is asking for the wrong name entirely. Querying the resolver directly with the full, unambiguous name — `dig +short @127.0.0.1 db.internal.example` — isolates the record from everything client-side. It returns `127.0.0.1` correctly, so the zone data itself was never the problem."
+  },
+  {
+    "order_index": 2,
+    "title": "Bare names don't get looked up as-is",
+    "explanation": "A hostname with no dot in it, like `db`, is never queried literally. Per `resolv.conf(5)`, the resolver appends each domain in the `search` list from `/etc/resolv.conf` before making the query — turning `db` into `db.<search-domain>` first. Whatever `search` is set to is therefore doing real, invisible work on every unqualified lookup on this box."
+  },
+  {
+    "order_index": 3,
+    "title": "Read the actual search domain being applied",
+    "explanation": "`cat /etc/resolv.conf` shows `search prod.example.com` — so `db` is being expanded to `db.prod.example.com`, a zone that has no record for it at all. This is stale config left over from before an internal zone rename: DNS records moved to the new zone (`internal.example`, confirmed working in step 1), but this host's own resolver settings were never updated to match."
+  },
+  {
+    "order_index": 4,
+    "title": "Fix the search domain, not the record",
+    "explanation": "Since the record was already proven correct, the fix belongs in `/etc/resolv.conf`'s `search` line, changing it to `internal.example`. Like `/etc/hosts`, `/etc/resolv.conf` is bind-mounted inside the container, so `sed -i` fails with 'Device or resource busy' — edit in place (`nano`) or overwrite the file's contents directly rather than trying to rename over it."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify the same short name that was failing",
+    "explanation": "`curl http://db:8080/` succeeding now confirms the whole expansion chain works end-to-end: `db` → `db.internal.example` (via the fixed search domain) → `127.0.0.1` (via the DNS record that was correct all along)."
+  }
+]

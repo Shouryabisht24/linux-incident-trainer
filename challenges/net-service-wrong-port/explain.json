@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "'Connection refused' means nothing is bound to that address:port at all",
+    "explanation": "Unlike a timeout (which usually implies something is dropping the traffic in transit) 'connection refused' is the kernel's immediate answer when it checks its listening-socket table and finds nothing there. That specifically rules out a firewall-style problem and points at the listener itself — either it's not running, or it's running somewhere else."
+  },
+  {
+    "order_index": 2,
+    "title": "List every socket a process actually holds, not just the one you expect",
+    "explanation": "`sudo ss -tlnp` shows nginx alive and listening — just on `0.0.0.0:9090`, not `:8080`. The process is healthy; only the port number it bound is wrong. This is a narrower, single-axis version of the more general 'process running, connection refused' symptom: here specifically the *port* half of address:port is the mismatch, not the address half (which would instead read `127.0.0.2:8080` or similar and be a listen-address bug, not a listen-port bug)."
+  },
+  {
+    "order_index": 3,
+    "title": "Trace the wrong port back to its source",
+    "explanation": "`grep -rn listen /etc/nginx/` finds the literal `listen 9090;` directive driving the mismatch — confirming this is a static config error, not something dynamic or environment-dependent."
+  },
+  {
+    "order_index": 4,
+    "title": "Fix the port, validate before reloading",
+    "explanation": "Editing `listen 9090;` to `listen 8080;` and running `nginx -t` before `nginx -s reload` catches any syntax mistake before it's live, and reload (vs. restart) avoids a moment where nothing is listening at all during the switch."
+  },
+  {
+    "order_index": 5,
+    "title": "Re-run the same listener check to confirm",
+    "explanation": "`sudo ss -tlnp` afterward should now show nginx on `:8080` — verifying at the same layer (the kernel's socket table) where the mismatch was originally found, not just trusting that one successful `curl` means everything is correctly wired."
+  }
+]

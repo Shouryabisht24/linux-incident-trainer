@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "502 means the proxy is alive but its upstream isn't answering",
+    "explanation": "A reverse proxy returns different status codes for different failure layers: connection-refused-to-nginx-itself would mean nginx is down; a 504 means the upstream took too long; a 502 specifically means nginx accepted the request and then failed to get a usable response while trying to forward it. That immediately points the investigation at the proxy's own upstream connection, not at nginx's front-facing config."
+  },
+  {
+    "order_index": 2,
+    "title": "The error log has the exact address it tried",
+    "explanation": "`sudo tail /var/log/nginx/error.log` doesn't just say 'upstream failed' — it logs the literal `connect() failed` line with the target it attempted, `http://127.0.0.1:3000/`. That turns 'find the misconfigured upstream' from a search into a direct lookup."
+  },
+  {
+    "order_index": 3,
+    "title": "Confirm nothing is actually there before touching the config",
+    "explanation": "`sudo ss -tlnp | grep -E '3000|3001'` shows the backend genuinely listening on 3001 and nothing on 3000 — proving the log's claim rather than assuming it, and ruling out a transient blip as the cause."
+  },
+  {
+    "order_index": 4,
+    "title": "Point proxy_pass at where the backend actually is",
+    "explanation": "The backend's port didn't silently change on its own — a refactor moved it to 3001 and only the backend side got updated; nginx's `proxy_pass http://127.0.0.1:3000;` is simply stale. Changing it to `3001` and reloading (`nginx -t && nginx -s reload`) closes the gap between what the proxy expects and what's really running."
+  },
+  {
+    "order_index": 5,
+    "title": "A 502 clearing on retry doesn't prove the fix — check the body",
+    "explanation": "`curl http://localhost:8080/` should now return `backend ok`, the backend's own response text — not just a non-502 status code — since that's the only way to know traffic is actually flowing to the real app end-to-end."
+  }
+]

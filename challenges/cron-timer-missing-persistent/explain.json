@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Re-enabling it is the obvious first move, and it isn't enough",
+    "explanation": "`systemctl status nightly-reconcile.timer` shows `inactive (dead)` and disabled, consistent with the maintenance-freeze story. `sudo systemctl enable --now nightly-reconcile.timer` brings it to `active` — but `/var/lib/app/last-reconcile` still doesn't exist. The timer is genuinely running again; that alone didn't produce the catch-up run the description expects."
+  },
+  {
+    "order_index": 2,
+    "title": "The schedule itself was never the problem",
+    "explanation": "`OnCalendar=*-*-* 02:00:00` is valid syntax, and `systemctl show nightly-reconcile.timer -p NextElapseUSecRealtime` shows a perfectly sane next run — tomorrow at 02:00. The real question isn't \"will this fire again,\" it's \"what happens to the occurrences it missed *while it was off*\" — and the schedule expression alone has no opinion on that."
+  },
+  {
+    "order_index": 3,
+    "title": "Persistent= is the opt-in for catching up, and it's off by default",
+    "explanation": "`systemctl show nightly-reconcile.timer -p Persistent` reports `Persistent=no`. A non-persistent timer has no memory of \"I should have fired while I was inactive\" — the moment it's re-enabled, it just starts counting toward the *next* natural 02:00, silently dropping every occurrence in between. Three days of nightly runs are gone for good under this setting, even though the timer is now technically \"working\" again."
+  },
+  {
+    "order_index": 4,
+    "title": "Enable catch-up, then reload so systemd re-evaluates",
+    "explanation": "Adding `Persistent=true` under `[Timer]` in `/etc/systemd/system/nightly-reconcile.timer` tells systemd to compare its last real trigger (tracked in a stamp file under `/var/lib/systemd/timers/`) against the calendar expression on activation, and fire immediately for anything that fell inside the downtime window. `sudo systemctl daemon-reload` picks up the unit file edit, and `sudo systemctl enable --now nightly-reconcile.timer` re-activates it under the new setting."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify the catch-up actually happened, not just that the setting is present",
+    "explanation": "Because a real 02:00 occurrence was genuinely missed while the timer was inactive, reactivating it with `Persistent=true` in place fires `nightly-reconcile.service` immediately — `/var/lib/app/last-reconcile` now exists, stamped at the moment of reactivation rather than at the next real 02:00. Any timer standing in for a job that must run at least once per period — backups, reconciliation, invoicing — needs `Persistent=true` specifically because the box won't always be up, enabled, or free of maintenance at the exact instant the schedule says it should fire."
+  }
+]

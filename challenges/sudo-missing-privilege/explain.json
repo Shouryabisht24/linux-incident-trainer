@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Reproduce as oncall, not as trainee",
+    "explanation": "`sudo -u oncall sudo -n id` fails with `oncall is not in the sudoers file. This incident will be reported.` That specific phrasing matters: sudo evaluated its entire policy and found no rule mentioning oncall at all, as opposed to finding a rule that's malformed or one that requires a password. It confirms the account genuinely has nothing granted yet, not a broken grant."
+  },
+  {
+    "order_index": 2,
+    "title": "Grant through a drop-in, not by hand-editing /etc/sudoers",
+    "explanation": "Modern sudoers uses `#includedir /etc/sudoers.d` to pull in per-purpose files. Adding a new file there (rather than appending a line to the shared `/etc/sudoers`) keeps the grant isolated, easy to remove or audit on its own, and safe from merge conflicts with whatever config-management tool also owns the main file."
+  },
+  {
+    "order_index": 3,
+    "title": "visudo isn't optional ceremony",
+    "explanation": "A single syntax error anywhere sudo reads its policy from can disable sudo for everyone relying on that file — and if it's the only file granting root a way back in, that's a self-inflicted lockout. `visudo -f` (or `visudo -c` against a file written another way) parses the rule before it's ever live, which is the entire reason to prefer it over `vi`/`echo >>` directly."
+  },
+  {
+    "order_index": 4,
+    "title": "Mode 0440 is a security check, not a formality",
+    "explanation": "sudo refuses to load any sudoers.d file that's group- or world-writable, on the theory that a file anyone but root can edit is a privilege-escalation path waiting to happen. A drop-in with correct syntax but wrong permissions is silently ignored — `visudo -c` reports on both content and mode, so it's worth checking even when you're confident about the line itself."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify as oncall, non-interactively",
+    "explanation": "`sudo -u oncall sudo -n id` (the exact command from step 1) is the right check because it exercises the grant the same way the real automation will — as oncall, with no password prompt available. Confirming as trainee or root would tell you nothing about whether oncall's own rule actually took effect."
+  }
+]

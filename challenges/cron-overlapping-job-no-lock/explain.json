@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "A single run tells you nothing about this bug",
+    "explanation": "`cat /opt/scripts/tally-processed.sh` shows a plain read-modify-write: read the counter file, do some work (a `sleep 0.5` standing in for real processing time), add one, write it back. Run it once by hand and it behaves perfectly — the arithmetic is correct, nothing looks broken. The bug only exists *between* invocations that happen to overlap, which a single manual run can never reproduce."
+  },
+  {
+    "order_index": 2,
+    "title": "cron doesn't wait for the previous run to finish",
+    "explanation": "`/etc/cron.d/tally-processed` fires this script every minute regardless of whether the last invocation is still running. If the job's actual work ever takes long enough to still be alive when the next minute's copy starts — plausible under load even though `sleep 0.5` alone wouldn't do it — two independent processes are now both reading and writing the same state file with zero coordination between them."
+  },
+  {
+    "order_index": 3,
+    "title": "Reproduce the race directly instead of waiting on real timing",
+    "explanation": "Launching several copies of the script at once (`for i in 1 2 3 4 5 6; do su -s /bin/sh -c ... & done; wait`) and checking the final total makes the bug happen on demand: six invocations should leave a total of `6`, but each copy reads the same starting value (`0`) before any of them has written anything back, all six independently compute `1`, and whichever finishes last simply overwrites what the others already wrote. Five increments vanish with no error message anywhere — silent corruption is the entire signature of this bug."
+  },
+  {
+    "order_index": 4,
+    "title": "Serialize the critical section, don't just narrow the window",
+    "explanation": "Spacing the cron schedule out further only makes the race less likely, not impossible — load spikes and slow disks will eventually blow through any interval. The real fix is inside the script: `exec 9>/tmp/tally-processed.lock` opens a lock file on file descriptor 9, and `flock -x 9` — placed *before* the counter is ever read — takes an exclusive lock that blocks a second invocation until the first one finishes and its file descriptor closes, releasing the lock automatically with no explicit cleanup needed."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify under the exact conditions that exposed the bug",
+    "explanation": "Re-running the same six-at-once concurrent test now produces a total of exactly `6`, regardless of how the timing lines up between the copies — proof the updates are genuinely serialized, not just less likely to collide. Any cron job that reads then writes shared state is only safe under overlap if it's actually locked; a schedule interval being \"usually\" longer than the job's runtime is a hope, not a guarantee."
+  }
+]

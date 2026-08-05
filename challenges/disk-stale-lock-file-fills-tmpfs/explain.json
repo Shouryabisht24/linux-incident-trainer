@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "Don't take the tool's own claim at face value",
+    "explanation": "`brokerctl start` refuses and says a WAL reservation is present, \"assuming another instance is still using it\" — but that's an assumption stated in the error message, not a verified fact. `pgrep -af eventqueue-worker` returning nothing proves no broker process actually exists anywhere on the box, so whatever is blocking the start isn't a live conflict."
+  },
+  {
+    "order_index": 2,
+    "title": "Recognize why a presence-based check can lie",
+    "explanation": "`brokerctl` treats the mere existence of `wal.reserved` plus low free space as evidence of a live claim — a reasonable check while a broker is genuinely running, but one that can't distinguish an active reservation from a stale leftover. The box lost power mid-run last night, so the process that wrote the reservation never got the chance to remove it on exit; the file outlived the thing it was supposed to represent."
+  },
+  {
+    "order_index": 3,
+    "title": "Confirm what's actually consuming the space",
+    "explanation": "`ls -lh /var/lib/eventqueue` shows a single ~13MB `wal.reserved` file eating nearly the entire bounded tmpfs — a fixed-size pre-reservation eventqueue's start logic writes up front specifically so a write-ahead-log write never has to fail partway through mid-write."
+  },
+  {
+    "order_index": 4,
+    "title": "Remove it, since nothing is holding it",
+    "explanation": "`sudo rm /var/lib/eventqueue/wal.reserved` is safe precisely because step 1 already established no process references it. Deleting a reservation file that's still actively backing a running broker would be dangerous; deleting a confirmed-orphaned one just returns unused space."
+  },
+  {
+    "order_index": 5,
+    "title": "Restart and verify against both symptoms",
+    "explanation": "`brokerctl start` now succeeds — it claims a fresh reservation for itself and launches. Checking both `pgrep -af eventqueue-worker` (process actually running) and `df -h /var/lib/eventqueue` (healthy free space) matters because either one alone could look fine while the other is still broken."
+  },
+  {
+    "order_index": 6,
+    "title": "The durable version of this fix isn't a file check at all",
+    "explanation": "A file's existence can never tell you, on its own, whether the thing that created it is still alive — that's true of any lock/reservation file, not just this one. The robust pattern is a liveness check the OS enforces automatically, like an `flock` held for the holder's entire lifetime: the kernel releases it the instant the holding process dies, crash or no crash, so there's nothing stale left to misinterpret."
+  }
+]

@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Refused/timeout on 22, not a login rejection, points at the bind, not auth",
+    "explanation": "If sshd were rejecting the connection for an access-control reason (AllowUsers, StrictModes, PubkeyAuthentication), the client would at least reach a login stage before failing. Nothing answering at all on port 22 means no process is accepting TCP there — before the SSH protocol banner, before any config directive about users gets a chance to matter."
+  },
+  {
+    "order_index": 2,
+    "title": "Confirm sshd is alive, just not where expected",
+    "explanation": "`sudo ss -tlnp | grep sshd` shows sshd is running and bound to a different port entirely, ruling out 'sshd crashed' or 'sshd never started' and narrowing this specifically to a listening-port mismatch."
+  },
+  {
+    "order_index": 3,
+    "title": "Ask sshd's effective config directly, then find the source",
+    "explanation": "`sudo sshd -T | grep -i '^port'` confirms what sshd itself believes its port to be. `sudo grep -rin '^port' /etc/ssh/sshd_config /etc/ssh/sshd_config.d/` traces it to a hardening drop-in that moved sshd off the default port — a change that never got communicated to the deploy pipeline hardcoded to expect 22."
+  },
+  {
+    "order_index": 4,
+    "title": "Port is cumulative, not last-one-wins — use that instead of reverting",
+    "explanation": "Unlike most sshd directives, multiple `Port` lines are additive: sshd listens on all of them simultaneously. That means restoring compatibility doesn't require undoing the hardening change — adding `Port 22` alongside the existing line lets both ports work."
+  },
+  {
+    "order_index": 5,
+    "title": "Validate, reload, and verify sshd actually re-bound",
+    "explanation": "`sudo sshd -t` checks syntax, then `sudo service ssh reload` is what makes sshd re-bind and open the new listener — a `SIGHUP` causes OpenSSH's sshd to re-exec itself, which does pick up new `Port` lines (unlike some daemons where only a full restart opens new sockets). `ssh -i ~/deploy_key -p 22 deploy@localhost 'echo SSH_OK'` confirms port 22 specifically now answers."
+  }
+]

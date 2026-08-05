@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "Failed-and-stayed-dead is different from crash-looping",
+    "explanation": "`systemctl status webapp` shows `failed`, and because `Restart=no` it never retried on its own — it died once and stopped. `journalctl -u webapp -n 20 --no-pager` shows the app's own reason: `/var/lib/app/ready missing -- data-init hasn't completed yet`. That's a dependency the app is checking for at its own startup, not a bug in webapp itself."
+  },
+  {
+    "order_index": 2,
+    "title": "Find who's actually responsible for that file",
+    "explanation": "`systemctl cat data-init.service` shows a `Type=oneshot`, `RemainAfterExit=yes` unit whose `ExecStart` does real provisioning work (here, a couple of seconds) before touching `/var/lib/app/ready`. So two units are involved, and webapp depends on the other one finishing first."
+  },
+  {
+    "order_index": 3,
+    "title": "Check whether that dependency is expressed anywhere",
+    "explanation": "`systemctl show webapp -p After -p Requires` shows neither directive mentions `data-init.service`. Both units are pulled in by `multi-user.target` with no ordering between them, so systemd is free to start them in parallel at boot — and webapp's `ExecStart` runs almost instantly, checking for the marker file before data-init has had time to create it."
+  },
+  {
+    "order_index": 4,
+    "title": "Why a manual restart is a false signal, not proof of a fix",
+    "explanation": "Running `systemctl restart webapp` any time after boot \"fixes\" it every time, because by then `data-init.service` finished seconds ago and the marker already exists. That's the boot race window having already closed on its own — the ordering itself is still absent, it's just not being exercised anymore, which is exactly why this bug survives casual manual checks."
+  },
+  {
+    "order_index": 5,
+    "title": "Add both Requires= and After=, and know why both are needed",
+    "explanation": "`Requires=data-init.service` makes starting webapp also pull in data-init if it isn't already running; `After=data-init.service` ensures webapp isn't invoked until data-init reports itself finished. Neither alone is sufficient: `Requires=` without `After=` still lets them start in parallel, and `After=` without `Requires=` doesn't guarantee data-init gets started at all."
+  },
+  {
+    "order_index": 6,
+    "title": "Prove it against a real race, not another lucky restart",
+    "explanation": "Stopping both units, deleting the marker, and starting webapp cold (`systemctl stop webapp data-init && rm -f /var/lib/app/ready && systemctl start webapp`) replays the exact boot-time scenario that originally failed. Only a check built this way can distinguish \"the ordering is genuinely fixed\" from \"the system happened to be past the danger window again\" — which is why the platform's own check does the same thing rather than trusting a plain `is-active`."
+  }
+]

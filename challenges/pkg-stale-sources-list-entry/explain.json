@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "Read what apt is actually complaining about",
+    "explanation": "`sudo apt-get update` doesn't fail silently -- it names the exact source it couldn't fetch, e.g. `Err:2 file:/opt/legacy-mirror ./ Packages` followed by `File not found`. That's a config problem you can fully diagnose locally on a host with no real internet access, not a network timeout to chase."
+  },
+  {
+    "order_index": 2,
+    "title": "Enumerate every place apt is told to look, not just the obvious one",
+    "explanation": "`cat /etc/apt/sources.list` shows it's intentionally empty on this offline host, so the real configuration lives under `/etc/apt/sources.list.d/`. `ls /etc/apt/sources.list.d/` turns up two files: `internal-good.list`, pointing at the real mirror this environment actually uses, and `internal-legacy.list`, pointing at a second path. (Worth knowing in general: modern Debian images ship their default mirror as a deb822-format `.sources` file under `sources.list.d/`, not the classic flat `sources.list` -- so \"empty sources.list\" doesn't always mean \"no sources configured.\")"
+  },
+  {
+    "order_index": 3,
+    "title": "Confirm which entry is actually broken by checking the filesystem directly",
+    "explanation": "`ls /opt/legacy-mirror` shows the path referenced by `internal-legacy.list` simply doesn't exist -- this was a second internal mirror that got decommissioned, and whoever retired it never removed the reference. The still-good mirror (`internal-good.list` -> `/opt/pkg-repo`) is completely unaffected; it's one bad entry among several, not the whole apt configuration."
+  },
+  {
+    "order_index": 4,
+    "title": "apt fails the whole operation if any one source errors",
+    "explanation": "apt treats `update` as failed (non-zero exit) the moment *any* configured source can't be fetched, even if every other source is perfectly healthy. That's exactly why a single stale `sources.list.d` entry silently breaks every downstream script on the box that chains `apt-get update && apt-get install ...` -- the actually-needed mirror was never the problem."
+  },
+  {
+    "order_index": 5,
+    "title": "Remove the entry that's genuinely gone for good",
+    "explanation": "Since the legacy mirror was deliberately decommissioned rather than temporarily moved, `sudo rm /etc/apt/sources.list.d/internal-legacy.list` is the correct fix -- removing the reference, not trying to point it at a corrected path that doesn't exist."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify the whole pipeline works, not just the exit code",
+    "explanation": "`sudo apt-get update` succeeding confirms the immediate symptom is gone, but `apt-cache policy reportviewer` showing a real `Candidate:` from the internal mirror is what proves the still-healthy mirror is genuinely usable end to end -- catching a scenario where `update` exits cleanly by some fluke but package resolution is still broken."
+  }
+]

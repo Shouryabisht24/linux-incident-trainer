@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "Test as the account that actually has to write here, not as root",
+    "explanation": "`sudo -u orderapi sh -c 'echo test >> /var/log/orderapi/orderapi.log'` fails with \"Permission denied\". Root can always write to anything, so checking as root would have told you nothing; the service runs as the unprivileged `orderapi` account, so that's the identity whose access actually matters."
+  },
+  {
+    "order_index": 2,
+    "title": "The file's own ownership tells you the write is genuinely blocked, not flaky",
+    "explanation": "`ls -l /var/log/orderapi/orderapi.log` shows the file is owned `root:root`, mode `0600` — `orderapi` has no read, write, or execute bits on it at all. Since the file already contains plenty of history, this account clearly used to be able to write here; something changed the ownership out from under it."
+  },
+  {
+    "order_index": 3,
+    "title": "Trace the ownership back to what stamps it after every rotation",
+    "explanation": "`cat /etc/logrotate.d/orderapi` shows `create 0600 root root`. The `create <mode> <owner> <group>` directive tells logrotate exactly what to stamp on the brand-new, empty file it creates immediately after rotating the old one out of the way — and logrotate runs as root, so it faithfully creates that file owned by root, regardless of who the service actually runs as."
+  },
+  {
+    "order_index": 4,
+    "title": "Recognize this as a different failure from a broken rotation path",
+    "explanation": "Rotation itself isn't broken here: the schedule fires, the path is right, `missingok`/`notifempty` aren't hiding anything. The bug is entirely in what happens right after a successful rotation — the fresh file is created with the wrong owner, silently locking `orderapi` out of its own log with no crash and no visible error, since the service keeps running fine otherwise."
+  },
+  {
+    "order_index": 5,
+    "title": "Fix the directive to match the account the service actually runs as",
+    "explanation": "`sudo sed -i 's/create 0600 root root/create 0640 orderapi orderapi/' /etc/logrotate.d/orderapi` changes what future rotations stamp on the new file — but the currently-broken file itself still needs a real rotation to happen before the fix takes effect."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify end-to-end with a forced rotation, checked from the real account",
+    "explanation": "`sudo rm -f /var/log/orderapi/orderapi.log.1 /var/lib/logrotate/status && sudo logrotate --force /etc/logrotate.d/orderapi` forces a fresh rotation instead of waiting for the schedule, and `sudo -u orderapi sh -c 'echo test >> /var/log/orderapi/orderapi.log'` succeeding afterward — checked as `orderapi`, not root — is the only way to actually confirm the fix, since root ignores permission checks entirely and would lie about whether the real problem is gone."
+  }
+]

@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Confirm this is a permissions problem, not a daemon-health problem",
+    "explanation": "`sudo -u collector nc -U /run/metricsd/metricsd.sock` fails with `Permission denied`. Before chasing the socket's permissions, rule out the daemon itself: `pgrep -f metricsd-daemon.sh` shows it's running, and connecting to the exact same socket as root/trainee succeeds and prints `METRICSD_HELLO`. Same socket, same daemon, different outcome depending only on who's connecting -- that isolates the problem to access control, not to the service being down or broken."
+  },
+  {
+    "order_index": 2,
+    "title": "Unix domain sockets are gated by ordinary file permissions",
+    "explanation": "`connect()` on a Unix domain socket checks the DAC permissions on its filesystem path exactly like opening a regular file would. `ls -l /run/metricsd/metricsd.sock` shows `srwxrwx--- metricsd metricsd` -- group-owned by `metricsd`, mode `770`, with zero access for \"other\". `id collector` confirms it's a member of `metrics-clients` -- a completely different group from the one the socket is actually owned by, so `collector` gets none of the group-level access it should."
+  },
+  {
+    "order_index": 3,
+    "title": "Fix the socket that exists right now",
+    "explanation": "`sudo chgrp metrics-clients /run/metricsd/metricsd.sock` regroups the live socket so `collector`'s existing `metrics-clients` membership actually grants access. Re-testing as `collector` should connect immediately at this point."
+  },
+  {
+    "order_index": 4,
+    "title": "Find why this will recur, and fix it at the source",
+    "explanation": "This minimal daemon recreates its socket on every connection cycle (`nc -lU` handles one client, then loops), and `ls -ld /run/metricsd` shows a plain directory owned `metricsd:metricsd` with no setgid bit. Every socket created inside inherits the *creating process's own primary group* (`metricsd`), never `metrics-clients`, no matter how many times the daemon restarts -- so fixing only the current socket file leaves the exact same incident waiting to happen the next time it cycles."
+  },
+  {
+    "order_index": 5,
+    "title": "Apply the durable fix: setgid on the directory",
+    "explanation": "`sudo chgrp metrics-clients /run/metricsd && sudo chmod g+s /run/metricsd` makes every future file or socket created inside automatically inherit `metrics-clients` as its group, regardless of which account's process creates it. `ls -ld` now shows `drwxrwsr-x` -- the `s` in the group-execute slot confirms setgid is active, and this survives every subsequent daemon restart rather than just patching the one socket that happened to exist when you looked."
+  }
+]

@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "\"start request repeated too quickly\" is systemd's own rate limiter, not a fresh crash",
+    "explanation": "`systemctl start worker2` refuses outright with that message — it isn't the unit crashing again, it's `StartLimitIntervalSec=`/`StartLimitBurst=` in the unit having already tripped from earlier restart attempts. This means there are two separate things going on: whatever originally crashed the service, and systemd's own safety valve that kicked in afterward."
+  },
+  {
+    "order_index": 2,
+    "title": "Find the original cause before touching the rate limiter",
+    "explanation": "`journalctl -u worker2 -n 30 --no-pager` shows repeated `FATAL: missing /etc/worker2/worker2.conf` right before each restart. With `Restart=always` and a short `RestartSec=1`, the service crashed, systemd restarted it, it crashed again, several times, fast enough to hit `StartLimitBurst=3` within `StartLimitIntervalSec=20` — which is what latched the unit into start-limit-hit in the first place."
+  },
+  {
+    "order_index": 3,
+    "title": "Fix the actual bug first",
+    "explanation": "Creating `/etc/worker2/worker2.conf` with the `QUEUE_NAME=` line the script expects addresses the real crash cause. But doing only this and then trying `systemctl start worker2` still fails — the unit is latched in the failed, start-limited state independent of whether the underlying cause is now fixed."
+  },
+  {
+    "order_index": 4,
+    "title": "Clear the failure counter explicitly",
+    "explanation": "`systemctl reset-failed worker2` is the only thing that clears the start-limit-hit state — daemon-reload doesn't touch it, and simply waiting doesn't either unless you wait out the full `StartLimitIntervalSec` window. This two-step requirement (fix the cause, then reset-failed) is one of the most common \"I fixed it but it still won't start\" traps with systemd."
+  },
+  {
+    "order_index": 5,
+    "title": "Start and verify",
+    "explanation": "With both the config in place and the failure counter cleared, `systemctl start worker2` succeeds and `systemctl is-active worker2` reports `active` — and this time it stays that way, since the crash loop that originally tripped the limiter is actually gone, not just paused."
+  }
+]

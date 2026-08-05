@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Reproduce as the account that actually fails, not as root or trainee",
+    "explanation": "`sudo -u etl cat /var/data/exports/customer_export.csv` reproduces the real failure. Running the same read as root or plain `trainee` would succeed regardless of what's wrong, since root bypasses DAC checks entirely -- so it would tell you nothing about why the unprivileged `etl` account specifically can't get in."
+  },
+  {
+    "order_index": 2,
+    "title": "The permission bits say this should work -- so look for what `ls -l` isn't showing",
+    "explanation": "`ls -l /var/data/exports/customer_export.csv` shows `-rw-r--r--` -- world-readable, no reason `etl` should be blocked by the classic owner/group/other model. But look at the character right after the mode string: a trailing `+`. That's `ls` flagging that this file's access control isn't fully described by the mode bits you're looking at -- there's a POSIX ACL layered on top."
+  },
+  {
+    "order_index": 3,
+    "title": "Read the ACL directly to see what's actually deciding access",
+    "explanation": "`getfacl /var/data/exports/customer_export.csv` shows a `user:etl:---` line -- a named-user ACL entry that applies specifically to the `etl` account. Named-user entries take precedence over the group/other bits for that one UID, no matter how permissive those other bits look. That's the entire mechanism: someone can lock out (or unlock) one specific account without ever touching the file's normal mode."
+  },
+  {
+    "order_index": 4,
+    "title": "Remove or override the stale entry",
+    "explanation": "`sudo setfacl -x u:etl /var/data/exports/customer_export.csv` deletes the named-user entry outright, falling back to the group/other bits (which are already permissive). `setfacl -m u:etl:r--` would work too, granting read explicitly instead of removing the entry. Either way, `getfacl` afterward should no longer show a `---` line for `etl`."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify as the same real user from step 1",
+    "explanation": "`sudo -u etl cat /var/data/exports/customer_export.csv` now needs to print the actual file contents (the `EXPORT_MARKER_OK` line), not just exit cleanly -- that confirms the ACL deny is gone and `etl` can genuinely read the data, not merely that some other check happened to pass."
+  }
+]

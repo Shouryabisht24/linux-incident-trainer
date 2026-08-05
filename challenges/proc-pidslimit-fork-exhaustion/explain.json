@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Confirm this is a hard ceiling, not a vague feeling of \"too many processes\"",
+    "explanation": "`cat /sys/fs/cgroup/pids.current` against `cat /sys/fs/cgroup/pids.max` is the ground truth here -- far more reliable than eyeballing `ps` output. Current sitting right up near max means this container is genuinely near the point where it can't fork any new process at all, including your own next diagnostic command."
+  },
+  {
+    "order_index": 2,
+    "title": "Find what's still trying to grow the pool",
+    "explanation": "`cat /var/run/pool-supervisor.pid` gives its PID; its log shows it repeating \"no headroom left ... will retry later\" -- it backs off when the cgroup is nearly full, but it never permanently gives up. There's no steady state it settles into on its own."
+  },
+  {
+    "order_index": 3,
+    "title": "Stopping the spawner is necessary but not sufficient",
+    "explanation": "`sudo kill -9 $(cat /var/run/pool-supervisor.pid)` stops new growth, but every `job-worker` it already spawned is still alive and still holding a pid slot -- `pids.current` doesn't move just because the supervisor is gone. This is a distinct failure mode from a single runaway process: killing the source alone leaves the box exactly as constrained as before."
+  },
+  {
+    "order_index": 4,
+    "title": "Clean up precisely, using the supervisor's own record, not a name match",
+    "explanation": "Each `job-worker` execs into `sleep infinity`, so by the time you're looking, its `comm`/`ps` name is just `sleep` -- indistinguishable by name from any other legitimate `sleep` process on the box. Killing by name risks matching the wrong thing. The supervisor already wrote every PID it spawned to `/var/run/worker-pool/pids`; iterate that list precisely: `for p in $(cat /var/run/worker-pool/pids); do sudo kill -9 \"$p\"; done`."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify against the cgroup counter, and understand why it actually drops here",
+    "explanation": "`cat /sys/fs/cgroup/pids.current` should now read a small number, comfortably clear of `pids.max`. That headroom returning at all depends on something specific to this challenge's container: a `kill -9`'d process that nobody `wait()`s on normally becomes a permanent zombie, and a zombie still counts against a `pids` cgroup's current count until reaped -- but this container runs a small reap loop as PID 1 specifically so that killing the leaked workers actually frees their slots, the way a real host's init (or `docker run --init`) would."
+  }
+]

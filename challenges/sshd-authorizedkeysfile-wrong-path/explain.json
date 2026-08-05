@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Rule out the usual suspects before looking elsewhere",
+    "explanation": "The key is valid and `~/.ssh` permissions are already correct — the two things that break key auth most often. When both check out and login still falls through to a nonexistent password, the remaining possibility is that sshd isn't even looking at the file you'd expect it to."
+  },
+  {
+    "order_index": 2,
+    "title": "Ask sshd where it's actually looking",
+    "explanation": "`sudo sshd -T | grep -i authorizedkeysfile` prints the effective, merged setting — here, something other than the default `.ssh/authorized_keys`. This is the fastest way to confirm the lookup path itself is the variable, rather than assuming the default is still in play."
+  },
+  {
+    "order_index": 3,
+    "title": "AuthorizedKeysFile replaces the default, it doesn't add to it",
+    "explanation": "Once `AuthorizedKeysFile` is set to a custom path (here `/etc/ssh/authorized_keys/%u`, with `%u` expanding to the username), sshd stops consulting `~/.ssh/authorized_keys` entirely — there's no fallback to the default. So deploy's genuinely-correct key sitting in the old location is simply never read."
+  },
+  {
+    "order_index": 4,
+    "title": "Confirm the new location actually has anything in it",
+    "explanation": "`sudo ls -la /etc/ssh/authorized_keys/` shows the directory doesn't exist at all — the centralized-authorized-keys migration configured the lookup path but never finished populating it, which is the entire bug."
+  },
+  {
+    "order_index": 5,
+    "title": "Put a key at the exact path sshd expects, then verify without reloading",
+    "explanation": "Creating `/etc/ssh/authorized_keys/deploy` with deploy's public key (owned by root, since this is a centralized directory rather than a user's own home — it isn't subject to StrictModes' 'must be owned by the target user' rule) is enough on its own. Unlike `sshd_config` directives, whatever `AuthorizedKeysFile` points at is read fresh on every authentication attempt, so `ssh -i ~/deploy_key deploy@localhost` can be retried immediately with no reload."
+  }
+]

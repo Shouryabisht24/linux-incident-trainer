@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "A healthy, non-crash-looping service rules out a whole class of fault",
+    "explanation": "`systemctl status apiworker` shows `active`, not `activating (auto-restart)` -- so this isn't the \"bad config makes the process exit\" pattern where the fix would live in the unit's `ExecStart` path or environment. The process itself is staying up; something else is capping what it can do while running."
+  },
+  {
+    "order_index": 2,
+    "title": "The journal names the exact failure",
+    "explanation": "`journalctl -u apiworker -n 30` repeats \"cannot open connection N/40: Too many open files\" -- `EMFILE`, a file-descriptor ceiling. Critically, the app is trying to open exactly the 40 connections it's supposed to hold at steady state and failing partway -- this is not a runaway leak asking for more than it needs."
+  },
+  {
+    "order_index": 3,
+    "title": "Confirm the ceiling is pinned, not slowly climbing",
+    "explanation": "Get the real PID (`systemctl show apiworker --property=MainPID`), then compare `cat /proc/<pid>/limits | grep 'open files'` against `ls /proc/<pid>/fd | wc -l`. Usage sits exactly at the limit -- the same pattern as a plain `ulimit`-driven fd exhaustion, but the source is different here."
+  },
+  {
+    "order_index": 4,
+    "title": "This ceiling lives in the unit, not an app config file",
+    "explanation": "`systemctl cat apiworker` shows `LimitNOFILE=30` directly under `[Service]` -- a systemd resource-limit directive set during a hardening pass, not a `ulimit -n` sourced from the application's own config the way a hand-rolled control script would do it. The application code has no leak at all; the ceiling was simply set below the service's real, legitimate need."
+  },
+  {
+    "order_index": 5,
+    "title": "Both reload and restart are required, for different reasons",
+    "explanation": "Edit the unit (`sudo systemctl edit --full apiworker` or the file directly) and raise `LimitNOFILE` well above 40, e.g. `4096`. `daemon-reload` makes systemd re-read the changed unit; `restart` is separately required because a process's resource limits are fixed at the moment it's exec'd -- editing the unit does nothing to a process already running under the old ceiling."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify against fd count, not just is-active",
+    "explanation": "`systemctl is-active apiworker` reporting `active` isn't sufficient on its own -- `Restart=always` can make a service look active while mid-recovery from the same crash. `ls /proc/$(systemctl show apiworker --property=MainPID --value)/fd | wc -l` reaching 40 or more is the real confirmation that it's holding its full pool."
+  }
+]

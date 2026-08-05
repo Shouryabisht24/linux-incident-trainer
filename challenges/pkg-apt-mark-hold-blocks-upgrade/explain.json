@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Confirm there's a real gap between installed and available",
+    "explanation": "`apt-cache policy widget-cli` separates what's installed from what apt can see in its sources. Here it shows `Installed: 1.0-1` while the version table lists `2.0-1` as available from the internal mirror -- so the mirror genuinely has the fix, and a normal upgrade *should* be able to reach it. That rules out \"the fix never actually shipped\" before you go looking anywhere else."
+  },
+  {
+    "order_index": 2,
+    "title": "Let the upgrade attempt itself tell you something is deliberately blocking it",
+    "explanation": "`sudo apt-get install --only-upgrade widget-cli` (or `apt-get upgrade`) reports the package kept back or does nothing at all, even though the candidate is right there. A dependency problem or a missing package would say so explicitly -- silently refusing to move a package that's clearly available is apt's signature for \"something is pinning this on purpose,\" which narrows the search immediately."
+  },
+  {
+    "order_index": 3,
+    "title": "Holds are invisible unless you explicitly ask for them",
+    "explanation": "`apt-mark showhold` lists `widget-cli`. A hold is apt's way of freezing a package at its current version -- `apt-get upgrade` and `install --only-upgrade` both skip anything on the hold list entirely, by design. Crucially, nothing else surfaces this: `apt list --upgradable`, `apt-get upgrade -s`, even `apt-cache policy` all just quietly agree the candidate isn't going to change, without ever saying why. It was set during an old incident freeze and never lifted once that freeze ended."
+  },
+  {
+    "order_index": 4,
+    "title": "Lift the hold, then retry the exact upgrade path",
+    "explanation": "`sudo apt-mark unhold widget-cli` removes the freeze; `sudo apt-get install --only-upgrade -y widget-cli` then proceeds normally, since nothing else about the package or mirror was ever actually broken."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify against the behavior that was actually failing",
+    "explanation": "`widget-cli --health` reporting `OK` confirms the 2.0-1 binary is genuinely running, not just that dpkg's version field changed -- the same command the monitoring probe itself calls."
+  }
+]

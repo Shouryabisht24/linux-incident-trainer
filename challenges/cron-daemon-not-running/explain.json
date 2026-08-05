@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Rule out the schedule before suspecting the daemon",
+    "explanation": "`cat /etc/cron.d/heartbeat` shows a perfectly ordinary, valid entry (`* * * * * root date >> /var/log/heartbeat.log 2>&1`). When the crontab content itself is fine but *nothing at all* scheduled has run — not one job, across every crontab on the box — the fault is almost never in an individual entry. That pattern points one level up, at whatever is supposed to be reading and firing those entries in the first place."
+  },
+  {
+    "order_index": 2,
+    "title": "cron is a daemon, not a per-job trigger",
+    "explanation": "Nothing about a crontab file causes a job to run on its own — a long-lived `cron` process has to be alive, polling the clock, and deciding each minute what's due. `pgrep -x cron` (or `ps -ef | grep cron`) coming back empty means that process simply isn't running: every schedule on the box is inert at once, which is exactly the symptom described (backups, log shipping, everything silent since the maintenance window)."
+  },
+  {
+    "order_index": 3,
+    "title": "A maintenance window is a plausible reason the daemon never came back",
+    "explanation": "A reboot or service restart during maintenance stops every running process, including `cron` — but unlike a package that's `enabled` at boot, a daemon that was manually stopped (or never enabled) doesn't restart itself just because the crontabs are still sitting on disk. The files being intact is exactly why this looks confusing from the outside: everything *looks* configured correctly."
+  },
+  {
+    "order_index": 4,
+    "title": "Start it, and make sure it stays started",
+    "explanation": "`sudo service cron start` (or `sudo cron`) brings the daemon up immediately. On a systemd host, `sudo systemctl enable --now cron` does the same but additionally marks it to start automatically on the next boot — the difference between fixing today's incident and having it recur after the next reboot or maintenance window."
+  },
+  {
+    "order_index": 5,
+    "title": "Confirm the same way you diagnosed",
+    "explanation": "Re-running `pgrep -x cron` and seeing a PID back is the direct proof the fix took — the same check from step 2, now returning a different answer. Lesson for next time: when *every* scheduled job goes quiet simultaneously, check whether the daemon is alive before combing through individual crontab syntax."
+  }
+]

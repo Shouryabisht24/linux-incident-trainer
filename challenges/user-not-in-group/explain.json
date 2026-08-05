@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Reproduce the exact failure, then look at the target",
+    "explanation": "`sudo -u deploy touch /srv/app/x` fails with `Permission denied`. `ls -ld /srv/app` shows `drwxrws--- root appteam` — writable by its owner and by the `appteam` group, nothing else. The directory's permission model is already correct; the question is purely whether `deploy` is inside the group it's relying on."
+  },
+  {
+    "order_index": 2,
+    "title": "Check membership before assuming permission bits are wrong",
+    "explanation": "`id deploy` (or `groups deploy`) lists every group the account actually belongs to. `appteam` isn't in that list — the group-write bit on `/srv/app` simply doesn't extend to `deploy` at all, no matter how permissive the directory's mode looks."
+  },
+  {
+    "order_index": 3,
+    "title": "Append, don't replace",
+    "explanation": "`sudo usermod -aG appteam deploy` is deliberate about the `-a` (append) flag — `usermod -G` without it overwrites the account's entire supplementary group list with whatever you pass, silently dropping any other groups `deploy` was already in. `-aG` adds `appteam` while leaving everything else intact."
+  },
+  {
+    "order_index": 4,
+    "title": "New membership needs a new session to take effect",
+    "explanation": "A process's group memberships are fixed at login/session start; a shell that was already running before the `usermod` won't see the change until it starts fresh. Verifying with `sudo -u deploy` (which spawns a new session) rather than reusing an existing shell is what actually exercises the updated membership."
+  },
+  {
+    "order_index": 5,
+    "title": "The setgid bit does the rest going forward",
+    "explanation": "`/srv/app`'s mode `2770` includes the setgid bit, so once `deploy` can write there at all, new files it creates automatically inherit the `appteam` group — deploy doesn't need to `chgrp` anything itself for future releases to stay consistent."
+  }
+]

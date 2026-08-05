@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "\"Falls back to a password prompt\" is SSH's tell for a rejected key",
+    "explanation": "`ssh -i ~/deploy_key deploy@localhost` not erroring outright, but instead offering a password deploy doesn't have, means the key was presented and the server declined to use it — the client then just moves on to the next auth method in its list. That's different from a connection failure or a missing key, and it points you toward the server-side auth path, not the key file itself."
+  },
+  {
+    "order_index": 2,
+    "title": "Ask sshd why, don't guess",
+    "explanation": "sshd logs the specific reason it skipped a key. `sudo tail -n 30 /var/log/auth.log` surfaces `Authentication refused: bad ownership or modes for directory /home/deploy/.ssh` — a precise diagnosis, not a generic auth failure, so there's no need to guess between a wrong key, a wrong path, or a permissions problem."
+  },
+  {
+    "order_index": 3,
+    "title": "This is StrictModes, not a kernel permission bypass",
+    "explanation": "sshd itself runs as root, which normally ignores DAC permission checks entirely — but StrictModes is sshd's own deliberate, application-level guard, unrelated to the kernel's read/write enforcement. It refuses to trust `~/.ssh` or `authorized_keys` if they're writable by group or other, on the theory that anyone who could write to them could plant their own key or redirect the account's trusted files. `ls -ld /home/deploy/.ssh` and `ls -l /home/deploy/.ssh/authorized_keys` show `0777`/`0666` — a backup-restore reset that went too far."
+  },
+  {
+    "order_index": 4,
+    "title": "Fix the modes to exactly what StrictModes expects",
+    "explanation": "`chmod 700 /home/deploy/.ssh` and `chmod 600 /home/deploy/.ssh/authorized_keys` restore owner-only access — the minimum StrictModes will accept, and no sshd reload is needed since this check runs fresh on each auth attempt, not from cached config."
+  },
+  {
+    "order_index": 5,
+    "title": "Retry the exact command that failed",
+    "explanation": "`ssh -i ~/deploy_key deploy@localhost` now authenticates with the key instead of falling through to a password prompt, confirming StrictModes accepted the tightened permissions rather than just assuming the fix worked from the mode bits alone."
+  }
+]

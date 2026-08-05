@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "It fails before any network activity — that rules out the server",
+    "explanation": "`ssh apphost 'echo hi'` failing instantly, with no connection delay and no host-key prompt, means sshd on the other end never even saw a TCP packet. Every other directive that could reject a login (AllowUsers, StrictModes on the server's authorized_keys, PubkeyAuthentication) only matters once a connection is actually attempted — so the fault has to be local, on the machine you're sitting on."
+  },
+  {
+    "order_index": 2,
+    "title": "Read the actual error instead of assuming it's the alias",
+    "explanation": "Running without swallowing stderr shows `Bad owner or permissions for /home/trainee/.ssh/config`. That's specific: the `ssh` client is refusing to even parse the config file that defines the `apphost` alias, which is why the alias never resolves to anything."
+  },
+  {
+    "order_index": 3,
+    "title": "The ssh client enforces StrictModes-style paranoia on its own config",
+    "explanation": "sshd refuses an `authorized_keys` file writable by group/other because anyone with write access could plant a key; the `ssh(1)` client applies the identical logic to your own `~/.ssh/config`, since a writable config could let another local user redirect your connections or inject a `ProxyCommand`. This check runs as your own unprivileged UID — it has nothing to do with root, sshd, or the target host, which is why it's consistent no matter what's on the other end."
+  },
+  {
+    "order_index": 4,
+    "title": "Confirm the exact permission gap before fixing it",
+    "explanation": "`ls -l ~/.ssh/config` shows it world-writable (`-rw-rw-rw-`) rather than owner-only — the mode ssh's own check is objecting to, likely left behind by someone loosening permissions the blunt way while chasing an unrelated 'permission denied'."
+  },
+  {
+    "order_index": 5,
+    "title": "Tighten it and verify with the original failing command",
+    "explanation": "`chmod 600 ~/.ssh/config` restores owner-only access, and `ssh apphost 'echo SSH_OK'` now succeeds — the `apphost` alias resolves and pulls in its `HostName`, `User`, and `IdentityFile` exactly as configured, confirming the client was willing to read the file again."
+  }
+]

@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "Let the failure mode itself narrow the search",
+    "explanation": "`reportd-log hello` followed by `cat /var/log/reportd/reportd.log` doesn't just return empty — `cat` errors with \"No such file or directory\", even though `ls /var/log/reportd/` lists `reportd.log` right there. A path that's listed by `ls` but unreadable by `cat` is a strong hint you're looking at a symlink, not a regular file."
+  },
+  {
+    "order_index": 2,
+    "title": "Follow the symlink to where it actually points",
+    "explanation": "`ls -l /var/log/reportd/reportd.log` confirms it's a symlink, pointing at `/var/log/reportd-archive/2026-06-01.log`. Checking the target directory itself — `ls -ld /var/log/reportd-archive` — shows that directory doesn't exist at all, not just the file inside it."
+  },
+  {
+    "order_index": 3,
+    "title": "A missing target directory fails differently than a symlink to /dev/null",
+    "explanation": "When a symlink's target directory doesn't exist, the `open()` call needed to append to it fails outright with ENOENT — there's nowhere for the file to even be created. That's a different failure mode from a symlink to `/dev/null` (where every write always succeeds and is silently discarded); here, every write actually errors, and reportd's logging wrapper is written to swallow that error so a logging hiccup never crashes the app itself."
+  },
+  {
+    "order_index": 4,
+    "title": "Trace the missing directory back to a plausible real-world cause",
+    "explanation": "A path like `/var/log/reportd-archive` disappearing entirely, while a symlink still points into it, is exactly what happens when a separate log-archive mount or volume gets decommissioned or unmounted and nobody chases down every symlink that referenced it."
+  },
+  {
+    "order_index": 5,
+    "title": "Fix by pointing logging at something that actually exists",
+    "explanation": "Either restore the original intent (`sudo mkdir -p /var/log/reportd-archive` then `sudo touch` the symlink's target so it resolves), or simplify by dropping the indirection entirely: `sudo rm /var/log/reportd/reportd.log && sudo touch /var/log/reportd/reportd.log` makes the log path a real file directly, with no dependency on an archive location that may vanish again."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify with the exact command that first exposed the bug",
+    "explanation": "`reportd-log test && cat /var/log/reportd/reportd.log` now shows the line — proving the same `cat` that previously errored with \"No such file or directory\" succeeds cleanly."
+  }
+]

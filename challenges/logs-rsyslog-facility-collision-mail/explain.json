@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "Reproduce it, then rule out the obvious sabotage patterns first",
+    "explanation": "`shipnotify-log 'test message'` produces no error, but `/var/log/shipnotify/shipnotify.log` never gets the line. `cat /etc/rsyslog.d/25-shipnotify.conf` shows the dedicated rule (`local3.*    /var/log/shipnotify/shipnotify.log`) is completely ordinary — no `/dev/null`, no `& stop`, nothing that looks like a deliberate silencing rule."
+  },
+  {
+    "order_index": 2,
+    "title": "If the rule is correct, check whether the app is actually feeding it",
+    "explanation": "A rule can only act on messages tagged for the facility it matches. `cat /usr/local/bin/shipnotify-log` shows the app logs with `logger -p mail.info -t shipnotify`, not `local3` — the facility the app actually emits on doesn't match the facility the dedicated rule listens for."
+  },
+  {
+    "order_index": 3,
+    "title": "Recognize `mail` as a real facility with its own legitimate default rule",
+    "explanation": "`mail` isn't a made-up or debug-only facility — it's a standard syslog facility, and `grep mail /etc/rsyslog.conf` shows rsyslog ships with `mail.*  -/var/log/mail.log` out of the box, installed by the package itself long before `shipnotify` existed. This isn't a rule anyone added to hide something; it's a normal default that happens to be exactly where shipnotify's mistagged messages land instead."
+  },
+  {
+    "order_index": 4,
+    "title": "Confirm where the messages actually went",
+    "explanation": "`cat /var/log/mail.log` shows shipnotify's messages have been landing there the whole time — and, since the default catch-all `*.*` rule doesn't exclude `mail`, likely in `/var/log/syslog` too. The messages were never lost, just routed somewhere nobody on the ops team was watching."
+  },
+  {
+    "order_index": 5,
+    "title": "Fix the app's facility tag to match the rule written for it",
+    "explanation": "`sudo sed -i 's/-p mail.info/-p local3.info/' /usr/local/bin/shipnotify-log` corrects the mistagging — almost certainly a copy-paste leftover from an old mail-notification script. No rsyslog restart or config change is needed here, since the routing rule was correct all along; only the app's own facility tag was wrong."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify against the dedicated log, not the accidental one",
+    "explanation": "`shipnotify-log 'confirm fix'` followed by `tail /var/log/shipnotify/shipnotify.log` now shows the line — confirming messages reach the intended per-app log via the rule that was already correct, rather than continuing to spill into `mail.log`."
+  }
+]

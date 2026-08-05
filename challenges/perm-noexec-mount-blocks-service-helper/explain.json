@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Follow the failure from the service's own behavior, not a guess",
+    "explanation": "`sudo service renderd start` reports `startup self-test failed, refusing to start` and exits non-zero -- the service never even reaches a running state, so there's no daemon to poke at directly. `cat /var/log/renderd/renderd.log` shows the self-test's own error: the helper it invoked returned `Permission denied`. The place to keep digging is that helper, not the top-level service config."
+  },
+  {
+    "order_index": 2,
+    "title": "Trace the helper path and rule out an ordinary permissions problem",
+    "explanation": "`cat /etc/default/renderd` shows `HELPER_PATH=/opt/render-assets/render-helper.sh` -- the single config value both the startup self-test and the resident daemon loop read. `ls -l` on that path shows `-rwxr-xr-x`: the execute bit is completely fine, so a normal `chmod +x` fix doesn't apply here. Something else is blocking execution."
+  },
+  {
+    "order_index": 3,
+    "title": "Check how the containing filesystem is mounted, not just the file's own mode",
+    "explanation": "`mount | grep render-assets` shows `/opt/render-assets` mounted with `noexec`. That flag tells the kernel to refuse `execve()` of anything on that filesystem, entirely independent of any individual file's permission bits -- and unlike ordinary DAC checks, `noexec` is enforced at the mount/VFS level and is **not** bypassed by root either. That's exactly why the self-test fails even though it runs as part of a root-invoked `service ... start`."
+  },
+  {
+    "order_index": 4,
+    "title": "Work within the constraint instead of fighting it",
+    "explanation": "Remounting to drop `noexec` would need `CAP_SYS_ADMIN`, which isn't available here -- and even where it is available, running executables off a directory deliberately mounted `noexec` (typically for staged/untrusted artifacts) defeats the point of that mount option. The real fix is the one production teams actually use: never execute directly off that kind of directory. Copy the helper to a normal, exec-enabled path and repoint the one config value both consumers read."
+  },
+  {
+    "order_index": 5,
+    "title": "Apply the relocation and confirm the service starts",
+    "explanation": "Copying the helper to `/opt/render-tools/render-helper.sh`, making it executable there, and updating `HELPER_PATH` in `/etc/default/renderd` fixes both the init script's self-test and the resident daemon loop in one edit, since they both source the same file. `sudo service renderd start` should now succeed, and `sudo service renderd status` should report it running -- confirming the fix from the same entry point step 1 used to discover the failure, not just by running the helper script by hand."
+  }
+]

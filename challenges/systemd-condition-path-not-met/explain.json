@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "\"inactive\" plus a successful start command is a contradiction worth noticing",
+    "explanation": "A unit that's genuinely broken shows `failed`. Here `systemctl is-active metrics-agent` says `inactive`, and `sudo systemctl start metrics-agent` even exits 0 — yet nothing runs afterward. systemd reporting success while doing nothing observable is the signature of a gate that decided not to act, not a crash."
+  },
+  {
+    "order_index": 2,
+    "title": "Read the Condition line, not just Active",
+    "explanation": "`systemctl status metrics-agent` shows a `Condition:` block noting `ConditionPathExists=/etc/metrics-agent/enabled was not met`. A `Condition*=` directive in `[Unit]` is a start-time gate systemd evaluates before doing anything else — if it's false, systemd skips the start attempt entirely and, critically, does not count that as a failure. That's what separates this from `systemd-masked-service`: masking is an explicit admin lockout that shows up unmistakably as `Loaded: masked`; a failed condition shows a perfectly normal `Loaded: loaded` with only that one extra line as the tell."
+  },
+  {
+    "order_index": 3,
+    "title": "Confirm exactly what's being required",
+    "explanation": "`systemctl cat metrics-agent.service` shows the full `ConditionPathExists=/etc/metrics-agent/enabled` — a real, common pattern for gating a rollout per-host via a flag file config management is supposed to drop during provisioning. `ls -l /etc/metrics-agent/` shows the directory was never created, meaning that provisioning step simply never ran here."
+  },
+  {
+    "order_index": 4,
+    "title": "Satisfy the condition, then start",
+    "explanation": "Creating `/etc/metrics-agent/enabled` doesn't require touching the unit file at all — the fix is at the layer that was supposed to produce this file, not the systemd config that's correctly enforcing it. Once the path exists, `systemctl start metrics-agent` actually attempts the start for the first time."
+  },
+  {
+    "order_index": 5,
+    "title": "Condition failures are silent by design, which is exactly the danger",
+    "explanation": "This class of bug never raises an alarm the way a crash does, because `Condition*=` exists precisely for legitimate \"don't run this here\" cases. That's why `systemctl status` has to be read fully — the `Active:` line alone tells you the unit isn't running, but only the `Condition:` line tells you why systemd never even tried."
+  }
+]

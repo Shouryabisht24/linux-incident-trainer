@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Confirm the process is alive before assuming a config is wrong",
+    "explanation": "`sudo service myapp status` (or `pgrep -f myapp-server`) shows a real running process, which rules out a crash. Combined with `curl http://localhost:8080/` refusing the connection, the shape of the problem is the same as any 'alive but wrong port' bug: find out where it's actually bound. `sudo ss -tlnp` shows it on `:9091`."
+  },
+  {
+    "order_index": 2,
+    "title": "When the obvious place to look turns up nothing, the app is getting its port from somewhere else",
+    "explanation": "The instinct is to grep the app's own config or command line for a hardcoded port — `cat /proc/$(pgrep -f myapp-server)/cmdline` and the app's source both come up empty. That absence is itself the clue: this app was written to not hardcode its port at all."
+  },
+  {
+    "order_index": 3,
+    "title": "Recognize the getservbyname() pattern",
+    "explanation": "The app's source calls `socket.getservbyname(\"myapp\", \"tcp\")` — a decades-old but still-legitimate mechanism for looking up a well-known port by service name from the system-wide `/etc/services` database (backed by NSS, per `nsswitch.conf`'s `services:` line) instead of duplicating a literal port number in every app's own config. `grep myapp /etc/services` shows the mapping this app is actually relying on: `myapp 9091/tcp`."
+  },
+  {
+    "order_index": 4,
+    "title": "The mapping is stale, not the app or its deploy",
+    "explanation": "The app's own deployment was correctly updated to expect port 8080 during the migration — but `/etc/services` is a separate, shared, easy-to-forget system file that nobody updated in the same change, so `getservbyname()` keeps faithfully returning the old value. Fixing it is a plain edit — `sudo sed -i 's/9091/8080/' /etc/services` — since, unlike `/etc/hosts` or `/etc/resolv.conf`, `/etc/services` is a normal file in the container's own filesystem, not bind-mounted, so `sed -i`'s rename-based replace works without issue."
+  },
+  {
+    "order_index": 5,
+    "title": "The lookup only happens at startup, so the app must restart to pick it up",
+    "explanation": "`getservbyname()` is called once when the app starts, not re-checked continuously — editing `/etc/services` alone changes nothing for the already-running process. `sudo service myapp restart` forces it to re-resolve its port, and `curl http://localhost:8080/` succeeding (confirmed by `ss -tlnp` now showing it on 8080) verifies the new mapping actually took effect."
+  }
+]

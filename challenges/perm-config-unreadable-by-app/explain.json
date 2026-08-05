@@ -1,0 +1,22 @@
+[
+  {
+    "order_index": 1,
+    "title": "Test as the account the app actually runs under",
+    "explanation": "`sudo -u billing cat /etc/billing/billing.conf` fails with `Permission denied`. Testing with plain `sudo cat` instead would succeed and hide the problem entirely -- root reads anything regardless of file permissions, and the app never runs as root."
+  },
+  {
+    "order_index": 2,
+    "title": "Confirm what's actually blocking it",
+    "explanation": "`ls -l /etc/billing/billing.conf` shows `-rw------- root root` -- mode `600`. Only the owning UID (`root`) has any access at all; `billing` falls into \"other\" and gets nothing. That fully explains the failure -- no ACL, no capability, just a plain mode that never accounted for the app's own account."
+  },
+  {
+    "order_index": 3,
+    "title": "Grant access to exactly the account that needs it, not to everyone",
+    "explanation": "The file holds a secret (`db_password`, `api_key`), so the fix isn't `chmod 644` -- that would make it world-readable to every account on the box. Either `sudo chown billing /etc/billing/billing.conf` (keeps it at `600`, now owned by the app's own user) or `sudo chgrp billing ... && sudo chmod 640 ...` (readable by the `billing` group only) grants the minimum needed."
+  },
+  {
+    "order_index": 4,
+    "title": "Verify as the app's own user again",
+    "explanation": "`sudo -u billing cat /etc/billing/billing.conf` should now print the config contents. Checking with `sudo cat` here would be meaningless -- it was never in question that root could read it."
+  }
+]

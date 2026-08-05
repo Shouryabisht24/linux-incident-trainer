@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "Notice when the error doesn't match the obvious cause",
+    "explanation": "`Permission denied` normally means check ownership and mode bits — but `ls -l` on the script clearly shows the execute bit set (`-rwxr-xr-x`), and nobody touched the file. When the textbook cause is visibly ruled out, that's the signal to look one level up, at how the filesystem the script lives on is mounted, not to keep re-checking the same bits."
+  },
+  {
+    "order_index": 2,
+    "title": "Follow the indirection to find where the script actually lives",
+    "explanation": "`cat /usr/local/bin/run-migration` shows it's a thin wrapper that just execs `/opt/deploy/run-migration.sh` — the real script is staged in a different directory than the stable entry point ops actually calls. Confirming the *target's* permissions (not the wrapper's) is what actually matters here."
+  },
+  {
+    "order_index": 3,
+    "title": "Check the mount itself, not just the file",
+    "explanation": "`mount | grep /opt/deploy` shows the filesystem is mounted `noexec`. That flag tells the kernel to refuse `execve()` of anything on that filesystem outright, enforced at the VFS/mount level — a check that happens before file mode bits are even consulted. That's why the execute bit being set changes nothing: mode bits govern whether execution is *allowed* by permissions; `noexec` says execution isn't allowed *at all*, regardless of permissions."
+  },
+  {
+    "order_index": 4,
+    "title": "Rule out the tempting shortcut",
+    "explanation": "Remounting `/opt/deploy` without `noexec` would fix this in one command — but that requires `CAP_SYS_ADMIN`, which this environment deliberately doesn't grant, mirroring a real ops constraint where you often can't (or shouldn't) just remount infrastructure other things depend on staying locked down."
+  },
+  {
+    "order_index": 5,
+    "title": "Move the executable instead of fighting the mount option",
+    "explanation": "Copying the script to a normal, exec-enabled location (`/opt/tools/run-migration.sh`), `chmod +x` there, and repointing the wrapper at the new path is the standard real-world fix: keep runnable tooling off directories that are `noexec` by design for artifact/data staging, rather than trying to defeat the mount's purpose."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify through the same entry point that was failing",
+    "explanation": "Running `run-migration` (the stable wrapper ops actually calls, not the moved script directly) and confirming `/var/lib/app/migration.done` appears proves the real call path works end to end — not just that the script runs when invoked by hand from its new location."
+  }
+]

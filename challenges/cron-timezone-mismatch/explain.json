@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "The symptom is misalignment, not failure",
+    "explanation": "`cat /etc/cron.d/nightly-report` and `cat /opt/scripts/nightly-report.sh` both look entirely correct — valid five-field schedule, a script with no logic bugs, and the job genuinely does fire once a day. Nothing here is broken in the usual sense; the report shows up, just not at the moment every other box in the fleet expects it. That distinction matters: it rules out syntax and script debugging and points somewhere else entirely."
+  },
+  {
+    "order_index": 2,
+    "title": "Ask the box what time it thinks it is",
+    "explanation": "`date` reports something like `Sat Aug 1 19:10:22 PDT 2026`, and `date +%z` reports `-0700`. This box's system timezone is Pacific — not the UTC the fleet-wide pipeline was designed around. The cron entry never mentioned a timezone at all, so this is the first place the mismatch becomes visible."
+  },
+  {
+    "order_index": 3,
+    "title": "cron has no concept of UTC as a default",
+    "explanation": "cron interprets a schedule like `0 2 * * *` against the system's own local time — read from `/etc/localtime` — unless the crontab explicitly overrides it with something like `CRON_TZ=`. The identical literal line means 02:00 UTC on a box configured for UTC, and 02:00 *Pacific* (09:00 or 10:00 UTC, depending on daylight saving) on this one. Nothing about the cron entry or the script differs between boxes — only each box's own idea of \"what time it is\" does."
+  },
+  {
+    "order_index": 4,
+    "title": "Fix the box's clock, not the schedule's hour",
+    "explanation": "Changing `0 2 * * *` to whatever hour happens to cancel out the current offset would only work until daylight saving shifts again, or until someone else fixes the timezone properly and re-breaks the compensating math. The durable fix is at the source: `sudo ln -sf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC | sudo tee /etc/timezone` makes the box's own notion of local time actually be UTC, so `0 2 * * *` means the same instant here as it does on every other fleet box, permanently."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify with the same command that exposed the bug, then confirm nothing else broke",
+    "explanation": "`date +%z` now reads `+0000` — the same check from step 2, now correct. Re-running the report job the way cron would (`su -s /bin/sh -c /opt/scripts/nightly-report.sh trainee`) confirms it still produces `/var/lib/app/last-report` cleanly, now genuinely timestamped in the fleet's shared UTC frame rather than just moved to a different wrong hour."
+  }
+]

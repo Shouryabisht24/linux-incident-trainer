@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "203/EXEC means systemd never even got the program running",
+    "explanation": "`systemctl status apiserver` reporting `status=203/EXEC` is a specific pre-flight failure code from systemd itself, not an app crash — it means the fork happened but the `exec()` syscall on the `ExecStart=` program failed. That distinction matters: there's no application log to chase here, because the application's own code never ran."
+  },
+  {
+    "order_index": 2,
+    "title": "See what path the unit is actually trying to run",
+    "explanation": "`systemctl cat apiserver` shows the effective `ExecStart=/usr/local/sbin/apiserver`. `203/EXEC` almost always reduces to one of three things: the path doesn't exist, it exists but isn't executable, or it's a script missing its shebang/interpreter — checking `ls -l /usr/local/sbin/apiserver` next narrows it down immediately."
+  },
+  {
+    "order_index": 3,
+    "title": "Find where the binary really ended up",
+    "explanation": "The path in the unit doesn't exist, but the package clearly installed the binary somewhere — `command -v apiserver` or a quick `ls -l /usr/local/bin/` locates it. The unit file is just stale relative to where the package now puts things after the move."
+  },
+  {
+    "order_index": 4,
+    "title": "Edit the unit, then reload before restarting",
+    "explanation": "Fixing `ExecStart=` to point at the real path only changes the file on disk. systemd caches parsed unit definitions in memory, so `systemctl daemon-reload` is required before `systemctl restart apiserver` will actually pick up the new path — skipping it means you'd be restarting the exact same broken definition you just edited."
+  },
+  {
+    "order_index": 5,
+    "title": "Confirm against the same check that first surfaced the problem",
+    "explanation": "`systemctl is-active apiserver` reporting `active` confirms the fix took, using the same status lens the incident started with — rather than assuming the edit worked just because `daemon-reload` and `restart` both returned without error."
+  }
+]

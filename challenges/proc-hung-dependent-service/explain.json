@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "Rule out the shapes this could be, but isn't",
+    "explanation": "`top` shows event-shipper at ~0% CPU -- not a busy loop. `ps aux | grep event-shipper` shows a normal, live process, not `<defunct>` -- not a zombie either. It's genuinely alive and genuinely idle, which is its own distinct failure mode: `ps`/`top` alone can't tell \"stuck forever\" apart from \"idling as designed\" (e.g. a legitimate `sleep infinity`)."
+  },
+  {
+    "order_index": 2,
+    "title": "Ask the kernel exactly what it's parked inside",
+    "explanation": "Get its PID (`cat /var/run/telemetry/event-shipper.pid`), then `cat /proc/<pid>/status | grep State` (interruptible sleep, `S`) and, more precisely, `cat /proc/<pid>/wchan` -- the specific kernel function it's blocked in. It reads `wait_for_partner`, the kernel's name for a process blocked opening one end of a named pipe (FIFO) while nothing has opened the other end."
+  },
+  {
+    "order_index": 3,
+    "title": "This is expected pipe semantics, not a bug in event-shipper",
+    "explanation": "event-shipper's own source opens `/run/app.pipe` for writing (`exec 3>/run/app.pipe`) as its very first action. Opening a FIFO write-only is defined to block in the kernel until some other process opens it for reading -- so the question isn't \"what's wrong with event-shipper\", it's \"what's supposed to be reading from this pipe, and is it running?\""
+  },
+  {
+    "order_index": 4,
+    "title": "Trace the missing reader to a dropped config entry",
+    "explanation": "`log-collector` is the intended reader, started by the same control script (`/usr/local/bin/svc-ctl`) that reads its service list from `/etc/telemetry/services.conf`. That file only lists `SERVICES=\"event-shipper\"` -- an edit dropped `log-collector`, so it never starts, and the pipe's read end never opens."
+  },
+  {
+    "order_index": 5,
+    "title": "Fix the other side of the handshake, not the stuck process",
+    "explanation": "Add `log-collector` back to the config and start it directly (`sudo svc-ctl start log-collector`). event-shipper itself needs no restart at all: the instant a reader opens the pipe, its already-blocked `open()` call returns immediately and it resumes writing on its own."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify the block actually cleared, not just that a new process exists",
+    "explanation": "`cat /proc/<event-shipper-pid>/wchan` should now show something like `hrtimer_nanosleep` -- back in its normal `sleep 2` cycle instead of `wait_for_partner` -- and `/var/log/telemetry/events.log` should be visibly growing, proving events are flowing end-to-end rather than just that a reader process is technically running."
+  }
+]

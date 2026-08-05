@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Confirm the filesystem, then look at what's actually in it",
+    "explanation": "`df -h /var/cache/photoapp/thumbnails` confirms the cache's filesystem is full. `ls /var/cache/photoapp/thumbnails | wc -l` then shows a suspiciously large file count for what should be a small site's thumbnail cache — a sign this isn't one big file but an unbounded accumulation of small ones."
+  },
+  {
+    "order_index": 2,
+    "title": "Cross-reference against what's actually still live",
+    "explanation": "`ls /srv/photoapp/photos/` shows only a handful of real photos exist today, but almost every cached file is `thumb-orphan-*.jpg`. The cache was never pruned as photos came and went, so it still holds a thumbnail for every photo the site has ever hosted — not just the ones a visitor could still view."
+  },
+  {
+    "order_index": 3,
+    "title": "Delete with find, not a glob, at this scale",
+    "explanation": "With this many matching files, `rm /var/cache/photoapp/thumbnails/thumb-orphan-*.jpg` can fail with *Argument list too long* before `rm` even runs, because the shell has to expand the wildcard into one command line first. `sudo find /var/cache/photoapp/thumbnails -name 'thumb-orphan-*.jpg' -delete` removes them one at a time without building that list."
+  },
+  {
+    "order_index": 4,
+    "title": "Verify the cache is genuinely usable, not just that df looks better",
+    "explanation": "Freed space alone doesn't prove the app can use it. Running `photoapp-thumbnailer generate 1` and confirming it actually writes a new thumbnail file is the same habit as checking a fix from the angle that was actually broken, rather than trusting a single number."
+  },
+  {
+    "order_index": 5,
+    "title": "The durable fix ties cleanup to the event that creates the orphan",
+    "explanation": "A cache is only safe to let grow if something eventually prunes it. The lasting version of this fix isn't a one-time `find -delete` — it's making thumbnail generation self-cleaning: remove a cached thumbnail when its source photo is deleted, or run a periodic job that reconciles the cache against what actually still exists in `/srv/photoapp/photos`."
+  }
+]

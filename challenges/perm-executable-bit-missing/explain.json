@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Reproduce as the account that actually runs it",
+    "explanation": "`sudo -u monitor /usr/local/bin/healthcheck` fails with `Permission denied`. Running it as root would fail identically here, which is itself a useful signal -- unlike ordinary DAC read/write checks, the execute bit is one permission root doesn't get to skip."
+  },
+  {
+    "order_index": 2,
+    "title": "Check the mode",
+    "explanation": "`ls -l /usr/local/bin/healthcheck` shows `-rw-r--r--` (644) -- read permission everywhere, but no `x` bit for anyone, owner included. A \"config-management normalized modes\" run is a classic way to end up here: something blindly set every file to a read/write default without checking whether it needed to stay executable."
+  },
+  {
+    "order_index": 3,
+    "title": "Understand why this fails even for root",
+    "explanation": "`execve()` refuses to run a file with no execute bit set, full stop -- this is one of the few DAC checks the kernel enforces regardless of caller privilege. That's different from a read/write permission problem, where root always has an escape hatch; here even root would hit the exact same `Permission denied` trying to exec this file directly."
+  },
+  {
+    "order_index": 4,
+    "title": "Restore the execute bit",
+    "explanation": "`sudo chmod +x /usr/local/bin/healthcheck` adds execute for owner, group, and other (mode becomes `755`), matching what a script meant to be run directly needs."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify as the real user",
+    "explanation": "`sudo -u monitor /usr/local/bin/healthcheck` should now print `OK` -- confirming `monitor` can invoke it directly, the same way the monitoring agent does every minute."
+  }
+]

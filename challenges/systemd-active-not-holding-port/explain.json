@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "'active' describes the process, not whether it succeeded at its job",
+    "explanation": "`systemctl is-active webapp` reporting `active`, with a real PID in `systemctl status`, means exactly one thing under `Type=simple`: the main process is still alive. It says nothing about whether that process actually bound its port, served a request, or accomplished anything — so a health-check timeout (`curl --max-time 5 http://localhost:8080/`) disagreeing with a healthy-looking `systemctl status` is a real signal, not something to dismiss because the unit 'looks fine.'"
+  },
+  {
+    "order_index": 2,
+    "title": "Find out who actually holds the port, then trace that PID to its real unit",
+    "explanation": "`sudo ss -tlnp | grep 8080` names the PID genuinely bound to port 8080. `ps -p <pid> -o unit=` (or `systemctl status <pid>`) traces that PID back to its owning unit — and it comes back as `webapp-canary.service`, not `webapp.service`. The unit that's serving the port and the unit you were told is 'the' web app are two different things."
+  },
+  {
+    "order_index": 3,
+    "title": "Recognize the leftover-rollout-artifact pattern",
+    "explanation": "`webapp-canary.service` is an old canary/blue-green rollout agent that was supposed to be stopped and disabled after cutover, but the unit file was never removed — it's still enabled, starts on every boot, and (ordered before `webapp.service` via `After=`) wins the race for port 8080 every time. This is a common way leftover infrastructure from a deploy strategy silently outlives its purpose."
+  },
+  {
+    "order_index": 4,
+    "title": "Understand why the real app still reports 'active' despite losing the race",
+    "explanation": "`sudo journalctl -u webapp -e` (flushing first with `journalctl --flush` if it looks empty) reveals the real app's own log: `bind() failed, port already in use -- idling`. Its binary doesn't crash on a failed bind — it logs the failure and sleeps forever. Since `Type=simple` only tracks whether the main process exited, an idling-but-alive process keeps the unit 'active (running)' indefinitely without ever doing its job — the process itself is swallowing the failure that would otherwise have made the problem obvious."
+  },
+  {
+    "order_index": 5,
+    "title": "Fix it durably, not just for this instant",
+    "explanation": "Killing the canary process alone wouldn't be a fix — since the unit is still enabled, it would simply start again on the next boot and win the race again. `systemctl stop webapp-canary && systemctl disable webapp-canary` removes it from startup permanently, and only then does `systemctl restart webapp` give the real app an uncontested shot at the port. Re-checking `ss -tlnp` afterward confirms the PID on 8080 now traces back to `webapp.service` itself, not just that *something* answers `curl`."
+  }
+]

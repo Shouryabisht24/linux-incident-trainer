@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Nothing listening on 22 means sshd never got running at all",
+    "explanation": "Connections being refused at the TCP level, not just rejected during login, means this isn't an authentication or access-control problem — sshd itself isn't up. Starting it manually surfaces the real reason instead of just an opaque service-failed status: `sudo /usr/sbin/sshd -D -e` runs it in the foreground with errors on stderr."
+  },
+  {
+    "order_index": 2,
+    "title": "sshd names the exact reason it's refusing each key",
+    "explanation": "The foreground run logs, per host key file: `Permissions 0644 for '/etc/ssh/ssh_host_rsa_key' are too open ... This private key will be ignored.` `ls -l /etc/ssh/ssh_host_*_key` confirms all three host keys were left group/world-readable — collateral damage from a broad permissions-audit `chmod` sweep across `/etc`."
+  },
+  {
+    "order_index": 3,
+    "title": "This is sshd's own safeguard, not a kernel DAC bypass issue",
+    "explanation": "sshd itself runs as root, which normally ignores file permission checks entirely — but sshd deliberately refuses to use a private host key that anyone besides root can read, regardless of who's running it. It's an application-level policy decision, not something root privilege overrides."
+  },
+  {
+    "order_index": 4,
+    "title": "It's all-or-nothing: only total rejection causes a full outage",
+    "explanation": "As long as at least one host key is still properly protected, sshd would start using that one key alone. It's only once every host key is rejected that sshd has nothing left to identify itself with and exits outright with `no hostkeys available -- exiting` — which is exactly why a sweep that hit all three keys at once turned a partial degradation into total downtime."
+  },
+  {
+    "order_index": 5,
+    "title": "Fix the permissions on every key, then actually start the service",
+    "explanation": "`sudo chmod 600 /etc/ssh/ssh_host_*_key` restores owner-only access on all three, and `sudo service ssh start` brings sshd up. Verifying with `ss -tln | grep :22` (rather than just trusting the start command's exit code) confirms it's actually bound and listening, not just that the process launched."
+  }
+]

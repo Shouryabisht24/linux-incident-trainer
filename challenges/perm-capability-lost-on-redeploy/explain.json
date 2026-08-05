@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "The same binary behaves differently depending on who runs it -- that's the tell",
+    "explanation": "`sudo -u netmon /usr/local/bin/icmp-probe` fails with `Operation not permitted`, but running the identical file as root succeeds. Root implicitly holds every kernel capability, so a root run can't distinguish \"the binary is fine\" from \"the binary is fine only because you're root\" -- the failure only shows up when the real, unprivileged caller (`netmon`) runs it."
+  },
+  {
+    "order_index": 2,
+    "title": "Rule out a plain permissions problem before chasing anything else",
+    "explanation": "`ls -l /usr/local/bin/icmp-probe` shows `-rwxr-xr-x root root` -- completely normal ownership and mode, nothing a `chmod`/`chown` fix would touch. Building a raw socket (`socket(AF_INET, SOCK_RAW, ...)`) isn't gated by file mode bits at all -- the kernel checks for the `CAP_NET_RAW` capability specifically, independent of DAC permissions."
+  },
+  {
+    "order_index": 3,
+    "title": "Check for the capability directly",
+    "explanation": "`getcap /usr/local/bin/icmp-probe` prints nothing -- the binary carries no capability data whatsoever. That confirms the gap: the file needs `CAP_NET_RAW` attached to run for a non-root caller, and right now it has none."
+  },
+  {
+    "order_index": 4,
+    "title": "Understand why 'just a redeploy' did this",
+    "explanation": "A Linux file capability lives in the `security.capability` extended attribute, attached to a specific file's on-disk data -- not to its path, and not to its ownership or mode. When a redeploy overwrites the binary with freshly built content, that xattr doesn't carry over, even though the path, owner, and mode all look byte-for-byte identical to before. Unlike ownership/permissions, which most deploy tooling preserves automatically, a capability has to be explicitly reapplied as its own step every time the file changes."
+  },
+  {
+    "order_index": 5,
+    "title": "Reapply the capability, scoped to exactly what the helper needs",
+    "explanation": "`sudo setcap cap_net_raw=+ep /usr/local/bin/icmp-probe` grants only the one privileged operation this helper actually performs, without handing `netmon` broader access (full root, sudo, or a setuid binary would all be more than necessary). `getcap` afterward should show `cap_net_raw=ep`."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify as the real user, and note the fix's fragility",
+    "explanation": "`sudo -u netmon /usr/local/bin/icmp-probe` should now print `PROBE_OK`. Keep in mind this capability lives on the current file's content only -- the next redeploy that rebuilds this binary will silently strip it again unless `setcap` becomes a permanent step in that deploy process, not a one-off manual fix."
+  }
+]

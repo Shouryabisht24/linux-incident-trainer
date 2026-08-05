@@ -1,0 +1,32 @@
+[
+  {
+    "order_index": 1,
+    "title": "The obvious lookup is the trap, not the tool",
+    "explanation": "`getent passwd 1301` (and `id 1301`, and `ls -l` on any file with that owner) returns exactly one name. NSS's UID lookup (`getpwuid()`) has no concept of \"there might be more than one account at this number\" — it just returns the first `/etc/passwd` entry that matches and stops. It will confidently show you `logshipper` even when the file in question actually belongs to `metricsagent`."
+  },
+  {
+    "order_index": 2,
+    "title": "See both entries by reading the file, not looking one up",
+    "explanation": "`awk -F: '$3==1301 {print}' /etc/passwd` scans every line instead of resolving a single number, and reveals both `logshipper` and `metricsagent` claiming UID 1301. This is the only reliable way to detect a duplicate UID — any tool that does a keyed lookup by definition can't show you a collision."
+  },
+  {
+    "order_index": 3,
+    "title": "As far as the kernel is concerned, they are the same identity",
+    "explanation": "File ownership, permission checks, and process credentials are all UID-number based — the kernel doesn't track usernames at all. `metricsagent` and `logshipper` aren't two accounts that happen to overlap; for every permission decision the kernel makes, they're one and the same principal, which is why this is a real identity-confusion bug and not just a cosmetic `ls -l` quirk."
+  },
+  {
+    "order_index": 4,
+    "title": "Renumber the newer account, not the one with real data",
+    "explanation": "`logshipper` already owns production data at `/var/lib/logship/data`; `metricsagent` was the one created later with a stale next-free-UID calculation. Fixing the account that's actually wrong — rather than picking whichever is more convenient — avoids having to untangle ownership on files that were already correct."
+  },
+  {
+    "order_index": 5,
+    "title": "usermod -u re-chowns what it already knows the account owns",
+    "explanation": "`sudo usermod -u 1302 metricsagent` updates the account's UID and automatically re-chowns files still tagged with its old UID that it can find (like its own home directory) — no separate manual `chown` pass needed for those. `logshipper` and its data were never touched, since they were correct the whole time."
+  },
+  {
+    "order_index": 6,
+    "title": "Verify with the same read-the-file approach, not a single lookup",
+    "explanation": "`id logshipper` and `id metricsagent` should now report different numbers, and `awk -F: '{print $3}' /etc/passwd | sort | uniq -d` should come back empty — confirming no duplicate UID remains anywhere, not just that these two specific accounts look fine."
+  }
+]

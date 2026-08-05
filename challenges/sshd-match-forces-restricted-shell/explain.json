@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "A clean login with silently-missing command output is a different failure class",
+    "explanation": "No password prompt, no key rejection, no disconnect — authentication is completely fine. That rules out `authorized_keys` permissions, `AllowUsers`, and `PubkeyAuthentication` entirely; whatever's wrong happens strictly *after* the session is established, when sshd decides what to actually run."
+  },
+  {
+    "order_index": 2,
+    "title": "Read the whole config file, not just the top",
+    "explanation": "`cat /etc/ssh/sshd_config` end to end (not just the commonly-edited directives near the top) surfaces a `Match User deploy` block near the bottom. Conditional `Match` blocks apply extra directives only to sessions meeting the condition, and they're easy to lose track of once a config grows past a single screen."
+  },
+  {
+    "order_index": 3,
+    "title": "ForceCommand replaces the request, it doesn't reject it",
+    "explanation": "`ForceCommand internal-sftp` inside that block unconditionally substitutes whatever command a client actually asked for with the configured one — so `ssh deploy@host 'echo SSH_OK'` connects successfully but sshd runs `internal-sftp` instead of `echo`, and the client gets no matching output at all. This block was written for a genuinely sftp-only backup-transfer account and ended up matching `deploy` too, almost certainly from a copy-pasted `Match User` line that reused the wrong username."
+  },
+  {
+    "order_index": 4,
+    "title": "Remove or correct the block, don't just patch the symptom",
+    "explanation": "Deleting the `Match User deploy` block (or, if a restriction genuinely belongs to a different account, fixing the username it names) addresses the actual misconfiguration rather than working around ForceCommand from the client side, which wouldn't be possible anyway since the server enforces it unconditionally."
+  },
+  {
+    "order_index": 5,
+    "title": "Validate before reloading — a bad Match edit can lock out everyone",
+    "explanation": "`sudo sshd -t` catches a syntax mistake before it's live, which matters more here than usual since a malformed `Match` block can affect login for every subsequent matching session. After restarting sshd, `ssh -i ~/deploy_key deploy@localhost 'echo SSH_OK'` should now actually print `SSH_OK` — confirming the requested command ran, not just that the connection succeeded."
+  }
+]

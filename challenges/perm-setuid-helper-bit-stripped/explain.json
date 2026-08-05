@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "The same binary works for one caller and not another -- that's the signal",
+    "explanation": "`sudo -u auditor /usr/local/bin/read-audit-log` fails with a permission error opening the log, while running the identical file as root succeeds. That split -- works for root, fails for the real unprivileged caller -- points away from a simple broken-file problem and toward something that depends on effective privilege at execution time."
+  },
+  {
+    "order_index": 2,
+    "title": "Look past 'owned by root and executable' to the exact mode string",
+    "explanation": "`ls -l /usr/local/bin/read-audit-log` shows `-rwxr-xr-x root root` -- root-owned, executable, which looks completely fine at a glance. But the owner-execute slot is a plain `x`, not an `s`. That missing `s` is the setuid bit: without it, the helper runs with the *caller's* effective UID (`auditor`), not root's, and `auditor` has no access to the root-owned, mode-`600` audit log it's supposed to read."
+  },
+  {
+    "order_index": 3,
+    "title": "Understand what the setuid bit actually buys here",
+    "explanation": "Setuid lets the kernel promote a process's effective UID to the file owner's (root) at `exec()` time, for the duration of that one call -- no code inside the helper has to request it. That's what let `auditor` read a file it otherwise has zero access to, without handing the account sudo, group membership, or outright ownership of the protected log. A 'permissions hardening' pass that blindly strips extra mode bits (`chmod -s` across a directory) is a realistic way to lose exactly this, while `ls -l` still shows root ownership and an `x` -- nothing that looks obviously wrong unless you check for the `s` specifically."
+  },
+  {
+    "order_index": 4,
+    "title": "Restore the bit",
+    "explanation": "`sudo chmod u+s /usr/local/bin/read-audit-log` re-adds it. `ls -l` afterward should show `-rwsr-xr-x` -- the lowercase `s` confirms both setuid and owner-execute are set together."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify as the real, unprivileged user",
+    "explanation": "`sudo -u auditor /usr/local/bin/read-audit-log` should now print the actual log contents (the `AUDIT_MARKER_OK` line), not just exit cleanly -- confirming the helper is genuinely running with root's effective privileges again, not merely that some other check happened to pass."
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "order_index": 1,
+    "title": "Let dpkg name the actual state it's stuck in",
+    "explanation": "`sudo dpkg --audit` doesn't just say \"something's wrong\" -- it lists exactly which packages are unpacked but not yet configured. Here it names `tree`, meaning dpkg extracted the package's files during some earlier operation but never ran the step that finishes setting it up."
+  },
+  {
+    "order_index": 2,
+    "title": "Understand what \"unpacked but not configured\" actually means",
+    "explanation": "dpkg installs a package in two phases: unpack the files onto disk, then run the package's postinst script to actually configure it (register it, set up config, etc.). If a dpkg/apt process gets killed between those two phases -- exactly what happens when a maintenance window is interrupted mid-run -- the package is left in this half-done state, and dpkg refuses to do *any* further work for *any* package until it's resolved, since its database is no longer in a state it trusts."
+  },
+  {
+    "order_index": 3,
+    "title": "The fix is the exact command the error message already gives you",
+    "explanation": "`sudo dpkg --configure -a` runs the pending postinst for every package stuck in the unpacked-but-not-configured state, with no network or reinstall required -- it's just finishing work that was already interrupted. This is safe and idempotent to run any time dpkg reports this state; it's a no-op if nothing is actually pending."
+  },
+  {
+    "order_index": 4,
+    "title": "Verify dpkg's own audit is clean, not just that the command didn't error",
+    "explanation": "`sudo dpkg --audit` producing no output, plus `dpkg-query -W -f='${Status}' tree` reading `install ok installed`, confirms the package reached its normal fully-configured state -- not merely that `dpkg --configure -a` exited successfully."
+  }
+]

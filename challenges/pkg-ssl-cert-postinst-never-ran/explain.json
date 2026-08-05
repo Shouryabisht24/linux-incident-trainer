@@ -1,0 +1,27 @@
+[
+  {
+    "order_index": 1,
+    "title": "Rule out the interrupted-install failure mode first",
+    "explanation": "`dpkg -s ssl-cert` reports `Status: install ok installed`, and `sudo dpkg --audit` is completely silent. That means dpkg's own bookkeeping has nothing pending -- this is not the classic \"dpkg was interrupted\" state, and `dpkg --configure -a` will have nothing to do here. Confirming that up front stops you from chasing the wrong fix."
+  },
+  {
+    "order_index": 2,
+    "title": "dpkg's record only proves the postinst *ran*, not what it produced",
+    "explanation": "`ls -la /etc/ssl/private/ | grep snakeoil` and `ls -la /etc/ssl/certs/ | grep snakeoil` both come up empty. dpkg's status database records that a package's maintainer scripts executed successfully at some point -- it says nothing about host-specific side effects those scripts generated along the way. Cloning a golden VM image copies that database byte-for-byte, but a first-boot-generated artifact like a self-signed cert never travels with the clone -- so a freshly cloned host can be \"fully configured\" by dpkg's own account while the actual file is simply absent."
+  },
+  {
+    "order_index": 3,
+    "title": "Find what the package's setup step actually calls",
+    "explanation": "ssl-cert's postinst doesn't write the cert/key inline -- it shells out to a helper. `dpkg -L ssl-cert | grep bin` lists the package's own files and turns up `/usr/sbin/make-ssl-cert`, the actual generator behind the missing files."
+  },
+  {
+    "order_index": 4,
+    "title": "Re-trigger the package's real generation step, not a hand-rolled substitute",
+    "explanation": "`sudo dpkg-reconfigure ssl-cert` re-runs the package's postinst, which calls `make-ssl-cert generate-default-snakeoil --force-overwrite` -- recreating both files with the exact ownership and permissions (`root:ssl-cert`, key mode `0640`) that downstream services expect. Generating a cert by hand with raw `openssl req` would produce something that merely looks like a cert, without matching the ownership other services rely on; if debconf ever declines to re-trigger the reconfigure, calling `make-ssl-cert generate-default-snakeoil --force-overwrite` directly does the same work."
+  },
+  {
+    "order_index": 5,
+    "title": "Verify it's a genuine, matching, correctly-owned pair",
+    "explanation": "Both files existing isn't enough on its own: `openssl x509`/`openssl rsa` parsing them confirms they're valid, comparing their moduli confirms the key and cert actually match each other (not two unrelated files), and checking the key's group ownership is `ssl-cert` confirms it matches what the package's own maintainer script -- not a manual `chown` guess -- would have set."
+  }
+]
